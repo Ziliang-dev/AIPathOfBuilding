@@ -18,6 +18,15 @@ local function restoreAbsentBuildDefaults(build, buildNode)
 	end
 end
 
+local function restoreSerializedTabDefaults(build, node)
+	if node.elem == "Skills" and (node.attrib or { }).defaultGemQuality == "nil" then
+		build.skillsTab.defaultGemQuality = nil
+		if build.skillsTab.controls and build.skillsTab.controls.defaultQuality then
+			build.skillsTab.controls.defaultQuality:SetText("")
+		end
+	end
+end
+
 function BuildState.Rebuild(build)
 	if build.configTab and type(build.configTab.BuildModList) == "function" then build.configTab:BuildModList() end
 	if build.skillsTab and type(build.skillsTab.UpdateSocketGroups) == "function" then build.skillsTab:UpdateSocketGroups() end
@@ -82,6 +91,7 @@ function BuildState.Restore(build, xmlText)
 				else
 					local loaded, loadErr = pcall(saver.Load, saver, node, "AIPathOfBuilding rollback")
 					if not loaded then return nil, "restore failed for " .. node.elem .. ": " .. tostring(loadErr) end
+					restoreSerializedTabDefaults(build, node)
 				end
 			end
 		end
