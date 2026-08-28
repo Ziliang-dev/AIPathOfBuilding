@@ -63,6 +63,9 @@ local function hasHigherNumericValues(candidate, current)
 	end
 	return candidate < current
 end
+local function sourcePriority(source)
+	return source:match(" Node$") and 2 or 1
+end
 ---@param set table
 ---@param line string
 ---@param source string
@@ -78,8 +81,12 @@ local function addModLine(set, line, source, supported)
 		modEntry.sources[source] = true
 	end
 	if supported ~= nil then
-		if supported and (not modEntry.supported or hasHigherNumericValues(line, modEntry.text)) then
+		local priority = sourcePriority(source)
+		if supported and (not modEntry.supported
+				or priority > (modEntry.displayPriority or 0)
+				or priority == modEntry.displayPriority and hasHigherNumericValues(line, modEntry.text)) then
 			modEntry.text = line
+			modEntry.displayPriority = priority
 		end
 		modEntry.supported = modEntry.supported or supported
 	end
