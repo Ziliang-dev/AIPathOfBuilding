@@ -24,6 +24,17 @@ local function restoreSerializedTabDefaults(build, node)
 		if build.skillsTab.controls and build.skillsTab.controls.defaultQuality then
 			build.skillsTab.controls.defaultQuality:SetText("")
 		end
+	elseif node.elem == "Items" then
+		if (node.attrib or { }).useSecondWeaponSet == "nil" and build.itemsTab.activeItemSet then
+			build.itemsTab.activeItemSet.useSecondWeaponSet = nil
+		end
+		for _, child in ipairs(node) do
+			if type(child) == "table" and child.elem == "ItemSet"
+					and (child.attrib or { }).useSecondWeaponSet == "nil" then
+				local itemSet = build.itemsTab.itemSets[tonumber(child.attrib.id)]
+				if itemSet then itemSet.useSecondWeaponSet = nil end
+			end
+		end
 	end
 end
 
