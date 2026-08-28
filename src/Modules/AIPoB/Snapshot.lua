@@ -82,6 +82,21 @@ local function canonicalizeItems(itemsNode)
 	end
 end
 
+local function canonicalizeAttributeOrder(xml)
+	return (xml:gsub("<([%w:]+)(.-)(/?)>", function(element, rawAttributes, suffix)
+		local attributes = { }
+		for key, value in rawAttributes:gmatch('(%w+)="(.-)"') do
+			table.insert(attributes, { key = key, value = value })
+		end
+		table.sort(attributes, function(left, right) return left.key < right.key end)
+		local serialized = { }
+		for _, attribute in ipairs(attributes) do
+			table.insert(serialized, attribute.key .. '="' .. attribute.value .. '"')
+		end
+		return "<" .. element .. (#serialized > 0 and " " .. table.concat(serialized, " ") or "") .. suffix .. ">"
+	end))
+end
+
 function Snapshot.SanitizeXML(xml)
 	local document, err = common.xml.ParseXML(xml)
 	if err then return nil, tostring(err) end
@@ -97,7 +112,7 @@ function Snapshot.SanitizeXML(xml)
 	end
 	local composed, composeErr = common.xml.ComposeXML(sanitized)
 	if not composed then return nil, tostring(composeErr) end
-	return composed
+	return canonicalizeAttributeOrder(composed)
 end
 
 function Snapshot.Fingerprint(xml)

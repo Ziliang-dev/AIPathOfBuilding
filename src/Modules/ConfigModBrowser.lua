@@ -64,7 +64,8 @@ local function hasHigherNumericValues(candidate, current)
 	return candidate < current
 end
 local function sourcePriority(source)
-	return source:match(" Node$") and 2 or 1
+	if source:match("^Ascendancy ") or source:match("^Bloodline ") then return 2 end
+	return source:match(" Node$") and 3 or 1
 end
 ---@param set table
 ---@param line string

@@ -32,6 +32,7 @@ describe("AIPathOfBuilding Lua core", function()
 		local first = assert(Snapshot.SanitizeXML([[<PathOfBuilding><Config activeConfigSet="1"><ConfigSet id="1"><Placeholder name="enemyLevel" number="84"/><Input name="enemyIsBoss" string="Boss"/></ConfigSet></Config></PathOfBuilding>]]))
 		local second = assert(Snapshot.SanitizeXML([[<PathOfBuilding><Config activeConfigSet="1"><ConfigSet id="1" title="Default"><Input name="enemyIsBoss" string="Boss"/><Placeholder name="enemyLevel" number="84"/></ConfigSet></Config></PathOfBuilding>]]))
 		assert.are.equal(first, second)
+		assert.is_truthy(first:find('<ConfigSet id="1" title="Default">', 1, true))
 	end)
 
 	it("drops empty trade-search weights from canonical snapshots", function()
