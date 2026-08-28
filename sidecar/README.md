@@ -11,7 +11,7 @@ See the repository [current architecture](../docs/aipob/architecture.md) and
 
 Requires Node.js 22.13 or newer and pnpm.
 
-```powershell
+```bash
 pnpm install
 pnpm typecheck
 pnpm test
@@ -29,15 +29,15 @@ does not silently advertise restart-resumable interrupts backed only by memory.
 
 ## Startup contract
 
-```powershell
-node dist/server.cjs `
-  --host 127.0.0.1 `
-  --port 0 `
-  --session-token '<random-secret-at-least-32-characters>' `
-  --data-dir '<absolute-directory>' `
-  --ready-file '<absolute-json-path>' `
-  --pob-executable '<absolute-PathOfBuilding.exe>' `
-  --worker-script '<absolute-AIPoBWorker.lua>' `
+```bash
+node dist/server.cjs \
+  --host 127.0.0.1 \
+  --port 0 \
+  --session-token '<random-secret-at-least-32-characters>' \
+  --data-dir '<absolute-directory>' \
+  --ready-file '<absolute-json-path>' \
+  --pob-executable '<absolute-PathOfBuilding.exe>' \
+  --worker-script '<absolute-AIPoBWorker.lua>' \
   --worker-count 4
 ```
 

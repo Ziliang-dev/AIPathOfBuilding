@@ -7,16 +7,16 @@ transaction journals while diagnosing an unresolved Apply.
 
 Run from the repository root:
 
-```powershell
-./scripts/check-sidecar.ps1
-./scripts/build-sidecar.ps1
-./scripts/check-manifest.ps1
+```bash
+python3 scripts/aipob.py check-sidecar
+python3 scripts/aipob.py build-sidecar
+python3 scripts/aipob.py check-manifest
 ```
 
-Confirm PowerShell and tool versions:
+Confirm WSL and tool versions:
 
-```powershell
-$PSVersionTable.PSVersion
+```bash
+python3 --version
 node --version
 pnpm --version
 ```
@@ -25,7 +25,7 @@ pnpm --version
 
 | Symptom or error | Likely cause | Check and recovery |
 | --- | --- | --- |
-| `sidecar/dist/server.cjs missing; run pnpm --dir sidecar build` | Release bundle absent | Run `./scripts/build-sidecar.ps1`, then restart the Planner run |
+| `sidecar/dist/server.cjs missing; run pnpm --dir sidecar build` | Release bundle absent | Run `python3 scripts/aipob.py build-sidecar`, then restart the Planner run |
 | `bundled sidecar Node runtime missing` | Non-development launch has no packaged Node runtime | Use a correctly assembled portable package; dev mode may use `node` from `PATH` |
 | `Path of Building worker executable missing from runtime directory` | Runtime package is incomplete or executable name is unexpected | Verify the PoB runtime files; rebuild the package rather than copying an arbitrary executable |
 | `AIPoBWorker.lua missing` | Program manifest/package omitted worker script | Verify `src/AIPoBWorker.lua` and regenerate the package/manifest |
@@ -46,7 +46,7 @@ pnpm --version
 | Apply metric mismatch | Candidate could not be reproduced in fresh verification or commit | Keep the active Build unchanged, inspect Scenario inputs and calculator diagnostics, then reproduce with a focused test |
 | Transaction reports rollback | An action, rebuild, or final verification failed | Confirm the original fingerprint was restored; inspect reported stage and action ID |
 | Transaction journal remains after restart | Apply succeeded locally but sidecar audit was not acknowledged | Allow PlannerController to reconnect and reconcile it; preserve the journal and its backup until recovery finishes |
-| Manifest check fails | Tracked bundle or manifest configuration is stale | Rebuild the sidecar, run `./scripts/check-manifest.ps1`, then regenerate `manifest.xml` only as part of the release workflow |
+| Manifest check fails | Tracked bundle or manifest configuration is stale | Rebuild the sidecar, run `python3 scripts/aipob.py check-manifest`, then regenerate `manifest.xml` only as part of the release workflow |
 
 ## Sidecar data and ready files
 

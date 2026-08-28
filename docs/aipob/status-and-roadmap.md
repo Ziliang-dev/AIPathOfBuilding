@@ -58,9 +58,9 @@ commit before publishing a release.
 Local checks completed on 2026-08-29:
 
 - sidecar typecheck, release build, and `22` Vitest files / `163` tests;
-- `scripts/check-sidecar.ps1`;
-- `scripts/check-manifest.ps1`;
-- PowerShell parser over `11` scripts;
+- `python3 scripts/aipob.py check-sidecar`;
+- `python3 scripts/aipob.py check-manifest`;
+- Python bytecode compilation for all command modules;
 - YAML parse for all workflows; and
 - syntax parse for the changed AIPoB Lua modules and specs.
 
@@ -74,7 +74,7 @@ claimed as passed:
 - apply/reject/failure/restart packaged E2E; and
 - real packaged PoB-process E2E.
 
-`scripts/release-gate.ps1` and `.github/workflows/aipob.yml` define those gates.
+`python3 scripts/aipob.py release-gate` and `.github/workflows/aipob.yml` define those gates.
 A release must not be published if any gate is skipped or fails.
 
 ## Release gates

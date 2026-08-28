@@ -5,11 +5,11 @@ installer is published from this branch yet.
 
 ## Requirements
 
-- PowerShell Core 7 (`pwsh`)
+- WSL2 Ubuntu with Bash and Python 3.10+
 - Node.js 24.20.0 x64 for the release-compatible development path
 - pnpm 11.19.0
 - Docker or a local LuaJIT/Busted environment for the upstream PoB Lua tests
-- An existing Node.js 24.20.0 x64 `node.exe` when assembling Windows packages
+- GitHub Actions for the exact Windows packaging toolchain; local MSVC/NSIS is optional
 
 The repository does not download or commit a Node executable. Do not place API
 keys, OAuth tokens, SQLite databases, logs, `.env` files, or local credential
@@ -19,11 +19,11 @@ exports in source control.
 
 Run commands from the repository root:
 
-```powershell
-./scripts/install-sidecar.ps1
-./scripts/check-sidecar.ps1
-./scripts/build-sidecar.ps1
-./scripts/check-manifest.ps1
+```bash
+python3 scripts/aipob.py install-sidecar
+python3 scripts/aipob.py check-sidecar
+python3 scripts/aipob.py build-sidecar
+python3 scripts/aipob.py check-manifest
 ```
 
 These commands install the locked pnpm dependencies, run TypeScript checks and
@@ -32,8 +32,8 @@ contains the sidecar bundle.
 
 For direct sidecar development:
 
-```powershell
-Set-Location -LiteralPath './sidecar'
+```bash
+cd sidecar
 pnpm install --frozen-lockfile
 pnpm typecheck
 pnpm test
@@ -121,9 +121,9 @@ validates the exact version, architecture, ABI, SQLite native binding, WinCred
 helper, manifest, and hashes. It refuses to overwrite an existing output
 directory or archive.
 
-```powershell
-$env:AIPOB_NODE_EXE = 'C:\Tools\node-v24-win-x64\node.exe'
-./scripts/package-windows.ps1
+```bash
+python3 scripts/aipob.py package-windows \
+  --node-exe /mnt/c/Tools/node-v24-win-x64/node.exe
 ```
 
 Default output:
@@ -139,13 +139,13 @@ cannot safely replace those installer-owned components.
 
 Build and verify the canonical NSIS installer from the portable ZIP:
 
-```powershell
-./scripts/package-installer-windows.ps1 `
-  -PackagePath artifacts/AIPathOfBuilding-AIPoB-windows-x64.zip `
-  -OutputPath artifacts/AIPathOfBuilding-AIPoB-Setup.exe
-./scripts/verify-installer-windows.ps1 `
-  -InstallerPath artifacts/AIPathOfBuilding-AIPoB-Setup.exe `
-  -PackagePath artifacts/AIPathOfBuilding-AIPoB-windows-x64.zip
+```bash
+python3 scripts/aipob.py package-installer-windows \
+  --package artifacts/AIPathOfBuilding-AIPoB-windows-x64.zip \
+  --output artifacts/AIPathOfBuilding-AIPoB-Setup.exe
+python3 scripts/aipob.py verify-installer-windows \
+  --installer artifacts/AIPathOfBuilding-AIPoB-Setup.exe \
+  --package artifacts/AIPathOfBuilding-AIPoB-windows-x64.zip
 ```
 
 For contributor setup and release ordering, see

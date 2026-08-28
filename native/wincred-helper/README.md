@@ -6,5 +6,6 @@ response per stdout line. API keys stay in Credential Manager and are never
 passed as command-line arguments.
 
 Supported operations: `get`, `has`, `set`, `delete`. The sidecar invokes the
-helper with `stdio` pipes and suppresses stderr. Build from a Visual Studio
-Developer PowerShell with `./build.ps1`.
+helper with `stdio` pipes and suppresses stderr. GitHub Actions configures MSVC
+and runs `python scripts/aipob.py build-wincred`; no local MSVC install is
+required.

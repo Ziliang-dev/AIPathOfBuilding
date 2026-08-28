@@ -6,35 +6,8 @@ local scriptDir = source:match("^(.*)[/\\][^/\\]+$") or "."
 dofile(scriptDir .. "/_SimpleGraphic.def.lua")
 SetWorkDir(scriptDir)
 
-function GetVirtualScreenSize() return 1920, 1080 end
-__callbackTable__ = { }
-function runCallback(name, ...)
-	if __callbackTable__[name] then return __callbackTable__[name](...) end
-	if __mainObject__ and __mainObject__[name] then return __mainObject__[name](__mainObject__, ...) end
-end
-
-local originalRequire = require
-function require(name)
-	if name == "lcurl.safe" then return end
-	return originalRequire(name)
-end
-
-dofile(scriptDir .. "/Launch.lua")
-__mainObject__.continuousIntegrationMode = os.getenv("CI")
-runCallback("OnInit")
-runCallback("OnFrame")
-if __mainObject__.promptMsg then error(__mainObject__.promptMsg) end
-
 local json = require("dkjson")
 local socket = require("socket")
-local BuildAction = require("Modules.AIPoB.BuildAction")
-require("Modules.AIPoB.BuildSandbox")
-local BuildState = require("Modules.AIPoB.BuildState")
-local Metrics = require("Modules.AIPoB.Metrics")
-local Scenario = require("Modules.AIPoB.Scenario")
-local Snapshot = require("Modules.AIPoB.Snapshot")
-local NativeLinkProbe = require("Modules.AIPoB.NativeLinkProbe")
-local NativeEvidence = require("Modules.AIPoB.NativeEvidence")
 
 local function option(name)
 	for index = 1, #(arg or { }) - 1 do
@@ -61,6 +34,39 @@ local function send(value)
 	local sent, sendErr = client:send(text .. "\n")
 	if not sent then error("worker send failed: " .. tostring(sendErr)) end
 end
+
+-- Authenticate before loading the full PoB graph. Cold Windows runners can
+-- spend minutes in OnInit; the broker still needs native-process liveness.
+send({ type = "hello", token = token, workerId = workerId })
+client:settimeout(nil)
+
+function GetVirtualScreenSize() return 1920, 1080 end
+__callbackTable__ = { }
+function runCallback(name, ...)
+	if __callbackTable__[name] then return __callbackTable__[name](...) end
+	if __mainObject__ and __mainObject__[name] then return __mainObject__[name](__mainObject__, ...) end
+end
+
+local originalRequire = require
+function require(name)
+	if name == "lcurl.safe" then return end
+	return originalRequire(name)
+end
+
+dofile(scriptDir .. "/Launch.lua")
+__mainObject__.continuousIntegrationMode = os.getenv("CI")
+runCallback("OnInit")
+runCallback("OnFrame")
+if __mainObject__.promptMsg then error(__mainObject__.promptMsg) end
+
+local BuildAction = require("Modules.AIPoB.BuildAction")
+require("Modules.AIPoB.BuildSandbox")
+local BuildState = require("Modules.AIPoB.BuildState")
+local Metrics = require("Modules.AIPoB.Metrics")
+local Scenario = require("Modules.AIPoB.Scenario")
+local Snapshot = require("Modules.AIPoB.Snapshot")
+local NativeLinkProbe = require("Modules.AIPoB.NativeLinkProbe")
+local NativeEvidence = require("Modules.AIPoB.NativeEvidence")
 
 local function finiteMetrics(metrics)
 	local result = { }
@@ -175,8 +181,6 @@ local function evaluate(job)
 	}
 end
 
-send({ type = "hello", token = token, workerId = workerId })
-client:settimeout(nil)
 while true do
 	local line, receiveErr = client:receive("*l")
 	if not line then error("worker receive failed: " .. tostring(receiveErr)) end

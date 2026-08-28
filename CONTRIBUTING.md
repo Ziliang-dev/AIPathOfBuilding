@@ -10,11 +10,11 @@ changing AIPoB behavior, read the [Wiki](docs/index.md),
 
 Run the AIPoB checks from the repository root:
 
-```powershell
-./scripts/install-sidecar.ps1
-./scripts/check-sidecar.ps1
-./scripts/build-sidecar.ps1
-./scripts/check-manifest.ps1
+```bash
+python3 scripts/aipob.py install-sidecar
+python3 scripts/aipob.py check-sidecar
+python3 scripts/aipob.py build-sidecar
+python3 scripts/aipob.py check-manifest
 ```
 
 Protocol, schema, Build Action, Scenario, or Transaction changes normally need

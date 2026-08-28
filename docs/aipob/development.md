@@ -43,22 +43,22 @@ For inherited PoB internals, start with the upstream
 
 From the repository root:
 
-```powershell
-./scripts/install-sidecar.ps1
-./scripts/check-sidecar.ps1
-./scripts/build-sidecar.ps1
-./scripts/check-manifest.ps1
+```bash
+python3 scripts/aipob.py install-sidecar
+python3 scripts/aipob.py check-sidecar
+python3 scripts/aipob.py build-sidecar
+python3 scripts/aipob.py check-manifest
 ```
 
-`check-sidecar.ps1` runs the configured lint/typecheck and Vitest scripts.
-`build-sidecar.ps1` emits the release entry at `sidecar/dist/server.cjs`.
-`check-manifest.ps1` generates a temporary manifest and verifies that the bundle
-is the only sidecar auto-update file.
+`check-sidecar` runs the configured lint/typecheck and Vitest scripts.
+`build-sidecar` emits the release entry at `sidecar/dist/server.cjs`.
+`check-manifest` generates a temporary manifest and verifies that the bundle is
+the only sidecar auto-update file.
 
 Direct commands:
 
-```powershell
-Set-Location -LiteralPath './sidecar'
+```bash
+cd sidecar
 pnpm install --frozen-lockfile
 pnpm lint
 pnpm typecheck
@@ -70,13 +70,13 @@ pnpm build
 
 The upstream test suite uses Busted. Preferred reproducible path:
 
-```powershell
+```bash
 docker compose up --abort-on-container-exit
 ```
 
 With local LuaJIT and Busted:
 
-```powershell
+```bash
 busted --lua=luajit
 ```
 
@@ -121,31 +121,29 @@ New saved gameplay fields must be classified by the coverage registry. New
 classification alone is not full search support; add the relevant adapter,
 action application, evaluation tests, and status entry.
 
-## PowerShell scripts
+## Command scripts
 
-All project scripts target PowerShell Core. Use `-LiteralPath` for filesystem
-paths, strict mode for non-trivial scripts, and explicit exit-code checks for
-external tools. Syntax-check every changed `.ps1` before execution:
+Repository commands use Python 3.10+ and run from WSL2 Ubuntu. They check
+external command exit codes and use standard-library filesystem APIs. Syntax
+check every changed command module before execution:
 
-```powershell
-$tokens = $null
-$errors = $null
-[System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path -LiteralPath './scripts/check-sidecar.ps1'), [ref]$tokens, [ref]$errors) | Out-Null
-$errors
+```bash
+python3 -m py_compile \
+  scripts/aipob.py \
+  scripts/windows_package.py \
+  scripts/windows_e2e.py
 ```
-
-An empty `$errors` collection means parsing succeeded.
 
 ## Release artifacts
 
 The deterministic bundle must exist before manifest generation:
 
-```powershell
-./scripts/install-sidecar.ps1
-./scripts/check-sidecar.ps1
-./scripts/build-sidecar.ps1
-./scripts/check-manifest.ps1
-./scripts/release-gate.ps1
+```bash
+python3 scripts/aipob.py install-sidecar
+python3 scripts/aipob.py check-sidecar
+python3 scripts/aipob.py build-sidecar
+python3 scripts/aipob.py check-manifest
+python3 scripts/aipob.py release-gate
 ```
 
 `sidecar/dist/server.cjs` is tracked because it participates in PoB's manifest
@@ -155,32 +153,34 @@ Node.js and the native `better-sqlite3` runtime are installer-owned. Auto-update
 may replace `server.cjs`; a Node major or native ABI change requires a new
 installer or portable package.
 
-For local Windows packaging, supply exact Node.js 24.20.0 x64 / ABI 137:
+GitHub Actions supplies the exact Node.js 24.20.0 x64 / ABI 137, MSVC, and NSIS
+toolchain. A manual WSL packaging run may point at a Windows Node executable:
 
-```powershell
-$env:AIPOB_NODE_EXE = 'C:\Tools\node-v24-win-x64\node.exe'
-./scripts/package-windows.ps1
+```bash
+python3 scripts/aipob.py package-windows \
+  --node-exe /mnt/c/Tools/node-v24-win-x64/node.exe
 ```
 
 The packaging script refuses to overwrite existing output.
 
 The portable ZIP is the canonical staging input for NSIS:
 
-```powershell
-./scripts/verify-package-windows.ps1 `
-  -PackagePath artifacts/AIPathOfBuilding-AIPoB-windows-x64.zip
-./scripts/package-installer-windows.ps1 `
-  -PackagePath artifacts/AIPathOfBuilding-AIPoB-windows-x64.zip `
-  -OutputPath artifacts/AIPathOfBuilding-AIPoB-Setup.exe
-./scripts/verify-installer-windows.ps1 `
-  -InstallerPath artifacts/AIPathOfBuilding-AIPoB-Setup.exe `
-  -PackagePath artifacts/AIPathOfBuilding-AIPoB-windows-x64.zip
+```bash
+python3 scripts/aipob.py verify-package-windows \
+  --package artifacts/AIPathOfBuilding-AIPoB-windows-x64.zip
+python3 scripts/aipob.py package-installer-windows \
+  --package artifacts/AIPathOfBuilding-AIPoB-windows-x64.zip \
+  --output artifacts/AIPathOfBuilding-AIPoB-Setup.exe
+python3 scripts/aipob.py verify-installer-windows \
+  --installer artifacts/AIPathOfBuilding-AIPoB-Setup.exe \
+  --package artifacts/AIPathOfBuilding-AIPoB-windows-x64.zip
 ```
 
-`e2e-windows.ps1` covers Apply, Reject, injected failure/rollback, restart, and
-an optional real packaged-PoB worker path. CI must prove the exact Windows
-runtime, native helper, NSIS silent install, and real process-level E2E before
-publication. Code signing and publication remain release operations.
+`python scripts/aipob.py e2e-windows` covers Apply, Reject, injected
+failure/rollback, restart, and an optional real packaged-PoB worker path. CI
+must prove the exact Windows runtime, native helper, NSIS silent install, and
+real process-level E2E before publication. Code signing and publication remain
+release operations.
 
 ## Upstream synchronization
 

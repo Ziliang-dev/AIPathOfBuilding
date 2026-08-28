@@ -79,11 +79,14 @@ matrix is [Status and roadmap](docs/aipob/status-and-roadmap.md).
 
 ## Requirements
 
-- PowerShell Core 7
+- WSL2 Ubuntu with Bash and Python 3.10+
 - Node.js 24.20.0 x64 for the release-compatible development path
 - pnpm 11.19.0
 - Docker or local LuaJIT/Busted for PoB tests
-- A locally supplied Node.js 24.20.0 x64 executable for Windows packaging
+
+GitHub Actions supplies Docker/Busted, MSVC, NSIS, Python, and the exact Windows
+Node runtime for release gates. Local installation of those packaging tools is
+optional.
 
 The repository never downloads or commits a Node executable. API keys, OAuth
 tokens, SQLite data, logs, `.env` files, and local credentials must not enter
@@ -93,12 +96,12 @@ source control.
 
 Run from the repository root:
 
-```powershell
-./scripts/install-sidecar.ps1
-./scripts/check-sidecar.ps1
-./scripts/build-sidecar.ps1
-./scripts/check-manifest.ps1
-./scripts/release-gate.ps1
+```bash
+python3 scripts/aipob.py install-sidecar
+python3 scripts/aipob.py check-sidecar
+python3 scripts/aipob.py build-sidecar
+python3 scripts/aipob.py check-manifest
+python3 scripts/aipob.py release-gate
 ```
 
 Launch the checked-out PoB development runtime, open a Build, and select
@@ -122,9 +125,9 @@ Detailed setup and current UI behavior: [Getting started](docs/aipob/getting-sta
 Supply Node.js 24.20.0 x64. The portable packaging script validates the version,
 architecture, ABI, native SQLite binding, WinCred helper, manifest, and hashes:
 
-```powershell
-$env:AIPOB_NODE_EXE = 'C:\Tools\node-v24-win-x64\node.exe'
-./scripts/package-windows.ps1
+```bash
+python3 scripts/aipob.py package-windows \
+  --node-exe /mnt/c/Tools/node-v24-win-x64/node.exe
 ```
 
 Default output:
@@ -138,13 +141,13 @@ native ABI change requires a new installer or portable package.
 
 Build the canonical NSIS installer from that verified ZIP:
 
-```powershell
-./scripts/package-installer-windows.ps1 `
-  -PackagePath artifacts/AIPathOfBuilding-AIPoB-windows-x64.zip `
-  -OutputPath artifacts/AIPathOfBuilding-AIPoB-Setup.exe
-./scripts/verify-installer-windows.ps1 `
-  -InstallerPath artifacts/AIPathOfBuilding-AIPoB-Setup.exe `
-  -PackagePath artifacts/AIPathOfBuilding-AIPoB-windows-x64.zip
+```bash
+python3 scripts/aipob.py package-installer-windows \
+  --package artifacts/AIPathOfBuilding-AIPoB-windows-x64.zip \
+  --output artifacts/AIPathOfBuilding-AIPoB-Setup.exe
+python3 scripts/aipob.py verify-installer-windows \
+  --installer artifacts/AIPathOfBuilding-AIPoB-Setup.exe \
+  --package artifacts/AIPathOfBuilding-AIPoB-windows-x64.zip
 ```
 
 ## Contributing

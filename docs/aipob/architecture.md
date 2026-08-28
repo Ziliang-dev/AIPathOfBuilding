@@ -249,7 +249,7 @@ secrets, and rejects every non-LLM credential target. PoE OAuth remains in PoB.
 
 ## Release and packaging shape
 
-`scripts/release-gate.ps1` runs sidecar checks/build, manifest validation, the
+`python3 scripts/aipob.py release-gate` runs sidecar checks/build, manifest validation, the
 TypeScript Golden harness, and all AIPoB Lua specs. The version-2 Golden corpus
 contains Standard and Ruthless XML Builds plus representative actor/season
 projections, required adapters, graph nodes, Candidate actions, baseline

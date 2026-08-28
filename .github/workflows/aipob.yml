@@ -47,6 +47,10 @@ on:
 permissions:
   contents: read
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
   sidecar:
     name: Node ${{ matrix.node }}
@@ -59,9 +63,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Validate PowerShell scripts
-        shell: pwsh
-        run: ./scripts/check-powershell.ps1
+      - name: Validate command scripts
+        run: python3 -m py_compile scripts/aipob.py scripts/windows_package.py scripts/windows_e2e.py
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
@@ -91,16 +94,11 @@ jobs:
         run: pnpm --dir sidecar run test
 
       - name: Verify release entry
-        shell: pwsh
-        run: |
-          if (-not (Test-Path -LiteralPath 'sidecar/dist/server.cjs' -PathType Leaf)) {
-            throw 'sidecar/dist/server.cjs was not produced.'
-          }
+        run: test -f sidecar/dist/server.cjs
 
       - name: Verify manifest sidecar entry
         if: matrix.node == '24.20.0'
-        shell: pwsh
-        run: ./scripts/check-manifest.ps1
+        run: python3 scripts/aipob.py check-manifest
 
   windows-package:
     name: Windows portable package
@@ -128,14 +126,13 @@ jobs:
       - name: Configure MSVC
         uses: ilammy/msvc-dev-cmd@v1
 
-      - name: Build WinCred helper
-        shell: pwsh
-        run: ./native/wincred-helper/build.ps1
-
       - name: Install Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.x'
+
+      - name: Build WinCred helper
+        run: python scripts/aipob.py build-wincred
 
       - name: Download canonical sidecar bundle
         uses: actions/download-artifact@v4
@@ -147,18 +144,14 @@ jobs:
         run: python update_manifest.py --quiet --in-place
 
       - name: Assemble portable package
-        shell: pwsh
         run: |
-          $nodeExe = (Get-Command node -ErrorAction Stop).Source
-          ./scripts/package-windows.ps1 `
-            -NodeExePath $nodeExe `
-            -SidecarBundlePath '${{ github.workspace }}/sidecar/dist/server.cjs' `
-            -OutputPath '${{ runner.temp }}/AIPathOfBuilding-AIPoB-windows-x64' `
-            -SkipBuild
+          python scripts/aipob.py package-windows \
+            --sidecar-bundle "${{ github.workspace }}/sidecar/dist/server.cjs" \
+            --output "${{ runner.temp }}/AIPathOfBuilding-AIPoB-windows-x64" \
+            --skip-build
 
       - name: Verify portable package
-        shell: pwsh
-        run: ./scripts/verify-package-windows.ps1 -PackagePath '${{ runner.temp }}/AIPathOfBuilding-AIPoB-windows-x64.zip'
+        run: python scripts/aipob.py verify-package-windows --package "${{ runner.temp }}/AIPathOfBuilding-AIPoB-windows-x64.zip"
 
       - name: Upload package
         uses: actions/upload-artifact@v4
@@ -212,6 +205,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
       - name: Download portable package
         uses: actions/download-artifact@v4
         with:
@@ -219,8 +217,7 @@ jobs:
           path: ${{ runner.temp }}/aipob-package
 
       - name: Run packaged E2E
-        shell: pwsh
-        run: ./scripts/e2e-windows.ps1 -PackagePath '${{ runner.temp }}/aipob-package/AIPathOfBuilding-AIPoB-windows-x64.zip' -TransactionMode '${{ matrix.transaction }}'
+        run: python scripts/aipob.py e2e-windows --package "${{ runner.temp }}/aipob-package/AIPathOfBuilding-AIPoB-windows-x64.zip" --transaction-mode "${{ matrix.transaction }}"
 
   windows-e2e-restart:
     name: Windows checkpoint restart E2E
@@ -230,6 +227,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
       - name: Download portable package
         uses: actions/download-artifact@v4
         with:
@@ -237,8 +239,7 @@ jobs:
           path: ${{ runner.temp }}/aipob-package
 
       - name: Run checkpoint restart E2E
-        shell: pwsh
-        run: ./scripts/e2e-windows.ps1 -PackagePath '${{ runner.temp }}/aipob-package/AIPathOfBuilding-AIPoB-windows-x64.zip' -TransactionMode apply -RestartBeforeApply
+        run: python scripts/aipob.py e2e-windows --package "${{ runner.temp }}/aipob-package/AIPathOfBuilding-AIPoB-windows-x64.zip" --transaction-mode apply --restart-before-apply
 
   windows-e2e-pob:
     name: Windows packaged PoB-process E2E
@@ -248,6 +249,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
       - name: Download portable package
         uses: actions/download-artifact@v4
         with:
@@ -255,8 +261,7 @@ jobs:
           path: ${{ runner.temp }}/aipob-package
 
       - name: Run real PoB worker E2E
-        shell: pwsh
-        run: ./scripts/e2e-windows.ps1 -PackagePath '${{ runner.temp }}/aipob-package/AIPathOfBuilding-AIPoB-windows-x64.zip' -TransactionMode apply -UsePackagedPob
+        run: python scripts/aipob.py e2e-windows --package "${{ runner.temp }}/aipob-package/AIPathOfBuilding-AIPoB-windows-x64.zip" --transaction-mode apply --use-packaged-pob
 
   windows-installer:
     name: Windows canonical NSIS installer
@@ -266,6 +271,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
       - name: Download portable package
         uses: actions/download-artifact@v4
         with:
@@ -273,16 +283,13 @@ jobs:
           path: ${{ runner.temp }}/aipob-package
 
       - name: Install NSIS
-        shell: pwsh
         run: choco install nsis --yes --no-progress
 
       - name: Build installer from canonical staging
-        shell: pwsh
-        run: ./scripts/package-installer-windows.ps1 -PackagePath '${{ runner.temp }}/aipob-package/AIPathOfBuilding-AIPoB-windows-x64.zip' -OutputPath '${{ runner.temp }}/AIPathOfBuilding-AIPoB-Setup.exe'
+        run: python scripts/aipob.py package-installer-windows --package "${{ runner.temp }}/aipob-package/AIPathOfBuilding-AIPoB-windows-x64.zip" --output "${{ runner.temp }}/AIPathOfBuilding-AIPoB-Setup.exe"
 
       - name: Verify silent install against canonical staging
-        shell: pwsh
-        run: ./scripts/verify-installer-windows.ps1 -InstallerPath '${{ runner.temp }}/AIPathOfBuilding-AIPoB-Setup.exe' -PackagePath '${{ runner.temp }}/aipob-package/AIPathOfBuilding-AIPoB-windows-x64.zip'
+        run: python scripts/aipob.py verify-installer-windows --installer "${{ runner.temp }}/AIPathOfBuilding-AIPoB-Setup.exe" --package "${{ runner.temp }}/aipob-package/AIPathOfBuilding-AIPoB-windows-x64.zip"
 
       - name: Upload installer
         uses: actions/upload-artifact@v4
@@ -314,8 +321,7 @@ jobs:
         run: pnpm --dir sidecar install --frozen-lockfile
 
       - name: Run release gate
-        shell: pwsh
-        run: ./scripts/release-gate.ps1
+        run: python3 scripts/aipob.py release-gate
 
   release-gate:
     name: AIPoB release gate

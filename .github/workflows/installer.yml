@@ -16,6 +16,9 @@ on:
         required: false
 env:
   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+defaults:
+  run:
+    shell: bash
 jobs:
   release:
     runs-on: windows-latest
@@ -25,38 +28,39 @@ jobs:
         with:
           path: aipob
 
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
       - name: Download and verify canonical AIPoB package
-        shell: pwsh
         env:
           AIPOB_PACKAGE_URL: ${{ github.event.inputs.aipob_package_url || format('https://github.com/{0}/releases/download/{1}/AIPathOfBuilding-AIPoB-windows-x64.zip', github.repository, github.event.release.tag_name) }}
           AIPOB_PACKAGE_SHA256: ${{ github.event.inputs.aipob_package_sha256 }}
         run: |
-          $packagePath = Join-Path $env:RUNNER_TEMP 'AIPathOfBuilding-AIPoB-windows-x64.zip'
-          if ([string]::IsNullOrWhiteSpace($env:AIPOB_PACKAGE_URL)) { throw 'Canonical AIPoB package URL is required.' }
-          Invoke-WebRequest -Uri $env:AIPOB_PACKAGE_URL -OutFile $packagePath
-          if (-not [string]::IsNullOrWhiteSpace($env:AIPOB_PACKAGE_SHA256)) {
-            $actual = (Get-FileHash -LiteralPath $packagePath -Algorithm SHA256).Hash.ToLowerInvariant()
-            if ($actual -ne $env:AIPOB_PACKAGE_SHA256.ToLowerInvariant()) { throw 'Canonical AIPoB package archive hash mismatch.' }
-          }
-          & ./aipob/scripts/verify-package-windows.ps1 -PackagePath $packagePath
-          "AIPOB_PACKAGE_PATH=$packagePath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          package_path="$RUNNER_TEMP/AIPathOfBuilding-AIPoB-windows-x64.zip"
+          test -n "$AIPOB_PACKAGE_URL"
+          python -c "import sys,urllib.request; urllib.request.urlretrieve(sys.argv[1], sys.argv[2])" "$AIPOB_PACKAGE_URL" "$package_path"
+          if test -n "$AIPOB_PACKAGE_SHA256"; then
+            actual="$(python -c "import sys;sys.path.insert(0,'aipob/scripts');from pathlib import Path;from windows_package import sha256;print(sha256(Path(sys.argv[1])))" "$package_path")"
+            test "${actual,,}" = "${AIPOB_PACKAGE_SHA256,,}"
+          fi
+          python aipob/scripts/aipob.py verify-package-windows --package "$package_path"
+          echo "AIPOB_PACKAGE_PATH=$package_path" >> "$GITHUB_ENV"
 
       - name: Install NSIS
-        shell: pwsh
         run: choco install nsis --yes --no-progress
 
       - name: Build and verify installer from canonical staging
-        shell: pwsh
         run: |
-          $installerPath = Join-Path $env:RUNNER_TEMP 'AIPathOfBuilding-AIPoB-Setup.exe'
-          & ./aipob/scripts/package-installer-windows.ps1 -PackagePath $env:AIPOB_PACKAGE_PATH -OutputPath $installerPath
-          & ./aipob/scripts/verify-installer-windows.ps1 -InstallerPath $installerPath -PackagePath $env:AIPOB_PACKAGE_PATH
-          "AIPOB_INSTALLER_PATH=$installerPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          installer_path="$RUNNER_TEMP/AIPathOfBuilding-AIPoB-Setup.exe"
+          python aipob/scripts/aipob.py package-installer-windows --package "$AIPOB_PACKAGE_PATH" --output "$installer_path"
+          python aipob/scripts/aipob.py verify-installer-windows --installer "$installer_path" --package "$AIPOB_PACKAGE_PATH"
+          echo "AIPOB_INSTALLER_PATH=$installer_path" >> "$GITHUB_ENV"
 
       - name: Upload installer
-        shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          $tag = '${{ github.event.release.tag_name || github.event.inputs.tag_name }}'
-          gh release upload $tag $env:AIPOB_INSTALLER_PATH --clobber -R '${{ github.repository }}'
+          tag='${{ github.event.release.tag_name || github.event.inputs.tag_name }}'
+          gh release upload "$tag" "$AIPOB_INSTALLER_PATH" --clobber -R '${{ github.repository }}'
