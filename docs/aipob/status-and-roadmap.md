@@ -5,7 +5,7 @@ tree. Architecture pages describe connected behavior. Planned breadth stays
 here.
 
 Working-tree baseline verified 2026-08-29 atop AIPoB commit
-`35eb12b444b135e6a991ba285cc648162a62e1c4`, upstream PoB base
+`82f2e384c0d0a0d1ce43b3e90c537e4a30e97aa1`, upstream PoB base
 `ed354c2f8c42e148bc904c7508dbe851fb2cf952`, PoB release data `v2.67.2`, and
 PoE data versions `3.29` / `3.29 Ruthless`. Replace the AIPoB hash with the merge
 commit before publishing a release.
@@ -51,28 +51,30 @@ commit before publishing a release.
 | Golden Build breadth | Two rulesets, representative actor/season mechanics, action kinds, graph nodes, and Sustainable metric replay | More archetypes, loadouts, trigger/rotation, negative/conflict, and historical regression Builds |
 | Workflow refinement | One bounded refinement pass, recursion and convergence limits | Richer multi-round strategy and model/deterministic refinement policies |
 | Progression planning | Progression DAG primitives and typed action | End-to-end level/Budget milestones and Planner presentation |
-| Operational release | Build-before-manifest, canonical bundle, portable, NSIS, verifier, and E2E workflows | Successful CI run, code signing, publication, and merged release commit |
+| Operational release | Build-before-manifest, canonical bundle, portable, NSIS, verifier, E2E workflows, and a successful full release-gate run | Code signing, publication, and merged release commit |
 
 ## Verification evidence
 
-Local checks completed on 2026-08-29:
+Local WSL checks completed on 2026-08-29:
 
 - sidecar typecheck, release build, and `22` Vitest files / `163` tests;
 - `python3 scripts/aipob.py check-sidecar`;
 - `python3 scripts/aipob.py check-manifest`;
 - Python bytecode compilation for all command modules;
 - YAML parse for all workflows; and
-- syntax parse for the changed AIPoB Lua modules and specs.
+- syntax parse for the changed AIPoB Lua modules and specs; and
+- two independent real PoB worker processes produced the same canonical
+  Candidate fingerprint for the same Build and typed action.
 
-The local host did not provide Docker/LuaJIT/Busted, MSVC `cl.exe`, NSIS, or the
-exact Node `24.20.0` runtime. Therefore these proofs remain CI-gated, not locally
-claimed as passed:
+GitHub Actions supplied Docker/Busted, MSVC, NSIS, Python, and exact Node
+`24.20.0` without requiring local installation. Final CI evidence:
 
-- AIPoB Lua/Busted runtime suite;
-- WinCred helper compilation;
-- exact Windows portable and NSIS artifact smoke;
-- apply/reject/failure/restart packaged E2E; and
-- real packaged PoB-process E2E.
+- [AIPoB release gate run](https://github.com/Ziliang-dev/AIPathOfBuilding/actions/runs/33209313332): Node `24.20.0`, Golden corpus/Busted, canonical bundle,
+  WinCred/MSVC, portable package verification, Apply/Reject/Fail/Restart E2E,
+  real packaged PoB-process E2E, NSIS build/silent-install verification, and
+  aggregate release gate all passed;
+- [upstream Lua/runtime tests](https://github.com/Ziliang-dev/AIPathOfBuilding/actions/runs/33209313335) passed; and
+- [spell check](https://github.com/Ziliang-dev/AIPathOfBuilding/actions/runs/33209313348) passed.
 
 `python3 scripts/aipob.py release-gate` and `.github/workflows/aipob.yml` define those gates.
 A release must not be published if any gate is skipped or fails.

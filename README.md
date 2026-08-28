@@ -8,8 +8,9 @@ loopback JSON-RPC.
 
 > [!IMPORTANT]
 > This branch is an implementation baseline, not a published release. The six
-> completion packages below are connected; Windows portable/NSIS and real-PoB
-> process gates must still pass in CI for a release artifact. Check the
+> completion packages below are connected, and Windows portable/NSIS plus the
+> real-PoB process release gates pass in GitHub Actions. Code signing and
+> publication are still required for a public release. Check the
 > [capability matrix](docs/aipob/status-and-roadmap.md) before relying on a
 > feature.
 
@@ -65,7 +66,7 @@ matrix is [Status and roadmap](docs/aipob/status-and-roadmap.md).
 | Item and passive optimization | Dynamic Trade items, seasonal equipment, existing item swaps, passive paths, masteries, secondary ascendancy, overrides, and point checks | Cross-slot enabling packages and broader cluster/anoint generation |
 | Golden corpus breadth | Standard and Ruthless representative Builds plus actor/season projections, candidates, graph nodes, and four Sustainable Scenarios | More archetypes, loadouts, trigger/rotation, and negative/conflict regression cases |
 | Progression planning | Progression DAG primitives and action type | End-to-end level/Budget milestones and Planner presentation |
-| Release operation | Canonical portable/NSIS scripts and Windows CI gates | Code signing, publication, and proof from a successful release workflow run |
+| Release operation | Canonical portable/NSIS scripts, Windows CI gates, and a successful full release-gate run | Code signing and publication |
 
 ### Remaining roadmap
 
@@ -75,7 +76,8 @@ matrix is [Status and roadmap](docs/aipob/status-and-roadmap.md).
   cases.
 - Complete cross-domain enabling packages and affected-domain regeneration.
 - End-to-end progression milestone planning.
-- Published, signed Windows artifacts after the configured CI gates pass.
+- Publish and sign the Windows artifacts produced by the verified canonical
+  pipeline.
 
 ## Requirements
 
