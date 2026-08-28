@@ -334,9 +334,7 @@ describe("AIPathOfBuilding transaction", function()
 			},
 		})
 		assert.is_false(result.ok)
-		if result.rolledBack ~= true then
-			error("rollback result: " .. require("dkjson").encode(result))
-		end
+		assert.is_true(result.rolledBack)
 		assert.are.equal(80, real.characterLevel)
 		assert.are.equal(base.fingerprint, Snapshot.Capture(real).fingerprint)
 	end)
@@ -468,7 +466,9 @@ describe("AIPathOfBuilding transaction", function()
 			},
 		})
 		assert.is_false(result.ok)
-		assert.is_true(result.rolledBack)
+		if result.rolledBack ~= true then
+			error("rollback result: " .. require("dkjson").encode(result))
+		end
 		local restored = assert(Snapshot.Capture(build))
 		assert.are.equal(base.xml, restored.xml)
 		assert.are.equal(base.fingerprint, restored.fingerprint)
