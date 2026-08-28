@@ -334,7 +334,7 @@ describe("AIPathOfBuilding transaction", function()
 			},
 		})
 		assert.is_false(result.ok)
-		assert.is_true(result.rolledBack)
+		assert.is_true(result.rolledBack, tostring(result.stage) .. ": " .. tostring(result.error))
 		assert.are.equal(80, real.characterLevel)
 		assert.are.equal(base.fingerprint, Snapshot.Capture(real).fingerprint)
 	end)

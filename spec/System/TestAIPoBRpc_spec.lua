@@ -230,6 +230,12 @@ describe("AIPathOfBuilding RPC", function()
 		local launcher = Launcher.new({
 			scriptPath = GetScriptPath(), userPath = main.userPath,
 			spawn = function(command, args) spawned.command, spawned.args = command, args end,
+			exists = function(path)
+				return path:match("sidecar/dist/server%.cjs$") ~= nil
+					or path:match("sidecar/runtime/node%.exe$") ~= nil
+					or path:match("Path of Building%.exe$") ~= nil
+					or path:match("AIPoBWorker%.lua$") ~= nil
+			end,
 		})
 		assert.is_true(launcher:Start())
 		assert.matches("node", spawned.command:lower(), nil, true)

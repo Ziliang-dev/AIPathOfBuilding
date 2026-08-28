@@ -12,9 +12,9 @@ local function exists(path)
 	return true
 end
 
-local function findAssetRoot(scriptPath)
+local function findAssetRoot(scriptPath, fileExists)
 	for _, candidate in ipairs({ scriptPath, scriptPath .. "/..", ".", ".." }) do
-		if exists(candidate .. "/sidecar/dist/server.cjs") then return candidate end
+		if fileExists(candidate .. "/sidecar/dist/server.cjs") then return candidate end
 	end
 	return scriptPath
 end
@@ -38,9 +38,10 @@ function SidecarLauncher.new(options)
 	local runtimePath = options.runtimePath or (type(GetRuntimePath) == "function" and GetRuntimePath()) or scriptPath .. "/../runtime"
 	local processors = tonumber(os.getenv("NUMBER_OF_PROCESSORS")) or 2
 	local defaultWorkerCount = math.min(4, math.max(1, math.floor(processors / 2)))
+	local fileExists = options.exists or exists
 	local assetRoot = options.assetRoot
 	if not assetRoot then
-		assetRoot = findAssetRoot(scriptPath)
+		assetRoot = findAssetRoot(scriptPath, fileExists)
 	end
 	return setmetatable({
 		scriptPath = scriptPath,
@@ -50,6 +51,7 @@ function SidecarLauncher.new(options)
 		workerCount = math.max(1, math.min(tonumber(options.workerCount) or defaultWorkerCount, 8)),
 		timeout = options.timeout or 30000,
 		spawn = options.spawn or SpawnProcess,
+		exists = fileExists,
 		token = options.token or randomToken(),
 		startedAt = nil,
 		readyFile = nil,
@@ -65,19 +67,19 @@ function SidecarLauncher:Start()
 		if ok == false then return nil, "cannot create sidecar data directory: " .. tostring(err) end
 	end
 	local entry = self.assetRoot .. "/sidecar/dist/server.cjs"
-	if not exists(entry) then return nil, "sidecar/dist/server.cjs missing; run pnpm --dir sidecar build" end
+	if not self.exists(entry) then return nil, "sidecar/dist/server.cjs missing; run pnpm --dir sidecar build" end
 	local pobExecutable
 	for _, name in ipairs({ "Path of Building.exe", "Path{space}of{space}Building.exe", "PathOfBuilding.exe" }) do
 		local candidate = self.runtimePath .. "/" .. name
-		if exists(candidate) then pobExecutable = candidate break end
+		if self.exists(candidate) then pobExecutable = candidate break end
 	end
 	if not pobExecutable then return nil, "Path of Building worker executable missing from runtime directory" end
 	local workerScript = self.scriptPath .. "/AIPoBWorker.lua"
-	if not exists(workerScript) then return nil, "AIPoBWorker.lua missing" end
+	if not self.exists(workerScript) then return nil, "AIPoBWorker.lua missing" end
 	local bundledNode = self.assetRoot .. "/sidecar/runtime/node.exe"
 	local credentialHelper = self.assetRoot .. "/sidecar/runtime/aipob-credential-helper.exe"
 	local command
-	if exists(bundledNode) then
+	if self.exists(bundledNode) then
 		command = bundledNode
 	elseif launch and launch.devMode then
 		command = "node"
@@ -92,7 +94,7 @@ function SidecarLauncher:Start()
 		"--worker-count", tostring(self.workerCount),
 		"--owner-connect-timeout-ms", tostring(self.timeout),
 	}
-	if exists(credentialHelper) then
+	if self.exists(credentialHelper) then
 		table.insert(args, "--credential-helper")
 		table.insert(args, credentialHelper)
 	end
