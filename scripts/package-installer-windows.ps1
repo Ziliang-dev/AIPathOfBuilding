@@ -21,7 +21,21 @@ if (-not (Test-Path -LiteralPath $nsiPath -PathType Leaf)) { throw "NSIS source 
 & $verifyScript -PackagePath $resolvedPackage
 
 $compilerPath = if ([string]::IsNullOrWhiteSpace($MakeNsisPath)) {
-    (Get-Command makensis.exe -ErrorAction Stop).Source
+    $compilerCommand = Get-Command makensis.exe -ErrorAction SilentlyContinue
+    if ($null -ne $compilerCommand) {
+        $compilerCommand.Source
+    }
+    else {
+        $compilerCandidates = [System.Collections.Generic.List[string]]::new()
+        foreach ($programFilesRoot in @(${env:ProgramFiles(x86)}, $env:ProgramFiles)) {
+            if (-not [string]::IsNullOrWhiteSpace($programFilesRoot)) {
+                [void]$compilerCandidates.Add((Join-Path $programFilesRoot 'NSIS/makensis.exe'))
+            }
+        }
+        $installedCompiler = $compilerCandidates | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1
+        if ($null -eq $installedCompiler) { throw 'makensis.exe was not found on PATH or in a standard NSIS installation directory.' }
+        $installedCompiler
+    }
 } else {
     (Resolve-Path -LiteralPath $MakeNsisPath -ErrorAction Stop).Path
 }

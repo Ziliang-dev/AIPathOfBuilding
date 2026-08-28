@@ -216,8 +216,10 @@ try {
     $fixturePath = Join-Path $dataDir 'fixture-worker.js'
     [IO.File]::WriteAllText($fixturePath, $fixtureWorker, [Text.UTF8Encoding]::new($false))
 
+    $workerCount = if ($UsePackagedPob) { '1' } else { '2' }
+    $rpcReadTimeout = if ($UsePackagedPob) { 180000 } else { 60000 }
     $arguments = [System.Collections.Generic.List[string]]::new()
-    foreach ($argument in @($bundlePath, '--host', '127.0.0.1', '--port', '0', '--session-token', $token, '--data-dir', $dataDir, '--ready-file', $readyPath, '--worker-count', '2', '--owner-connect-timeout-ms', '30000')) { [void]$arguments.Add($argument) }
+    foreach ($argument in @($bundlePath, '--host', '127.0.0.1', '--port', '0', '--session-token', $token, '--data-dir', $dataDir, '--ready-file', $readyPath, '--worker-count', $workerCount, '--owner-connect-timeout-ms', '30000')) { [void]$arguments.Add($argument) }
     if ([string]::IsNullOrWhiteSpace($PobExecutablePath)) {
         $workerCommand = @($nodePath, $fixturePath, '--') | ConvertTo-Json -Compress
         [void]$arguments.Add('--worker-command'); [void]$arguments.Add($workerCommand)
@@ -239,7 +241,7 @@ try {
         $client = [Net.Sockets.TcpClient]::new()
         $client.Connect('127.0.0.1', [int]$ready.port)
         $stream = $client.GetStream()
-        $stream.ReadTimeout = 60000
+        $stream.ReadTimeout = $rpcReadTimeout
         $reader = [IO.StreamReader]::new($stream, [Text.UTF8Encoding]::new($false), $false, 8192, $true)
         $writer = [IO.StreamWriter]::new($stream, [Text.UTF8Encoding]::new($false), 8192, $true)
         $writer.AutoFlush = $true
@@ -285,15 +287,17 @@ try {
                 if ([int]$restartReady.protocolVersion -ne $protocolVersion -or $restartReady.host -ne '127.0.0.1') { throw 'E2E checkpoint restart protocol or host mismatch.' }
                 $client = [Net.Sockets.TcpClient]::new(); $client.Connect('127.0.0.1', [int]$restartReady.port)
                 $stream = $client.GetStream()
-                $stream.ReadTimeout = 60000
+                $stream.ReadTimeout = $rpcReadTimeout
                 $reader = [IO.StreamReader]::new($stream, [Text.UTF8Encoding]::new($false), $false, 8192, $true)
                 $writer = [IO.StreamWriter]::new($stream, [Text.UTF8Encoding]::new($false), 8192, $true); $writer.AutoFlush = $true
                 [void](Send-RpcRequest -Writer $writer -Reader $reader -ProtocolVersion $protocolVersion -Token $token -Method 'hello' -Params @{ clientName = 'aipob-windows-e2e-restart'; clientVersion = '1'; capabilities = @() })
                 $streamed = Send-RpcRequest -Writer $writer -Reader $reader -ProtocolVersion $protocolVersion -Token $token -Method 'run.stream' -Params @{ runId = $runId }
                 if ([string]$streamed.status -notin @('paused', 'running')) { throw "Checkpoint stream returned unexpected status: $($streamed.status)" }
-                [void](Send-RpcRequest -Writer $writer -Reader $reader -ProtocolVersion $protocolVersion -Token $token -Method 'run.resume' -Params @{ runId = $runId; mode = 'checkpoint' })
-                $awaiting = Wait-RpcNotification -Reader $reader -Method 'run.awaitingApproval'
-                $candidateId = [string]$awaiting.candidates[0].id
+                $resumed = Send-RpcRequest -Writer $writer -Reader $reader -ProtocolVersion $protocolVersion -Token $token -Method 'run.resume' -Params @{ runId = $runId; mode = 'checkpoint' }
+                if ([string]$resumed.status -notin @('paused', 'running') -or @($resumed.candidates).Count -eq 0) {
+                    throw "Checkpoint resume returned no approval Candidate: $($resumed.status)"
+                }
+                $candidateId = [string]$resumed.candidates[0].id
                 $preview = Send-RpcRequest -Writer $writer -Reader $reader -ProtocolVersion $protocolVersion -Token $token -Method 'candidate.preview' -Params @{ runId = $runId; candidateId = $candidateId }
             }
             if ($TransactionMode -eq 'reject') {
@@ -303,7 +307,8 @@ try {
                 [void](Send-RpcRequest -Writer $writer -Reader $reader -ProtocolVersion $protocolVersion -Token $token -Method 'run.resume' -Params @{ runId = $runId; decision = 'apply'; candidateId = $candidateId })
                 [void](Wait-RpcNotification -Reader $reader -Method 'transaction.apply')
                 $transactionError = if ($TransactionMode -eq 'fail') { 'E2E injected transaction failure' } else { $null }
-                $result = [ordered]@{ runId = $runId; candidateId = $candidateId; accepted = $true; applied = ($TransactionMode -eq 'apply'); rolledBack = ($TransactionMode -eq 'fail'); error = $transactionError }
+                $result = [ordered]@{ runId = $runId; candidateId = $candidateId; accepted = $true; applied = ($TransactionMode -eq 'apply'); rolledBack = ($TransactionMode -eq 'fail') }
+                if ($null -ne $transactionError) { $result.error = $transactionError }
                 if ($TransactionMode -eq 'apply') { $result.fingerprint = 'e2e-applied'; $result.metrics = $preview.metrics; $result.scenarioMetrics = $preview.scenarioMetrics }
                 $transaction = Send-RpcRequest -Writer $writer -Reader $reader -ProtocolVersion $protocolVersion -Token $token -Method 'transaction.result' -Params @{ result = $result }
                 if ($TransactionMode -eq 'apply' -and [string]$transaction.status -ne 'completed') { throw 'E2E applied transaction did not complete the run.' }
