@@ -46,14 +46,21 @@ function BuildState.Restore(build, xmlText)
 		build.calcsTab = new("CalcsTab"):CalcsTab(build)
 	end)
 	if not ok then return nil, "tab reconstruction failed: " .. tostring(createErr) end
-	build.savers = {
-		Config = build.configTab, Party = build.partyTab, Items = build.itemsTab,
-		Tree = build.treeTab, TreeView = build.treeTab.viewer,
-		Skills = build.skillsTab, Calcs = build.calcsTab,
-	}
-	if build.notesTab then build.savers.Notes = build.notesTab end
-	if build.importTab then build.savers.Import = build.importTab end
-	if build.plannerTab then build.savers.AIPlanner = build.plannerTab end
+	-- Preserve the existing saver table so Build.SaveDB's pairs() traversal keeps
+	-- the same section order before and after rollback. Replacing the table can
+	-- change an otherwise equivalent snapshot fingerprint.
+	local savers = build.savers or { }
+	savers.Config = build.configTab
+	savers.Party = build.partyTab
+	savers.Items = build.itemsTab
+	savers.Tree = build.treeTab
+	savers.TreeView = build.treeTab.viewer
+	savers.Skills = build.skillsTab
+	savers.Calcs = build.calcsTab
+	if build.notesTab then savers.Notes = build.notesTab end
+	if build.importTab then savers.Import = build.importTab end
+	if build.plannerTab then savers.AIPlanner = build.plannerTab end
+	build.savers = savers
 	local legacy = { Spec = build.treeTab }
 	local deferred = { }
 	for _, node in ipairs(root) do
