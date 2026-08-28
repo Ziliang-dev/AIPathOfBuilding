@@ -41,9 +41,9 @@ function Metrics.FromOutput(output)
 			result[target] = clean(output[source])
 		end
 	end
-	local maxHits = { result.physicalMaxHit, result.fireMaxHit, result.coldMaxHit, result.lightningMaxHit, result.chaosMaxHit }
 	local worst
-	for _, value in ipairs(maxHits) do
+	for _, key in ipairs({ "physicalMaxHit", "fireMaxHit", "coldMaxHit", "lightningMaxHit", "chaosMaxHit" }) do
+		local value = result[key]
 		if type(value) == "number" and (not worst or value < worst) then
 			worst = value
 		end

@@ -52,7 +52,12 @@ describe("AIPathOfBuilding native probes", function()
 	it("uses explicitly mapped native uptime outputs without guessing condition names", function()
 		local env = build.calcsTab.mainEnv
 		local output = build.calcsTab.mainOutput
+		local conditionsUsed = env.conditionsUsed
+		local minionConditionsUsed = env.minionConditionsUsed
+		local enemyConditionsUsed = env.enemyConditionsUsed
 		env.conditionsUsed = { conditionNative = { { name = "Native source", source = "Item:1" } } }
+		env.minionConditionsUsed = { }
+		env.enemyConditionsUsed = { }
 		build.calcsTab.mainOutput = { NativeUptime = 95 }
 		local evidence = assert(NativeEvidence.Extract(build, {
 			conditions = { conditionNative = { trigger = "always", uptimeKey = "NativeUptime" } },
@@ -61,6 +66,9 @@ describe("AIPathOfBuilding native probes", function()
 		assert.are.equal(0.95, evidence.claims[1].sources[1].uptime)
 		build.calcsTab.mainEnv = env
 		build.calcsTab.mainOutput = output
+		env.conditionsUsed = conditionsUsed
+		env.minionConditionsUsed = minionConditionsUsed
+		env.enemyConditionsUsed = enemyConditionsUsed
 	end)
 
 	it("fails closed when native calculator output is unavailable", function()

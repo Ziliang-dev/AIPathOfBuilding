@@ -36,7 +36,12 @@ if ($null -eq $bustedCommand -and $null -eq $dockerCommand) {
 }
 
 & $checkPowerShellPath
-& $checkSidecarPath $(if ($Install) { '-Install' } else { @() })
+if ($Install) {
+    & $checkSidecarPath -Install
+}
+else {
+    & $checkSidecarPath
+}
 if ($LASTEXITCODE -ne 0) {
     throw "Sidecar checks failed with exit code $LASTEXITCODE."
 }

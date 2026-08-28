@@ -436,12 +436,13 @@ function TradeBroker:Search(spec, callback)
 		return requestId
 	end
 	if cached then self.cache[key] = nil end
-	local subscriber = { id = requestId, callback = callback, callbacks = { }, cancelled = false, done = false }
+	local subscriber = { id = requestId, key = key, callback = callback, callbacks = { }, cancelled = false, done = false }
 	if type(callback) == "function" then table.insert(subscriber.callbacks, callback) end
 	self.active[requestId] = subscriber
 	local state = self.inflightByKey[key]
 	if state then
 		table.insert(state.subscribers, subscriber)
+		state.remaining = state.remaining + 1
 		return requestId
 	end
 	state = {

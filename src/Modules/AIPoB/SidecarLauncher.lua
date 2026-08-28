@@ -12,6 +12,13 @@ local function exists(path)
 	return true
 end
 
+local function findAssetRoot(scriptPath)
+	for _, candidate in ipairs({ scriptPath, scriptPath .. "/..", ".", ".." }) do
+		if exists(candidate .. "/sidecar/dist/server.cjs") then return candidate end
+	end
+	return scriptPath
+end
+
 local function quoted(value)
 	value = tostring(value)
 	if value:find('[%z\r\n"]') then return nil, "unsafe process argument" end
@@ -33,7 +40,7 @@ function SidecarLauncher.new(options)
 	local defaultWorkerCount = math.min(4, math.max(1, math.floor(processors / 2)))
 	local assetRoot = options.assetRoot
 	if not assetRoot then
-		assetRoot = exists(scriptPath .. "/sidecar/dist/server.cjs") and scriptPath or scriptPath .. "/.."
+		assetRoot = findAssetRoot(scriptPath)
 	end
 	return setmetatable({
 		scriptPath = scriptPath,

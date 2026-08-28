@@ -61,9 +61,9 @@ describe("AIPathOfBuilding Golden corpus", function()
 			return "rules"
 		elseif path == "Build.mainSocketGroup" then
 			return "skills"
-		elseif path:match("^Build%.TimelessData%.") then
+		elseif path == "Build.TimelessData" or path:match("^Build%.TimelessData%.") then
 			return "tree"
-		elseif path:match("^Build%.Spectre%.") then
+		elseif path == "Build.Spectre" or path:match("^Build%.Spectre%.") then
 			return "actor"
 		elseif path:match("^Build") then
 			return "identity"

@@ -15,11 +15,17 @@ local aliases = { guardianPinnacle = "pinnacle", uberPinnacle = "uber" }
 local persistentConfig = { bandit = true, pantheonMajorGod = true, pantheonMinorGod = true }
 
 local function resetScenarioConfig(build, input)
+	local preserved = { }
+	local inputTypes = { }
+	for key, value in pairs(input) do inputTypes[key] = type(value) end
+	for key in pairs(persistentConfig) do preserved[key] = Util.deepCopy(input[key]) end
+	for key in pairs(input) do input[key] = nil end
+	for key, value in pairs(preserved) do input[key] = value end
 	for _, option in ipairs(ConfigOptions) do
 		if type(option.var) == "string" and not persistentConfig[option.var] then
 			local default
 			if build.configTab and type(build.configTab.GetDefaultState) == "function" then
-				local ok, value = pcall(build.configTab.GetDefaultState, build.configTab, option.var, type(input[option.var]))
+				local ok, value = pcall(build.configTab.GetDefaultState, build.configTab, option.var, inputTypes[option.var])
 				if ok then default = value end
 			elseif option.defaultState ~= nil then
 				default = option.defaultState

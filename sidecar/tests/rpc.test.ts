@@ -367,7 +367,7 @@ describe("RpcServer", () => {
     socket.destroy();
     await once(socket, "close");
 
-    expect(contextSignal?.aborted).toBe(true);
+    await vi.waitFor(() => expect(contextSignal?.aborted).toBe(true));
   });
 });
 

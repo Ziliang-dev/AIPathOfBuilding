@@ -411,12 +411,12 @@ describe("AIPathOfBuilding transaction", function()
 			assert(Scenario.Create("uber", "sustainable", { bossSkillPreset = "Slam" })),
 		}
 		local candidate = { scenarioMetrics = {
-			mapping = { FullDPS = 111 }, standardBoss = { FullDPS = 122 },
-			pinnacle = { FullDPS = 133 }, uber = { FullDPS = 144 },
+			mapping = { fullDps = 111 }, standardBoss = { fullDps = 122 },
+			pinnacle = { fullDps = 133 }, uber = { fullDps = 144 },
 		} }
 		local verified, actual = transaction:VerifyScenarios(candidate, "<PathOfBuilding/>", scenarios)
 		assert.is_true(verified)
-		assert.are.equal(111, actual.mapping.FullDPS)
+		assert.are.equal(111, actual.mapping.fullDps)
 		local missing, missingErr = transaction:VerifyScenarios(candidate, "<PathOfBuilding/>", { scenarios[1] })
 		assert.is_nil(missing)
 		assert.matches("missing sustainable transaction scenario", missingErr)

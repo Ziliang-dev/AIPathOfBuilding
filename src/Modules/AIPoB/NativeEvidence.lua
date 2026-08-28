@@ -10,16 +10,19 @@ local function numeric(value)
 	return type(value) == "number" and value == value and value ~= math.huge and value ~= -math.huge and value or nil
 end
 
-local function outputRatios(output, prefix, result)
+local function outputRatios(output, prefix, result, visited)
 	result = result or { }
 	prefix = prefix or ""
 	if type(output) ~= "table" then return result end
+	visited = visited or { }
+	if visited[output] then return result end
+	visited[output] = true
 	for _, key in ipairs(Util.sortedKeys(output or { })) do
 		local raw = output[key]
 		local name = tostring(key)
 		local path = prefix == "" and name or prefix .. "." .. name
 		if type(raw) == "table" then
-			outputRatios(raw, path, result)
+			outputRatios(raw, path, result, visited)
 		else
 			local value = numeric(raw)
 			if value and (name:find("Uptime", 1, true) or name:find("UpTimeRatio", 1, true)) then

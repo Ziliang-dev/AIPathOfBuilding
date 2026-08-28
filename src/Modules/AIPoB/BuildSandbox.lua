@@ -1,9 +1,6 @@
 require("Classes.CompareEntry")
 
 local t_insert = table.insert
-local m_min = math.min
-local m_max = math.max
-
 ---@class BuildSandbox: CompareEntry
 local BuildSandboxClass = newClass("BuildSandbox", "CompareEntry")
 
@@ -20,37 +17,8 @@ local function cloneXML(value)
 	return copy
 end
 
-local function defaultProperties(self, label)
-	self:ControlHost()
-	self.label = label or "AIPathOfBuilding Sandbox"
-	self.buildName = self.label
-	self.viewMode = "TREE"
-	self.characterLevel = m_min(m_max(main.defaultCharLevel or 1, 1), 100)
-	self.targetVersion = liveTargetVersion
-	self.bandit = "None"
-	self.pantheonMajorGod = "None"
-	self.pantheonMinorGod = "None"
-	self.characterLevelAutoMode = main.defaultCharLevel == 1 or main.defaultCharLevel == nil
-	self.mainSocketGroup = 1
-	self.notesText = ""
-	self.spectreList = { }
-	self.timelessData = {
-		jewelType = { }, conquerorType = { }, devotionVariant1 = 1, devotionVariant2 = 1,
-		jewelSocket = { }, fallbackWeightMode = { }, searchList = "", searchListFallback = "",
-		searchResults = { }, sharedResults = { },
-	}
-	self.latestTree = main.tree[latestTreeVersion]
-	self.data = data
-	self.buildFlag = false
-	self.outputRevision = 1
-	local stats = require("Modules.BuildDisplayStats")
-	self.displayStats = stats.displayStats
-	self.minionDisplayStats = stats.minionDisplayStats
-	self.extraSaveStats = stats.extraSaveStats
-end
-
 function BuildSandboxClass:BuildSandbox(xmlText, label)
-	defaultProperties(self, label)
+	self:CompareEntry(nil, label or "AIPathOfBuilding Sandbox")
 	if xmlText then
 		local ok, err = self:LoadFromXML(xmlText)
 		if not ok then
