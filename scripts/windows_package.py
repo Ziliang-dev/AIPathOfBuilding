@@ -233,9 +233,9 @@ def package_windows(args: argparse.Namespace) -> None:
     package_dist = package_sidecar / "dist"
     package_runtime = package_sidecar / "runtime"
     package_modules = package_sidecar / "node_modules"
-    package_dist.mkdir(parents=True)
-    package_runtime.mkdir(parents=True)
-    package_modules.mkdir(parents=True)
+    package_dist.mkdir(parents=True, exist_ok=True)
+    package_runtime.mkdir(parents=True, exist_ok=True)
+    package_modules.mkdir(parents=True, exist_ok=True)
     copy_file(bundle_path, package_dist / "server.cjs")
     copy_file(node_path, package_runtime / "node.exe")
     copy_file(credential_helper, package_runtime / "aipob-credential-helper.exe")

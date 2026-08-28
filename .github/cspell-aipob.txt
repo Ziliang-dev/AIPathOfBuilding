@@ -6,7 +6,9 @@ apikey
 characterid
 charactername
 checkpointer
+compresslevel
 CREDENTIALW
+creationflags
 dedupe
 DOUTPUT
 DSTAGING
