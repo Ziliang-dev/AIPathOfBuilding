@@ -60,7 +60,7 @@ function Assert-SafeZipEntries {
 function New-PackageRoot {
     param(
         [Parameter(Mandatory)][string]$Path,
-        [Parameter(Mandatory)][System.Collections.Generic.List[string]]$TemporaryRoots
+        [Parameter(Mandatory)][AllowEmptyCollection()][System.Collections.Generic.List[string]]$TemporaryRoots
     )
 
     $resolved = (Resolve-Path -LiteralPath $Path -ErrorAction Stop).Path

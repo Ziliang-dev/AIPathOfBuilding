@@ -66,9 +66,7 @@ try {
     if ($null -ne $bustedCommand) {
         & $bustedCommand.Source '--lua=luajit' @luaSpecs
     } else {
-        $mount = "${repositoryRoot}:/workdir:ro"
-        & $dockerCommand.Source 'run' '--rm' '--security-opt' 'no-new-privileges:true' '-v' $mount '-w' '/workdir' `
-            'ghcr.io/pathofbuildingcommunity/pathofbuilding-tests:latest' 'busted' '--lua=luajit' @luaSpecs
+        & $dockerCommand.Source 'compose' 'run' '--rm' '--no-deps' 'busted-tests' 'busted' '--lua=luajit' @luaSpecs
     }
     if ($LASTEXITCODE -ne 0) {
         throw "Golden corpus Lua harness failed with exit code $LASTEXITCODE."
