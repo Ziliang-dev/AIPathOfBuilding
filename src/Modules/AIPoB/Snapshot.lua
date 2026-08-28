@@ -4,6 +4,7 @@ local Snapshot = {
 	SCHEMA_VERSION = 2,
 }
 
+local gameplayOrder = { "Build", "Config", "Party", "Tree", "Items", "Skills" }
 local gameplayRoots = { Build = true, Config = true, Party = true, Tree = true, Items = true, Skills = true }
 local excludedRoots = { Calcs = true, Notes = true, Import = true, AIPlanner = true, TreeView = true }
 
@@ -80,6 +81,17 @@ local function canonicalizeItems(itemsNode)
 			table.remove(itemsNode, index)
 		end
 	end
+	for _, itemSet in ipairs(itemsNode) do
+		if type(itemSet) == "table" and itemSet.elem == "ItemSet" then
+			table.sort(itemSet, function(left, right)
+				local leftAttributes = type(left) == "table" and left.attrib or { }
+				local rightAttributes = type(right) == "table" and right.attrib or { }
+				local leftKey = table.concat({ tostring(left.elem), tostring(leftAttributes.name), tostring(leftAttributes.itemId), tostring(leftAttributes.itemPbURL) }, "\0")
+				local rightKey = table.concat({ tostring(right.elem), tostring(rightAttributes.name), tostring(rightAttributes.itemId), tostring(rightAttributes.itemPbURL) }, "\0")
+				return leftKey < rightKey
+			end)
+		end
+	end
 end
 
 local function canonicalizeAttributeOrder(xml)
@@ -103,12 +115,16 @@ function Snapshot.SanitizeXML(xml)
 	local root = document and document[1]
 	if not root or root.elem ~= "PathOfBuilding" then return nil, "PathOfBuilding root element missing" end
 	local sanitized = { elem = "PathOfBuilding", attrib = root.attrib or { } }
+	local gameplayNodes = { }
 	for _, node in ipairs(root) do
 		if type(node) == "table" and gameplayRoots[node.elem] then
 			if node.elem == "Config" then canonicalizeConfig(node) end
 			if node.elem == "Items" then canonicalizeItems(node) end
-			table.insert(sanitized, node)
+			gameplayNodes[node.elem] = node
 		end
+	end
+	for _, element in ipairs(gameplayOrder) do
+		if gameplayNodes[element] then table.insert(sanitized, gameplayNodes[element]) end
 	end
 	local composed, composeErr = common.xml.ComposeXML(sanitized)
 	if not composed then return nil, tostring(composeErr) end

@@ -35,9 +35,22 @@ describe("AIPathOfBuilding Lua core", function()
 		assert.is_truthy(first:find('<ConfigSet id="1" title="Default">', 1, true))
 	end)
 
+	it("canonicalizes gameplay section order before fingerprinting", function()
+		local first = assert(Snapshot.SanitizeXML([[<PathOfBuilding><Build level="90"/><Config/><Party/><Tree/><Items/><Skills/></PathOfBuilding>]]))
+		local second = assert(Snapshot.SanitizeXML([[<PathOfBuilding><Skills/><Items/><Tree/><Party/><Config/><Build level="90"/></PathOfBuilding>]]))
+		assert.are.equal(first, second)
+		assert.are.equal(Snapshot.Fingerprint(first), Snapshot.Fingerprint(second))
+	end)
+
 	it("drops empty trade-search weights from canonical snapshots", function()
 		local first = assert(Snapshot.SanitizeXML([[<PathOfBuilding><Items activeItemSet="1"/></PathOfBuilding>]]))
 		local second = assert(Snapshot.SanitizeXML([[<PathOfBuilding><Items activeItemSet="1"><TradeSearchWeights/></Items></PathOfBuilding>]]))
+		assert.are.equal(first, second)
+	end)
+
+	it("canonicalizes item-set slot order before fingerprinting", function()
+		local first = assert(Snapshot.SanitizeXML([[<PathOfBuilding><Items><ItemSet id="1"><Slot name="Helmet" itemId="2"/><Slot name="Amulet" itemId="1"/></ItemSet></Items></PathOfBuilding>]]))
+		local second = assert(Snapshot.SanitizeXML([[<PathOfBuilding><Items><ItemSet id="1"><Slot name="Amulet" itemId="1"/><Slot name="Helmet" itemId="2"/></ItemSet></Items></PathOfBuilding>]]))
 		assert.are.equal(first, second)
 	end)
 
