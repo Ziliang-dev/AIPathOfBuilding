@@ -465,7 +465,12 @@ class PackageRoot:
         if self.keep:
             print(f"Kept extracted package: {self.temporary}")
         else:
-            remove_tree(self.temporary)
+            try:
+                remove_tree(self.temporary)
+            except OSError as error:
+                if exc_type is None:
+                    raise
+                print(f"warning: package cleanup failed after E2E error: {error}", file=sys.stderr)
 
 
 def verify_package(args: argparse.Namespace) -> None:
