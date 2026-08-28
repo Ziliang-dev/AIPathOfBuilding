@@ -47,27 +47,6 @@ local function getModTemplate(modText)
 	end
 	return modTemplateCache[modText]
 end
-local function hasHigherNumericValues(candidate, current)
-	local candidateValues = { }
-	local currentValues = { }
-	for value in candidate:gmatch("%-?%d+%.?%d*") do t_insert(candidateValues, tonumber(value)) end
-	for value in current:gmatch("%-?%d+%.?%d*") do t_insert(currentValues, tonumber(value)) end
-	for index = 1, math.max(#candidateValues, #currentValues) do
-		local candidateValue = candidateValues[index]
-		local currentValue = currentValues[index]
-		if candidateValue ~= currentValue then
-			if candidateValue == nil then return false end
-			if currentValue == nil then return true end
-			return candidateValue > currentValue
-		end
-	end
-	return candidate < current
-end
-local function sourcePriority(source)
-	if source:match("^Ascendancy ") or source:match("^Bloodline ") then return 2 end
-	if source == "Normal Node" then return 4 end
-	return source:match(" Node$") and 3 or 1
-end
 ---@param set table
 ---@param line string
 ---@param source string
@@ -83,12 +62,8 @@ local function addModLine(set, line, source, supported)
 		modEntry.sources[source] = true
 	end
 	if supported ~= nil then
-		local priority = sourcePriority(source)
-		if supported and (not modEntry.supported
-				or priority > (modEntry.displayPriority or 0)
-				or priority == modEntry.displayPriority and hasHigherNumericValues(line, modEntry.text)) then
+		if supported and not modEntry.supported then
 			modEntry.text = line
-			modEntry.displayPriority = priority
 		end
 		modEntry.supported = modEntry.supported or supported
 	end
