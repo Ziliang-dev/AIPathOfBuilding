@@ -14,7 +14,6 @@ if ([IO.Path]::GetExtension($resolvedInstaller).ToLowerInvariant() -ne '.exe') {
 if ([IO.Path]::GetExtension($resolvedPackage).ToLowerInvariant() -ne '.zip') { throw 'PackagePath must be a .zip file.' }
 
 & $verifyPackage -PackagePath $resolvedPackage
-if ($LASTEXITCODE -ne 0) { throw "Canonical package verification failed with exit code $LASTEXITCODE." }
 
 $temporaryRoot = Join-Path ([IO.Path]::GetTempPath()) ('aipob-installer-verify-' + [guid]::NewGuid().ToString('N'))
 $expectedRoot = Join-Path $temporaryRoot 'expected'

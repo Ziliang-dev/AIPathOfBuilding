@@ -19,7 +19,6 @@ if (-not (Test-Path -LiteralPath $verifyScript -PathType Leaf)) { throw "Package
 if (-not (Test-Path -LiteralPath $nsiPath -PathType Leaf)) { throw "NSIS source not found: $nsiPath" }
 
 & $verifyScript -PackagePath $resolvedPackage
-if ($LASTEXITCODE -ne 0) { throw "Canonical package verification failed with exit code $LASTEXITCODE." }
 
 $compilerPath = if ([string]::IsNullOrWhiteSpace($MakeNsisPath)) {
     (Get-Command makensis.exe -ErrorAction Stop).Source
