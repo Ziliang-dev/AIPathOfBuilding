@@ -35,9 +35,13 @@ pnpm --version
 | RPC unauthorized or immediately disconnected | Session token mismatch, stale ready file, or mixed processes | Stop the stale process, let the launcher create a new token and ready file, then retry |
 | `Persistent SQLite checkpointer is required but unavailable` | `better-sqlite3` or checkpoint native dependency failed to load | Ensure packaged Node major, architecture, module version, and native ABI match; reinstall locked sidecar dependencies for development |
 | `SQLite unavailable; using non-persistent in-memory planner store` | Planner database failed but checkpoint database may still be available | Treat run history/cache as process-local; fix the SQLite load before relying on restart history |
-| Search warns that external item search is disabled | Trade/catalog broker is not connected | Disable external source controls or continue with current-build search; this is expected in the current baseline |
-| Run ends with provider fallback | Model provider is not injected by current CLI | Expected behavior; deterministic search was used |
-| No verified candidate | No typed proposal improves the baseline while satisfying Locks, Budget, graph rules, and hard constraints | Relax intended constraints, verify catalog export, and inspect worker diagnostics; do not assume Trade was searched |
+| Search reports a Trade warning | Missing Budget/league, PoB Trade authentication, rate limit, network, or query failure | Check the exact warning and PoB Trade state; local search continues, so do not assume the run included external items |
+| Trade item cannot be applied | Stale Build fingerprint, slot mismatch, changed catalog item, or content-hash mismatch | Start a new run from the current Build; never bypass `importAndEquip` source/hash validation |
+| Provider status is unconfigured | No OpenAI-compatible profile or LLM credential | Configure endpoint, model, and key in Planner provider setup; do not use `.env` or project files |
+| Provider consent is required | First call, changed endpoint/model/policy, or revoked consent | Review the redacted consent preview and grant it only if its exact destination and categories are acceptable |
+| Credential helper fails | WinCred helper missing, wrong architecture, or target outside `AIPathOfBuilding/LLM/*` | Use a verified Windows package; never broaden the namespace or move PoE OAuth secrets into the helper |
+| Run ends with provider fallback | Provider is absent, unconsented, unavailable, or returned an invalid response | Inspect provider status/error; deterministic search remains available |
+| No verified candidate | No typed proposal improves the baseline while satisfying Locks, Budget, native proof, graph rules, and hard constraints | Relax intended constraints, verify catalog/Trade warnings, and inspect worker diagnostics |
 | Apply says fingerprint changed | Active Build changed after capture | Start a new run from the current Build; do not bypass fingerprint validation |
 | Apply metric mismatch | Candidate could not be reproduced in fresh verification or commit | Keep the active Build unchanged, inspect Scenario inputs and calculator diagnostics, then reproduce with a focused test |
 | Transaction reports rollback | An action, rebuild, or final verification failed | Confirm the original fingerprint was restored; inspect reported stage and action ID |
@@ -95,13 +99,16 @@ construction, batching, cancellation, framing, or result validation.
 
 The portable package must keep these components compatible:
 
-- Node.js 24 x64 runtime;
+- Node.js 24.20.0 x64 runtime and ABI 137;
 - installed `better-sqlite3` package;
 - its Windows x64 native binding; and
+- the WinCred helper; and
 - the bundled `server.cjs`.
 
-Replacing only `node.exe` can break SQLite loading. Build a new package when the
-Node major or native dependency changes.
+Replacing only `node.exe` can break SQLite loading. Rebuild and reverify the
+canonical portable ZIP and NSIS installer when Node or a native dependency
+changes. Compare installer output with the ZIP checksums; do not repair an
+incomplete install by copying arbitrary runtime files.
 
 For deeper ownership information, see [Architecture](architecture.md) and
 [Development](development.md).

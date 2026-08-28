@@ -1,7 +1,7 @@
 local sha = require("sha2")
 
 local Snapshot = {
-	SCHEMA_VERSION = 1,
+	SCHEMA_VERSION = 2,
 }
 
 local gameplayRoots = { Build = true, Config = true, Party = true, Tree = true, Items = true, Skills = true }
@@ -48,21 +48,37 @@ local function fingerprint(xml)
 	return sha.sha256(xml)
 end
 
+function Snapshot.SanitizeXML(xml)
+	local document, err = common.xml.ParseXML(xml)
+	if err then return nil, tostring(err) end
+	local root = document and document[1]
+	if not root or root.elem ~= "PathOfBuilding" then return nil, "PathOfBuilding root element missing" end
+	local sanitized = { elem = "PathOfBuilding", attrib = root.attrib or { } }
+	for _, node in ipairs(root) do
+		if type(node) == "table" and gameplayRoots[node.elem] then table.insert(sanitized, node) end
+	end
+	local composed, composeErr = common.xml.ComposeXML(sanitized)
+	if not composed then return nil, tostring(composeErr) end
+	return composed
+end
+
 function Snapshot.Fingerprint(xml)
 	return fingerprint(xml)
 end
 
-function Snapshot.Capture(build)
+function Snapshot.Capture(build, options)
 	if type(build) ~= "table" or type(build.SaveDB) ~= "function" then
 		return nil, "build does not support SaveDB"
 	end
-	local ok, xml = pcall(build.SaveDB, build, "AIPathOfBuilding")
+	local ok, fullXml = pcall(build.SaveDB, build, "AIPathOfBuilding")
 	if not ok then
-		return nil, "SaveDB failed: " .. tostring(xml)
+		return nil, "SaveDB failed: " .. tostring(fullXml)
 	end
-	if type(xml) ~= "string" or xml == "" then
+	if type(fullXml) ~= "string" or fullXml == "" then
 		return nil, "SaveDB returned no XML"
 	end
+	local xml, sanitizeErr = Snapshot.SanitizeXML(fullXml)
+	if not xml then return nil, "snapshot sanitization failed: " .. tostring(sanitizeErr) end
 	local metricSet = { }
 	local metricsOk, Metrics = pcall(require, "Modules.AIPoB.Metrics")
 	if metricsOk then
@@ -76,15 +92,16 @@ function Snapshot.Capture(build)
 		if type(value) == "string" or type(value) == "number" or type(value) == "boolean" then config[key] = value end
 	end
 	local targetVersion = tostring(build.targetVersion or "unknown")
-	local gameplayFieldPaths, coverageErr = Snapshot.GameplayFieldPaths(xml)
+	local ruleset = tostring(build.spec and build.spec.treeVersion or latestTreeVersion or "unknown")
+	local gameplayFieldPaths, coverageErr = Snapshot.GameplayFieldPaths(fullXml)
 	if not gameplayFieldPaths then return nil, coverageErr end
-	return {
+	local result = {
 		schemaVersion = Snapshot.SCHEMA_VERSION,
 		xml = xml,
 		fingerprint = fingerprint(xml),
 		engineVersion = tostring(_G.version or _G.buildVersion or "unknown"),
-		dataVersion = tostring(_G.dataVersion or targetVersion),
-		ruleset = targetVersion,
+		dataVersion = tostring(_G.dataVersion or ruleset),
+		ruleset = ruleset,
 		targetVersion = targetVersion,
 		outputRevision = tonumber(build.outputRevision) or 0,
 		metrics = metricSet,
@@ -97,6 +114,8 @@ function Snapshot.Capture(build)
 		},
 		gameplayFieldPaths = gameplayFieldPaths,
 	}
+	if options and options.includeRollback then result.rollbackXml = fullXml end
+	return result
 end
 
 function Snapshot.Verify(build, expected)

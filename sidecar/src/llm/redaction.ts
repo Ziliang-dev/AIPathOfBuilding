@@ -15,6 +15,7 @@ const SENSITIVE_KEYS = new Set([
   "contact",
   "cookie",
   "listingid",
+  "importlink",
   "oauth",
   "oauthcode",
   "oauthstate",
@@ -33,10 +34,10 @@ const SENSITIVE_KEYS = new Set([
 ]);
 
 const XML_IDENTITY_ATTRIBUTE =
-  /\b(account(?:Name|Id)?|character(?:Name|Id)?|seller(?:Name|Id)?|listingId|tradeId|resultId|poesessid|accessToken|refreshToken|apiKey|token)\s*=\s*("[^"]*"|'[^']*')/gi;
+  /\b(account(?:Name|Id)?|character(?:Name|Id)?|seller(?:Name|Id)?|listingId|tradeId|resultId|importLink|poesessid|accessToken|refreshToken|apiKey|token)\s*=\s*("[^"]*"|'[^']*')/gi;
 const AUTHORIZATION_VALUE = /\b(Bearer|Basic)\s+[A-Za-z0-9._~+/=-]+/gi;
 const SECRET_ASSIGNMENT =
-  /\b(access[_-]?token|refresh[_-]?token|api[_-]?key|poesessid|authorization|account[_-]?(?:name|id)|character[_-]?(?:name|id)|seller[_-]?(?:name|id)|listing[_-]?id|trade[_-]?id)\b(\s*[:=]\s*)([^\s,;]+)/gi;
+  /\b(access[_-]?token|refresh[_-]?token|api[_-]?key|poesessid|authorization|import[_-]?link|account[_-]?(?:name|id)|character[_-]?(?:name|id)|seller[_-]?(?:name|id)|listing[_-]?id|trade[_-]?id)\b(\s*[:=]\s*)([^\s,;]+)/gi;
 
 function normalizeKey(key: string): string {
   return key.replace(/[^a-z0-9]/gi, "").toLowerCase();

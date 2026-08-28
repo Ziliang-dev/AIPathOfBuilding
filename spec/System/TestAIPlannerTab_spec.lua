@@ -4,7 +4,7 @@ describe("AIPlannerTab", function()
 		local planner = build.plannerTab
 		local objective = planner:BuildObjective()
 
-		assert.are.equals(1, objective.schemaVersion)
+		assert.are.equals(2, objective.schemaVersion)
 		assert.are.equals("mapping", objective.primaryScenario)
 		assert.are.equals(0.55, objective.scenarioWeights.mapping)
 		assert.are.equals(0.15, objective.scenarioWeights.standardBoss)
@@ -30,13 +30,18 @@ describe("AIPlannerTab", function()
 		planner.controls.budget:SetText("12.5")
 		planner.controls.sourceUniques.state = true
 		planner.controls.sourceTargetRares.state = true
+		planner.controls.sourceTrade.state = true
+		planner.controls.tradeRealm:SelByValue("xbox", "id")
+		planner.controls.tradeLeague:SetText("Keepers")
 		planner.controls.minEHP:SetText("50000")
 		planner.controls.minWorstCaseMaxHit:SetText("18000")
 		planner.controls.confirmed.state = true
 		local paidObjective = planner:BuildObjective()
 		assert.is_true(paidObjective.candidateSources.uniques)
 		assert.is_true(paidObjective.candidateSources.targetRares)
-		assert.is_false(paidObjective.candidateSources.trade)
+		assert.is_true(paidObjective.candidateSources.trade)
+		assert.are.equals("xbox", paidObjective.tradeContext.realm)
+		assert.are.equals("Keepers", paidObjective.tradeContext.league)
 		assert.are.equals("effectiveHitPool", paidObjective.hardConstraints[1].metric)
 		assert.are.equals(">=", paidObjective.hardConstraints[1].operator)
 		assert.are.equals(50000, paidObjective.hardConstraints[1].value)
@@ -46,10 +51,13 @@ describe("AIPlannerTab", function()
 		local xml = { elem = "AIPlanner" }
 		planner:Save(xml)
 
-		assert.are.equals("1", xml.attrib.schemaVersion)
+		assert.are.equals("2", xml.attrib.schemaVersion)
 		assert.are.equals("12.5", xml.attrib.budgetDivine)
 		assert.are.equals("true", xml.attrib.sourceUniques)
 		assert.are.equals("true", xml.attrib.sourceTargetRares)
+		assert.are.equals("true", xml.attrib.sourceTrade)
+		assert.are.equals("xbox", xml.attrib.tradeRealm)
+		assert.are.equals("Keepers", xml.attrib.tradeLeague)
 		assert.are.equals("50000", xml.attrib.minEHP)
 		assert.are.equals("18000", xml.attrib.minWorstCaseMaxHit)
 		assert.is_nil(xml.attrib.confirmed)
@@ -70,8 +78,41 @@ describe("AIPlannerTab", function()
 		assert.are.equals("18000", planner.controls.minWorstCaseMaxHit.buf)
 		assert.is_true(planner.controls.sourceUniques.state)
 		assert.is_true(planner.controls.sourceTargetRares.state)
+		assert.is_true(planner.controls.sourceTrade.state)
+		assert.are.equals("xbox", planner.controls.tradeRealm:GetSelValueByKey("id"))
+		assert.are.equals("Keepers", planner.controls.tradeLeague.buf)
 		assert.is_false(planner.controls.confirmed.state)
 		assert.is_false(planner.modFlag)
+	end)
+
+	it("requires review of Planner Chat drafts and blocks unresolved metrics", function()
+		newBuild()
+		local planner = build.plannerTab
+		planner.state.objectiveDraft = {
+			primaryScenario = "uber", budgetDivine = 6,
+			goals = { { metric = "worstCaseMaxHit", direction = "maximize", weight = 1 } },
+			hardConstraints = { { metric = "effectiveHitPool", operator = ">=", value = 50000 } },
+			candidateSources = { currentBuild = true, uniques = true, targetRares = false, trade = true },
+			tradeContext = { realm = "pc", league = "Keepers" },
+		}
+		planner.state.objectiveDraftUnresolved = { "unknownMetric" }
+		planner:ApplyPlannerDraft()
+		assert.matches("unknown metrics", planner.runtimeError)
+		assert.is_table(planner.state.objectiveDraft)
+
+		planner.state.objectiveDraftUnresolved = { }
+		planner.controls.confirmed.state = true
+		planner:ApplyPlannerDraft()
+		assert.is_nil(planner.runtimeError)
+		assert.is_nil(planner.state.objectiveDraft)
+		assert.is_false(planner.controls.confirmed.state)
+		local objective = planner:BuildObjective()
+		assert.are.equals("uber", objective.primaryScenario)
+		assert.are.equals(6, objective.budgetDivine)
+		assert.are.equals("worstCaseMaxHit", objective.goals[1].metric)
+		assert.are.equals("effectiveHitPool", objective.hardConstraints[1].metric)
+		assert.is_true(objective.candidateSources.trade)
+		assert.are.equals("Keepers", objective.tradeContext.league)
 	end)
 
 	it("never starts a run without per-run human confirmation", function()

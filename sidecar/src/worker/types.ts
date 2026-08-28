@@ -3,10 +3,12 @@ import type { MetricVector } from "../search/types.js";
 
 /** Frozen Lua worker evaluate payload. Keep secrets and account data outside it. */
 export interface PobWorkerEvaluatePayload<Action = BuildAction> {
+  readonly operation?: "evaluate" | "probe";
   readonly xml: string;
   readonly actions: readonly Action[];
   readonly scenarios: readonly ScenarioSpec[];
-  readonly evidence: readonly ConditionEvidence[];
+  readonly evidence: readonly ConditionEvidence[] | Readonly<Record<string, readonly ConditionEvidence[]>>;
+  readonly probeOptions?: Readonly<Record<string, unknown>>;
 }
 
 export interface WorkerJob<Payload = unknown> {
@@ -23,6 +25,14 @@ export interface WorkerEvaluation {
   readonly candidateId: string;
   readonly metricsByScenario: Readonly<Record<string, MetricVector>>;
   readonly diagnostics?: readonly string[];
+  readonly operation?: "evaluate" | "probe";
+  readonly candidateFingerprint?: string;
+  readonly nativeProbeFingerprint?: string;
+  readonly evidenceFingerprint?: string;
+  readonly nativeLinkProbe?: unknown;
+  readonly nativeEvidence?: unknown;
+  readonly nativeEvidenceByScenario?: unknown;
+  readonly resolvedEvidence?: readonly ConditionEvidence[];
 }
 
 export interface WorkerContext {

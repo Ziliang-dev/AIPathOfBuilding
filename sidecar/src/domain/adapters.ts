@@ -13,6 +13,7 @@ import {
   type DomainEdge,
   type DomainNode,
 } from "./graph.js";
+import { createActorSeasonAdapters } from "./actor-season.js";
 
 export interface MechanicAdapterContext {
   readonly ruleset: string;
@@ -273,7 +274,7 @@ function configurationEvidenceAdapter(): MechanicAdapter {
 
 /** Versioned adapters for content that commonly needs rules beyond generic PoB fields. */
 export function createDefaultMechanicAdapterRegistry(): MechanicAdapterRegistry {
-  return new MechanicAdapterRegistry()
+  const registry = new MechanicAdapterRegistry()
     .register(configurationEvidenceAdapter())
     .register(keywordAdapter("identity-mechanics", "identity", [
       "ascend", "bloodline", "pact", "bandit", "pantheon",
@@ -290,4 +291,6 @@ export function createDefaultMechanicAdapterRegistry(): MechanicAdapterRegistry 
     .register(keywordAdapter("actor-mechanics", "actor", [
       "minion", "spectre", "guardian", "party", "aura", "buff",
     ]));
+  for (const adapter of createActorSeasonAdapters()) registry.register(adapter);
+  return registry;
 }

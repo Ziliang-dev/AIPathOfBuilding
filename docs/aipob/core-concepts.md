@@ -23,8 +23,9 @@ Objective.
 ### Objective Draft
 
 An unconfirmed or incomplete interpretation that must be normalized and
-confirmed before optimization. The schema exists, but conversational drafting
-is not connected to the current Planner UI.
+confirmed before optimization. Planner Chat can produce a Draft through a
+configured and consented OpenAI-compatible provider. The user must review and
+accept the Draft; it cannot start a run or mutate a Build.
 
 ### Lock
 
@@ -128,6 +129,10 @@ and one of these statuses:
 - `conflicting`
 - `unknown`
 
+Native compatibility and uptime claims are bound to the Build, Candidate,
+Scenario, and proof fingerprints. Incomplete or truncated native probe output
+cannot become accepted Condition Evidence.
+
 ### Hard Constraint
 
 A numeric requirement that every accepted Candidate must satisfy. UI survival
@@ -175,6 +180,18 @@ verified Candidate. It verifies the base fingerprint, orders Build Actions,
 preflights scenario metrics, applies the actions, verifies committed results,
 and restores the prior Build on failure.
 
+### Actor Projection
+
+A typed view of state owned by a player, minion, spectre, Animate Guardian, or
+party member. Projections let adapters reason about the correct owner without
+sending free-form party text to the sidecar.
+
+### Ruleset Projection
+
+The versioned mechanic view for a PoE ruleset. The connected release corpus
+covers `3_29` and `3_29_ruthless`, including Bloodline, Pact, advanced passive,
+and seasonal equipment state.
+
 ## Scope terms
 
 ### Gameplay-Relevant State
@@ -185,8 +202,9 @@ calculated output, and purely visual UI state are not planning inputs.
 ### External Candidate
 
 An item proposal obtained outside the existing Build, such as a unique catalog,
-target rare, or Trade result. The cross-process types support these sources, but
-the authenticated broker is not connected in the current baseline.
+target rare, or Trade result. Authenticated Trade candidates are connected
+through the PoB-owned broker and arrive in the sidecar as sanitized typed items.
+Non-Trade Unique and target-Rare external proposal catalogs remain partial.
 
 ### Excluded Content
 

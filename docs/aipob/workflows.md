@@ -26,8 +26,10 @@ Select **Start**. PoB launches the sidecar on demand, performs the protocol
 handshake, captures the active Build, exports its current content catalog, and
 starts a run against the captured fingerprint.
 
-The current integration searches deterministically. External Trade proposals
-and model-driven search are not connected.
+The controller always has a deterministic schedule. When an OpenAI-compatible
+provider is configured and consented, the model is injected into planning,
+refinement, explanation, and Planner Chat. Typed, Budget-scoped Trade queries
+may also run at the search barrier through PoB's authenticated broker.
 
 ### 4. Compare
 
@@ -83,17 +85,27 @@ Only the four Sustainable Scenarios are required for apply verification.
 
 ### Inspect, diagnose, and plan
 
-The current handlers record snapshot, ruleset, catalog, graph, and missing-goal
-information. These artifacts guide the deterministic search. Conversational
-inspection through the implemented read-only model tools is not yet connected
-to this controller path.
+The handlers record snapshot, ruleset, catalog, graph, and missing-goal
+information. These artifacts guide deterministic and model-assisted planning.
+The model can only use typed read-only tools; it has no mutation or commit tool.
+Every provider request is redacted and blocked until consent matches the current
+endpoint, model, categories, policy, and payload.
 
 ### Search and evaluate
 
 The controller builds the Domain Graph, applies registered mechanic adapters,
 resolves Condition Evidence, expands typed catalog proposals, and creates a
-zero-action baseline Candidate. Worker processes evaluate batches against the
-PoB calculator.
+zero-action baseline Candidate. If enabled, it asks PoB for bounded Trade
+catalog pages; PoB retains OAuth, rate limits, seller identity, and raw Trade
+responses. The sidecar receives sanitized typed items only. Trade failure adds
+a warning and does not abort local search. Worker processes evaluate batches
+against the PoB calculator.
+
+Every proposed skill link passes a native PoB compatibility probe before
+evaluation. Accepted evidence is complete, non-truncated, scenario-bound, and
+fingerprint-bound. Actor and season adapters project player, minion, spectre,
+Animate Guardian, party, Bloodline, Pact, advanced passive, and seasonal
+equipment state for `3_29` and `3_29_ruthless`.
 
 Candidates that violate hard constraints, Locks, Budget, graph availability, or
 action invariants are removed. Remaining Candidates enter the Pareto frontier.
@@ -109,6 +121,8 @@ active Build remains untouched while paused.
 Before sending Apply, the sidecar verifies:
 
 - the Candidate fingerprint still matches the captured Snapshot;
+- the Candidate proof fingerprint still matches its native link and Condition
+  Evidence inputs;
 - all four Sustainable Scenario metrics can be reproduced;
 - metric differences remain within the implemented tolerance; and
 - hard constraints still pass.
@@ -145,9 +159,9 @@ The Deep preset currently defines these upper bounds:
 | No-improvement convergence rounds | 3 |
 | Duplicate tool-call limit | 3 |
 
-The connected deterministic controller currently performs one search pass and
-sets `needsRefinement=false`. The graph and limits retain the refinement path
-for future controller integration.
+The deterministic fallback normally completes one bounded search pass. A
+consented provider can use the connected bounded refinement path. Richer
+multi-round refinement policy remains roadmap work.
 
 See [Architecture](architecture.md) for module ownership and
 [Domain rules](domain-rules.md) for candidate invariants.

@@ -7,35 +7,83 @@ the resumable search workflow and communicates with PoB through authenticated
 loopback JSON-RPC.
 
 > [!IMPORTANT]
-> This branch is an implementation baseline, not a release candidate. Trade,
-> live model-provider configuration, conversational objective drafting, and
-> several full-domain adapters are not connected. Check the
+> This branch is an implementation baseline, not a published release. The six
+> completion packages below are connected; Windows portable/NSIS and real-PoB
+> process gates must still pass in CI for a release artifact. Check the
 > [capability matrix](docs/aipob/status-and-roadmap.md) before relying on a
 > feature.
 
-## What works now
+## Implementation status
 
-- Structured and explicitly confirmed optimization objectives
-- Immutable Build capture and fingerprint validation
-- Current diagnostic, Mapping, Standard Boss, Guardian/Pinnacle, and Uber
-  Pinnacle evaluation contexts
-- Sustainable and Peak profiles with typed Condition Evidence
-- Deterministic search over typed proposals exported by the current PoB build
-- PoB worker-process evaluation, hard constraints, Pareto filtering, and three
-  candidate views
-- Non-mutating Preview
-- Human-approved, transactional Apply with fresh verification, rollback, and a
-  recovery journal
-- Authenticated loopback RPC, persistent workflow checkpoints, and Windows
-  packaging scripts
+This section is a short project summary. The authoritative, release-baselined
+matrix is [Status and roadmap](docs/aipob/status-and-roadmap.md).
+
+### Connected
+
+- Structured Objectives with goals, Scenario weights, Budget, Locks, hard
+  constraints, candidate-source controls, and explicit confirmation
+- Immutable Build capture with XML serialization, gameplay-field coverage,
+  engine/content versions, baseline metrics, and fingerprint validation
+- Current diagnostic plus Mapping, Standard Boss, Guardian/Pinnacle, and Uber
+  Pinnacle Scenarios, each with Sustainable and Peak profiles
+- Typed Condition Evidence core with trigger legality, uptime threshold,
+  conflicts, and bounded variants
+- Deterministic search over typed proposals exported by the current PoB Build
+- Isolated PoB worker evaluation, hard-constraint checking, Pareto filtering,
+  and Offence, Balanced, and Defence candidate views
+- Non-mutating Candidate Preview
+- Human-approved Transactional Apply with fresh verification, dependency
+  ordering, rollback, and recovery journal
+- Authenticated loopback JSON-RPC, cancellation, persistent workflow
+  checkpoints, reconnect/resume support, structured failure handling, and
+  bidirectional protocol-v2 Trade requests
+- PoB-native link compatibility probes plus candidate/scenario-bound Condition
+  Evidence, uptime, and proof fingerprints
+- Player, minion, spectre, Animate Guardian, party, Bloodline, Pact, advanced
+  passive, and seasonal equipment adapters for `3_29` and `3_29_ruthless`
+- Dynamic, Budget-bound Trade/catalog queries in the authenticated PoB process;
+  seller/account data stays there, while the sidecar receives sanitized typed
+  catalog items and emits fingerprint-bound `importAndEquip` actions
+- OpenAI-compatible provider configuration with API keys stored only under the
+  `AIPathOfBuilding/LLM/*` Windows Credential Manager namespace, explicit
+  revocable first-send consent, ephemeral Planner Chat, and workflow model
+  injection with deterministic fallback
+- Versioned Golden corpus and release gate covering both 3.29 rulesets,
+  mechanic adapters, graph nodes, candidate actions, metrics, and all AIPoB Lua
+  specs
+- Deterministic bundle/manifest ordering; full PoB portable and canonical NSIS
+  packaging pinned to Node `24.20.0` x64 / ABI `137`; apply, reject, failure,
+  restart, and real-PoB worker E2E jobs
+
+### Partially implemented
+
+| Capability | Implemented | Still missing |
+| --- | --- | --- |
+| Unique and target-Rare candidates | Objective fields, UI controls, source policy, typed catalog actions, costs, and search adapters | Main-process external proposal catalog |
+| Workflow refinement | Conditional graph, bounded refinement pass, recursion limits, and convergence limits | Richer runtime refinement policy and multi-round strategy |
+| Skill optimization | Native compatibility matrix and proof barrier for every proposed link Candidate | Broader complete-link candidate generation across the full gem catalog |
+| Item and passive optimization | Dynamic Trade items, seasonal equipment, existing item swaps, passive paths, masteries, secondary ascendancy, overrides, and point checks | Cross-slot enabling packages and broader cluster/anoint generation |
+| Golden corpus breadth | Standard and Ruthless representative Builds plus actor/season projections, candidates, graph nodes, and four Sustainable Scenarios | More archetypes, loadouts, trigger/rotation, and negative/conflict regression cases |
+| Progression planning | Progression DAG primitives and action type | End-to-end level/Budget milestones and Planner presentation |
+| Release operation | Canonical portable/NSIS scripts and Windows CI gates | Code signing, publication, and proof from a successful release workflow run |
+
+### Remaining roadmap
+
+- Main-process proposal catalogs for non-Trade Unique and target-Rare sources.
+- Broader full-catalog skill-link and passive candidate generation.
+- More Golden Builds for trigger/rotation, loadout, negative, and conflict
+  cases.
+- Complete cross-domain enabling packages and affected-domain regeneration.
+- End-to-end progression milestone planning.
+- Published, signed Windows artifacts after the configured CI gates pass.
 
 ## Requirements
 
 - PowerShell Core 7
-- Node.js 22.13 or newer for development
+- Node.js 24.20.0 x64 for the release-compatible development path
 - pnpm 11.19.0
 - Docker or local LuaJIT/Busted for PoB tests
-- A locally supplied Node.js 24 x64 executable for portable Windows packaging
+- A locally supplied Node.js 24.20.0 x64 executable for Windows packaging
 
 The repository never downloads or commits a Node executable. API keys, OAuth
 tokens, SQLite data, logs, `.env` files, and local credentials must not enter
@@ -50,12 +98,13 @@ Run from the repository root:
 ./scripts/check-sidecar.ps1
 ./scripts/build-sidecar.ps1
 ./scripts/check-manifest.ps1
+./scripts/release-gate.ps1
 ```
 
 Launch the checked-out PoB development runtime, open a Build, and select
 **AI Build Planner**. The sidecar starts lazily when a confirmed search begins.
-The current CLI uses deterministic fallback; it does not load a plaintext API
-key or enable a model provider.
+Without a configured and consented provider, the CLI uses deterministic
+fallback. Provider keys are never loaded from a project file or `.env`.
 
 Detailed setup and current UI behavior: [Getting started](docs/aipob/getting-started.md).
 
@@ -68,10 +117,10 @@ Detailed setup and current UI behavior: [Getting started](docs/aipob/getting-sta
 - Development agents: read [`AGENTS.md`](AGENTS.md), the current architecture,
   domain rules, and relevant ADRs before changing domain behavior
 
-## Portable Windows package
+## Windows packages
 
-Supply a Node.js 24 x64 executable. The packaging script validates it and
-refuses to overwrite existing output:
+Supply Node.js 24.20.0 x64. The portable packaging script validates the version,
+architecture, ABI, native SQLite binding, WinCred helper, manifest, and hashes:
 
 ```powershell
 $env:AIPOB_NODE_EXE = 'C:\Tools\node-v24-win-x64\node.exe'
@@ -87,19 +136,16 @@ artifacts/AIPathOfBuilding-AIPoB-windows-x64.zip
 Node and the `better-sqlite3` native module are installer-owned. A Node major or
 native ABI change requires a new installer or portable package.
 
-## Current limitations
+Build the canonical NSIS installer from that verified ZIP:
 
-- Authenticated PoB Trade/catalog brokerage is not connected and fails closed.
-- Unique and target-Rare source controls normally receive no external proposals.
-- Windows Credential Manager, first-send provider consent, provider injection,
-  and Planner Chat are not connected.
-- Full ruleset conversion, complete link search, native condition-source proof,
-  specialized actors, seasonal mechanics, and golden-build coverage remain
-  release gates.
-- Existing upstream release automation does not yet guarantee sidecar
-  build-before-manifest ordering.
-
-See [Status and roadmap](docs/aipob/status-and-roadmap.md) for precise boundaries.
+```powershell
+./scripts/package-installer-windows.ps1 `
+  -PackagePath artifacts/AIPathOfBuilding-AIPoB-windows-x64.zip `
+  -OutputPath artifacts/AIPathOfBuilding-AIPoB-Setup.exe
+./scripts/verify-installer-windows.ps1 `
+  -InstallerPath artifacts/AIPathOfBuilding-AIPoB-Setup.exe `
+  -PackagePath artifacts/AIPathOfBuilding-AIPoB-windows-x64.zip
+```
 
 ## Contributing
 

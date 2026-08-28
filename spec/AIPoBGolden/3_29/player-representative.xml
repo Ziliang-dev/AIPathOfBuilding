@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PathOfBuilding>
+  <Build targetVersion="3_0" gameVersion="3.29" league="Standard" mode="Standard" level="1" className="Witch" ascendClassName="None" mainSocketGroup="1" characterLevelAutoMode="true" bandit="None" pantheonMajorGod="None" pantheonMinorGod="None" />
+  <Config />
+  <Party />
+  <Tree activeSpec="1"><Spec title="Golden 3.29 representative" treeVersion="3_29" classId="3" ascendClassId="0" secondaryAscendClassId="0" nodes="" masteryEffects=""><Sockets /><Overrides /></Spec></Tree>
+  <Items />
+  <Skills />
+</PathOfBuilding>

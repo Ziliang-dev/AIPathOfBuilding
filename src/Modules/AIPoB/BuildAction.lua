@@ -1,8 +1,10 @@
 local Snapshot = require("Modules.AIPoB.Snapshot")
 local Util = require("Modules.AIPoB.Util")
+local ActorSeason = require("Modules.AIPoB.ActorSeason")
+local ItemImport = require("Modules.AIPoB.ItemImport")
 
 local BuildAction = {
-	SCHEMA_VERSION = 1,
+	SCHEMA_VERSION = 2,
 }
 
 local supportedKinds = {
@@ -13,10 +15,13 @@ local supportedKinds = {
 	["skills.setGem"] = "skills",
 	["skills.replaceLinks"] = "skills",
 	["items.equip"] = "items",
+	["items.importAndEquip"] = "items",
 	["items.setSlotActive"] = "items",
 	["tree.selectSpec"] = "tree",
 	["tree.setNode"] = "tree",
 	["tree.setMastery"] = "tree",
+	["tree.selectSecondaryAscendancy"] = "tree",
+	["tree.setOverride"] = "tree",
 	["party.setBuffer"] = "party",
 	["loadout.select"] = "loadout",
 }
@@ -75,6 +80,8 @@ local canonicalKinds = {
 	setRules = true, setIdentity = true, setSkill = true, replaceSkillLinks = true,
 	replaceItem = true, setTree = true, setActor = true, setConfig = true,
 	selectExternal = true, addProgressionStep = true,
+	importAndEquip = true, selectSecondaryAscendancy = true,
+	setTreeOverride = true, setPartyBuffer = true,
 }
 
 function BuildAction.Normalize(action)
@@ -91,6 +98,24 @@ function BuildAction.Normalize(action)
 		if not payload.slot or payload.itemId == nil then return nil, action.kind .. " requires an imported itemId and slot" end
 		normalized.kind = "items.equip"
 		normalized.payload = { slot = payload.slot, itemId = payload.itemId, itemSetId = payload.itemSetId }
+	elseif action.kind == "importAndEquip" then
+		normalized.kind = "items.importAndEquip"
+		normalized.payload = Util.shallowCopy(payload)
+		if type(normalized.payload.itemHash) == "string" then
+			normalized.payload.itemHash = normalized.payload.itemHash:gsub("^sha256:", "")
+		end
+	elseif action.kind == "selectSecondaryAscendancy" then
+		normalized.kind = "tree.selectSecondaryAscendancy"
+		normalized.payload = { secondaryAscendClassId = payload.secondaryAscendClassId }
+	elseif action.kind == "setTreeOverride" then
+		normalized.kind = "tree.setOverride"
+		normalized.payload = { nodeId = payload.nodeId, dn = payload.name, overrideType = payload.overrideType }
+	elseif action.kind == "setPartyBuffer" then
+		normalized.kind = "party.setBuffer"
+		normalized.payload = {
+			buffer = payload.buffer, text = payload.text,
+			catalogId = payload.catalogId, sourceHash = payload.sourceHash,
+		}
 	elseif action.kind == "replaceSkillLinks" then
 		normalized.kind = "skills.replaceLinks"
 		normalized.payload = { group = payload.group, gems = payload.gems }
@@ -207,6 +232,9 @@ function BuildAction.Validate(action)
 	elseif action.kind == "items.equip" then
 		if type(payload.slot) ~= "string" or not integer(payload.itemId, 0) then return invalid("slot/itemId is invalid") end
 		if payload.itemSetId ~= nil and not integer(payload.itemSetId) then return invalid("itemSetId must be a positive integer") end
+	elseif action.kind == "items.importAndEquip" then
+		local ok, itemErr = ItemImport.Validate(payload)
+		if not ok then return nil, itemErr end
 	elseif action.kind == "items.setSlotActive" then
 		if type(payload.slot) ~= "string" or type(payload.active) ~= "boolean" then return invalid("slot/active is invalid") end
 	elseif action.kind == "tree.selectSpec" then
@@ -215,8 +243,18 @@ function BuildAction.Validate(action)
 		if not integer(payload.nodeId) or type(payload.allocated) ~= "boolean" then return invalid("nodeId/allocated is invalid") end
 	elseif action.kind == "tree.setMastery" then
 		if not integer(payload.nodeId) or not integer(payload.effectId) then return invalid("nodeId/effectId is invalid") end
+	elseif action.kind == "tree.selectSecondaryAscendancy" then
+		if not integer(payload.secondaryAscendClassId, 0) then return invalid("secondaryAscendClassId must be a non-negative integer") end
+	elseif action.kind == "tree.setOverride" then
+		if not integer(payload.nodeId) or type(payload.dn) ~= "string" or payload.dn == "" then return invalid("tree override is invalid") end
 	elseif action.kind == "party.setBuffer" then
 		if not partyTypes[payload.buffer] or type(payload.text) ~= "string" then return invalid("party buffer/text is invalid") end
+		if payload.catalogId ~= nil and (type(payload.catalogId) ~= "string" or payload.catalogId == "") then return invalid("party catalogId is invalid") end
+		if payload.sourceHash ~= nil then
+			if type(payload.sourceHash) ~= "string" or not payload.sourceHash:match("^sha256:[0-9a-fA-F]+$")
+				or #payload.sourceHash ~= 71 then return invalid("party sourceHash is invalid") end
+			if payload.sourceHash:sub(8):lower() ~= ItemImport.Hash(payload.text):lower() then return invalid("party sourceHash does not match text") end
+		end
 	elseif action.kind == "loadout.select" then
 		if type(payload) ~= "table" then return invalid("loadout selection is invalid") end
 		for _, key in ipairs({ "treeSpecId", "itemSetId", "skillSetId", "configSetId" }) do
@@ -305,6 +343,13 @@ local function applyItems(build, action)
 	local tab = build.itemsTab
 	if not tab then return invalid("build has no items tab") end
 	local payload = action.payload
+	if action.kind == "items.importAndEquip" then
+		local result, importErr = ItemImport.ImportAndEquip(tab, payload, {
+			requireSource = payload.source == "trade" and "trade" or nil,
+		})
+		if not result then return nil, importErr end
+		return true
+	end
 	local slot = tab.slots and tab.slots[payload.slot]
 	if not slot then return invalid("item slot does not exist: " .. tostring(payload.slot)) end
 	if action.kind == "items.setSlotActive" then
@@ -360,6 +405,12 @@ local function applyTree(build, action)
 	local tab = build.treeTab
 	if not tab or not build.spec then return invalid("build has no passive tree") end
 	local payload = action.payload
+	if action.kind == "tree.selectSecondaryAscendancy" then
+		return ActorSeason.ApplySecondaryAscendancy(build, payload.secondaryAscendClassId)
+	end
+	if action.kind == "tree.setOverride" then
+		return ActorSeason.ApplyOverride(build, payload.nodeId, payload.dn)
+	end
 	if action.kind == "tree.selectSpec" then
 		if not tab.specList[payload.specId] then return invalid("passive spec does not exist") end
 		tab:SetActiveSpec(payload.specId)

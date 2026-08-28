@@ -32,6 +32,9 @@ require("Modules.AIPoB.BuildSandbox")
 local BuildState = require("Modules.AIPoB.BuildState")
 local Metrics = require("Modules.AIPoB.Metrics")
 local Scenario = require("Modules.AIPoB.Scenario")
+local Snapshot = require("Modules.AIPoB.Snapshot")
+local NativeLinkProbe = require("Modules.AIPoB.NativeLinkProbe")
+local NativeEvidence = require("Modules.AIPoB.NativeEvidence")
 
 local function option(name)
 	for index = 1, #(arg or { }) - 1 do
@@ -70,6 +73,9 @@ end
 local function evaluate(job)
 	if type(job) ~= "table" or type(job.id) ~= "string" or type(job.candidateId) ~= "string" then error("worker job identifiers are invalid") end
 	local payload = job.payload or { }
+	if type(payload) ~= "table" then error("worker job payload is invalid") end
+	local operation = payload.operation or "evaluate"
+	if operation ~= "evaluate" and operation ~= "probe" then error("unsupported worker operation: " .. tostring(operation)) end
 	local xml = payload.xml or payload.buildXml or job.xml
 	if type(xml) ~= "string" or xml == "" then error("worker job payload is missing build XML") end
 	local build = new("BuildSandbox"):BuildSandbox(xml, "AIPoB Worker")
@@ -84,6 +90,41 @@ local function evaluate(job)
 	if not rebuilt then error(rebuildErr) end
 	local candidateXml, saveErr = build:SaveDB()
 	if not candidateXml then error(saveErr) end
+	local candidateFingerprint = Snapshot.Fingerprint(candidateXml)
+	if operation == "probe" then
+		local linkProbe, linkErr = NativeLinkProbe.Extract(build, payload.probeOptions)
+		if not linkProbe then error(linkErr) end
+		local nativeEvidence, evidenceErr = NativeEvidence.Extract(build, payload.probeOptions)
+		if not nativeEvidence then error(evidenceErr) end
+		local evidenceByScenario = { }
+		for _, spec in ipairs(payload.scenarios or { }) do
+			if type(spec) == "table" and type(spec.id) == "string" then
+				local scenario, scenarioErr = Scenario.Create(spec.id, spec.profile or "sustainable", spec)
+				if not scenario then error(scenarioErr) end
+				local scenarioBuild = new("BuildSandbox"):BuildSandbox(candidateXml, "AIPoB Evidence Probe")
+				if scenarioBuild.loadError then error(scenarioBuild.loadError) end
+				local applied, applyErr = Scenario.Apply(scenarioBuild, scenario, { })
+				if not applied then error(applyErr) end
+				local rebuiltScenario, rebuildScenarioErr = BuildState.Rebuild(scenarioBuild)
+				if not rebuiltScenario then error(rebuildScenarioErr) end
+				local scenarioEvidence, scenarioEvidenceErr = NativeEvidence.Extract(scenarioBuild, payload.probeOptions)
+				if not scenarioEvidence then error(scenarioEvidenceErr) end
+				evidenceByScenario[scenario.id .. ":" .. tostring(scenario.profile or "sustainable")] = scenarioEvidence
+			end
+		end
+		return {
+			jobId = job.id,
+			candidateId = job.candidateId,
+			operation = "probe",
+			candidateFingerprint = candidateFingerprint,
+			nativeLinkProbe = linkProbe,
+			nativeEvidence = nativeEvidence,
+			nativeProbeFingerprint = linkProbe.nativeProbeFingerprint or linkProbe.probeFingerprint,
+			evidenceFingerprint = nativeEvidence.evidenceFingerprint or nativeEvidence.probeFingerprint,
+			nativeEvidenceByScenario = evidenceByScenario,
+			diagnostics = { },
+		}
+	end
 	local metricsByScenario = { }
 	local scenarioSpecs = { }
 	for _, spec in ipairs(payload.scenarios or { }) do
@@ -107,7 +148,14 @@ local function evaluate(job)
 		local scenarioBuild = new("BuildSandbox"):BuildSandbox(candidateXml, "AIPoB Scenario")
 		if scenarioBuild.loadError then error(scenarioBuild.loadError) end
 		local evidence = payload.evidence
-		if type(evidence) == "table" and type(evidence[scenario.id]) == "table" then evidence = evidence[scenario.id] end
+		if type(evidence) == "table" then
+			local byProfile = evidence[scenario.id .. ":" .. tostring(scenario.profile or "sustainable")]
+			if type(byProfile) == "table" then
+				evidence = byProfile
+			elseif type(evidence[scenario.id]) == "table" then
+				evidence = evidence[scenario.id]
+			end
+		end
 		local previous, applyErr = Scenario.Apply(scenarioBuild, scenario, evidence)
 		if not previous then error(applyErr) end
 		local scenarioRebuilt, scenarioRebuildErr = BuildState.Rebuild(scenarioBuild)
@@ -117,7 +165,14 @@ local function evaluate(job)
 		local metricKey = scenario.profile == "sustainable" and scenario.id or scenario.id .. ":" .. scenario.profile
 		metricsByScenario[metricKey] = finiteMetrics(metrics)
 	end
-	return { jobId = job.id, candidateId = job.candidateId, metricsByScenario = metricsByScenario, diagnostics = { } }
+	return {
+		jobId = job.id,
+		candidateId = job.candidateId,
+		operation = "evaluate",
+		candidateFingerprint = candidateFingerprint,
+		metricsByScenario = metricsByScenario,
+		diagnostics = { },
+	}
 end
 
 send({ type = "hello", token = token, workerId = workerId })

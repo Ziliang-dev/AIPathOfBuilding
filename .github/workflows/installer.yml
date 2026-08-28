@@ -8,24 +8,55 @@ on:
         description: 'Tag to build'
         required: true
         default: 'v2.x.x'
+      aipob_package_url:
+        description: 'URL of the canonical AIPoB portable package produced by the release gate'
+        required: false
+      aipob_package_sha256:
+        description: 'Optional SHA256 of the canonical AIPoB package archive'
+        required: false
 env:
   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 jobs:
   release:
     runs-on: windows-latest
     steps:
-            - name: Checkout
-              uses: actions/checkout@v3
-              with:
-                repository: 'PathOfBuildingCommunity/PathOfBuilding-Installer'
-                ref: 'master'
-                ssh-key: '${{ secrets.POB_INSTALLER_KEY }}'
-            - name: Install NSIS
-              run: |
-                choco install nsis --yes
-                echo "C:\Program Files (x86)\NSIS" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-            - name: Create installer
-              run: 'python3 make_release.py --game-version 1'
-            - name: Upload artifact
-              run: >
-                gh release upload ${{ github.event.release.tag_name || github.event.inputs.tag_name }} (Get-ChildItem Dist -File).FullName --clobber -R ${{ github.repository }};
+      - name: Checkout AIPoB source
+        uses: actions/checkout@v4
+        with:
+          path: aipob
+
+      - name: Download and verify canonical AIPoB package
+        shell: pwsh
+        env:
+          AIPOB_PACKAGE_URL: ${{ github.event.inputs.aipob_package_url || format('https://github.com/{0}/releases/download/{1}/AIPathOfBuilding-AIPoB-windows-x64.zip', github.repository, github.event.release.tag_name) }}
+          AIPOB_PACKAGE_SHA256: ${{ github.event.inputs.aipob_package_sha256 }}
+        run: |
+          $packagePath = Join-Path $env:RUNNER_TEMP 'AIPathOfBuilding-AIPoB-windows-x64.zip'
+          if ([string]::IsNullOrWhiteSpace($env:AIPOB_PACKAGE_URL)) { throw 'Canonical AIPoB package URL is required.' }
+          Invoke-WebRequest -Uri $env:AIPOB_PACKAGE_URL -OutFile $packagePath
+          if (-not [string]::IsNullOrWhiteSpace($env:AIPOB_PACKAGE_SHA256)) {
+            $actual = (Get-FileHash -LiteralPath $packagePath -Algorithm SHA256).Hash.ToLowerInvariant()
+            if ($actual -ne $env:AIPOB_PACKAGE_SHA256.ToLowerInvariant()) { throw 'Canonical AIPoB package archive hash mismatch.' }
+          }
+          & ./aipob/scripts/verify-package-windows.ps1 -PackagePath $packagePath
+          "AIPOB_PACKAGE_PATH=$packagePath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Install NSIS
+        shell: pwsh
+        run: choco install nsis --yes --no-progress
+
+      - name: Build and verify installer from canonical staging
+        shell: pwsh
+        run: |
+          $installerPath = Join-Path $env:RUNNER_TEMP 'AIPathOfBuilding-AIPoB-Setup.exe'
+          & ./aipob/scripts/package-installer-windows.ps1 -PackagePath $env:AIPOB_PACKAGE_PATH -OutputPath $installerPath
+          & ./aipob/scripts/verify-installer-windows.ps1 -InstallerPath $installerPath -PackagePath $env:AIPOB_PACKAGE_PATH
+          "AIPOB_INSTALLER_PATH=$installerPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Upload installer
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $tag = '${{ github.event.release.tag_name || github.event.inputs.tag_name }}'
+          gh release upload $tag $env:AIPOB_INSTALLER_PATH --clobber -R '${{ github.repository }}'

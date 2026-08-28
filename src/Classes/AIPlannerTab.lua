@@ -12,13 +12,19 @@ local s_format = string.format
 local t_concat = table.concat
 local t_insert = table.insert
 
-local SCHEMA_VERSION = 1
+local SCHEMA_VERSION = 2
 
 local scenarioList = {
 	{ id = "mapping", label = "Mapping" },
 	{ id = "standardBoss", label = "Standard Boss" },
 	{ id = "pinnacle", label = "Guardian / Pinnacle" },
 	{ id = "uber", label = "Uber Pinnacle" },
+}
+
+local tradeRealmList = {
+	{ id = "pc", label = "PC" },
+	{ id = "xbox", label = "Xbox" },
+	{ id = "sony", label = "Sony" },
 }
 
 local presetList = {
@@ -187,6 +193,7 @@ function AIPlannerTabClass:AIPlannerTab(build)
 
 	local function objectiveChanged()
 		self.modFlag = true
+		self.draftedObjective = nil
 		self.controls.confirmed.state = false
 	end
 
@@ -201,11 +208,15 @@ function AIPlannerTabClass:AIPlannerTab(build)
 
 	self.controls.primaryScenario = new("DropDownControl"):DropDownControl({"TOPLEFT",self,"TOPLEFT"}, {510, 66, 210, 20}, scenarioList, objectiveChanged)
 	self.controls.budget = new("EditControl"):EditControl({"TOPLEFT",self,"TOPLEFT"}, {510, 112, 160, 20}, "", "Candidate cost limit", "^%d%.", 12, objectiveChanged, nil, false, true)
-	self.controls.budget.tooltipText = "A budget may enable catalog-backed Unique and target-Rare proposals. Trade stays disabled until the main-process broker is connected."
+	self.controls.budget.tooltipText = "A budget may enable Unique, target-Rare, and authenticated main-process Trade catalog proposals."
 	self.controls.sourceUniques = new("CheckBoxControl"):CheckBoxControl({"TOPLEFT",self,"TOPLEFT"}, {510, 138, 18}, "Unique catalog", objectiveChanged, nil, false)
 	self.controls.sourceUniques.labelRight = true
 	self.controls.sourceTargetRares = new("CheckBoxControl"):CheckBoxControl({"TOPLEFT",self,"TOPLEFT"}, {650, 138, 18}, "Target rares", objectiveChanged, nil, false)
 	self.controls.sourceTargetRares.labelRight = true
+	self.controls.sourceTrade = new("CheckBoxControl"):CheckBoxControl({"TOPLEFT",self,"TOPLEFT"}, {780, 138, 18}, "PoE Trade", objectiveChanged, nil, false)
+	self.controls.sourceTrade.labelRight = true
+	self.controls.tradeRealm = new("DropDownControl"):DropDownControl({"TOPLEFT",self,"TOPLEFT"}, {510, 210, 90, 20}, tradeRealmList, objectiveChanged)
+	self.controls.tradeLeague = new("EditControl"):EditControl({"TOPLEFT",self,"TOPLEFT"}, {610, 210, 190, 20}, "", "Exact league name", nil, 128, objectiveChanged, nil, false, true)
 
 	self.controls.lockClass = new("CheckBoxControl"):CheckBoxControl({"TOPLEFT",self,"TOPLEFT"}, {510, 174, 18}, "Class", objectiveChanged, nil, true)
 	self.controls.lockClass.labelRight = true
@@ -214,10 +225,10 @@ function AIPlannerTabClass:AIPlannerTab(build)
 	self.controls.lockMainSkill = new("CheckBoxControl"):CheckBoxControl({"TOPLEFT",self,"TOPLEFT"}, {710, 174, 18}, "Main Skill", objectiveChanged, nil, true)
 	self.controls.lockMainSkill.labelRight = true
 
-	self.controls.confirmed = new("CheckBoxControl"):CheckBoxControl({"TOPLEFT",self,"TOPLEFT"}, {510, 210, 18}, "Confirm this objective before search", function() end, "The planner cannot start until you explicitly confirm the structured objective.", false)
+	self.controls.confirmed = new("CheckBoxControl"):CheckBoxControl({"TOPLEFT",self,"TOPLEFT"}, {510, 242, 18}, "Confirm this objective before search", function() end, "The planner cannot start until you explicitly confirm the structured objective.", false)
 	self.controls.confirmed.labelRight = true
 
-	self.controls.start = new("ButtonControl"):ButtonControl({"TOPLEFT",self,"TOPLEFT"}, {510, 242, 100, 22}, "Start", function()
+	self.controls.start = new("ButtonControl"):ButtonControl({"TOPLEFT",self,"TOPLEFT"}, {510, 274, 100, 22}, "Start", function()
 		self:Start()
 	end)
 	self.controls.start.enabled = function()
@@ -232,10 +243,21 @@ function AIPlannerTabClass:AIPlannerTab(build)
 		return self.controller ~= nil and self.state ~= nil and self.state.runId ~= nil
 			and (status == "running" or unresolvedRunStatus[status] == true)
 	end
-	for _, name in ipairs({ "goalPreset", "goalText", "hardConstraints", "minEHP", "minWorstCaseMaxHit", "primaryScenario", "budget", "sourceUniques", "sourceTargetRares", "lockClass", "lockAscendancy", "lockMainSkill", "confirmed" }) do
+	self.controls.llmSetup = new("ButtonControl"):ButtonControl({"TOPLEFT",self,"TOPLEFT"}, {0, 10, 92, 20}, "LLM Setup", function() self:OpenProviderPopup() end)
+	self.controls.llmConsent = new("ButtonControl"):ButtonControl({"LEFT",self.controls.llmSetup,"RIGHT"}, {8, 0, 92, 20}, "Consent", function() self:ConfirmProviderConsent() end)
+	self.controls.llmConsent.enabled = function() return self.controller ~= nil and type(self.state.consentPreview) == "table" end
+	self.controls.llmDraft = new("ButtonControl"):ButtonControl({"LEFT",self.controls.llmConsent,"RIGHT"}, {8, 0, 92, 20}, "Draft Goal", function() self:OpenDraftPopup() end)
+	self.controls.llmDraft.enabled = function()
+		local status = self.state.providerStatus
+		return self.controller ~= nil and type(status) == "table" and status.consent == "granted" and not self:IsBusy()
+	end
+	self.controls.applyDraft = new("ButtonControl"):ButtonControl({"LEFT",self.controls.llmDraft,"RIGHT"}, {8, 0, 92, 20}, "Use Draft", function() self:ApplyPlannerDraft() end)
+	self.controls.applyDraft.enabled = function() return type(self.state.objectiveDraft) == "table" and not self:IsBusy() end
+	for _, name in ipairs({ "goalPreset", "goalText", "hardConstraints", "minEHP", "minWorstCaseMaxHit", "primaryScenario", "budget", "sourceUniques", "sourceTargetRares", "sourceTrade", "tradeRealm", "tradeLeague", "lockClass", "lockAscendancy", "lockMainSkill", "confirmed" }) do
 		local controlName = name
 		self.controls[name].enabled = function()
-			if controlName == "sourceUniques" or controlName == "sourceTargetRares" then
+			if controlName == "sourceUniques" or controlName == "sourceTargetRares" or controlName == "sourceTrade"
+				or controlName == "tradeRealm" or controlName == "tradeLeague" then
 				return not self:IsBusy() and tonumber(self.controls.budget.buf) ~= nil
 			end
 			return not self:IsBusy()
@@ -334,8 +356,9 @@ function AIPlannerTabClass:BuildObjective()
 	if budget and budget < 0 then
 		budget = nil
 	end
-	local goals = cloneFlatTable(preset.goals)
-	local hardConstraints = { }
+	local draft = self.draftedObjective
+	local goals = draft and type(draft.goals) == "table" and draft.goals or cloneFlatTable(preset.goals)
+	local hardConstraints = draft and type(draft.hardConstraints) == "table" and cloneFlatTable(draft.hardConstraints) or { }
 	local minEHP = tonumber(self.controls.minEHP.buf)
 	local minWorstCaseMaxHit = tonumber(self.controls.minWorstCaseMaxHit.buf)
 	if minEHP then
@@ -344,7 +367,8 @@ function AIPlannerTabClass:BuildObjective()
 	if minWorstCaseMaxHit then
 		t_insert(hardConstraints, { metric = "worstCaseMaxHit", operator = ">=", value = minWorstCaseMaxHit })
 	end
-	return {
+	local trade = budget ~= nil and self.controls.sourceTrade.state == true and self.controls.tradeLeague.buf ~= ""
+	local objective = {
 		schemaVersion = SCHEMA_VERSION,
 		primaryScenario = primaryScenario,
 		scenarioWeights = weights,
@@ -361,11 +385,18 @@ function AIPlannerTabClass:BuildObjective()
 			currentBuild = true,
 			uniques = budget ~= nil and self.controls.sourceUniques.state == true,
 			targetRares = budget ~= nil and self.controls.sourceTargetRares.state == true,
-			trade = false,
+			trade = trade,
 		},
 		description = self.controls.goalText.buf,
 		constraintNotes = self.controls.hardConstraints.buf,
 	}
+	if trade then
+		objective.tradeContext = {
+			realm = self.controls.tradeRealm:GetSelValueByKey("id"),
+			league = self.controls.tradeLeague.buf,
+		}
+	end
+	return objective
 end
 
 function AIPlannerTabClass:Start()
@@ -383,6 +414,10 @@ function AIPlannerTabClass:Start()
 	end
 	if self.controls.minWorstCaseMaxHit.buf ~= "" and not tonumber(self.controls.minWorstCaseMaxHit.buf) then
 		self.runtimeError = "Minimum worst-case max hit must be a non-negative number or empty."
+		return
+	end
+	if self.controls.sourceTrade.state and self.controls.tradeLeague.buf == "" then
+		self.runtimeError = "Trade requires an exact league name."
 		return
 	end
 	local accepted = self:ControllerCall("Start", self:BuildObjective())
@@ -419,6 +454,96 @@ function AIPlannerTabClass:ConfirmApply(index)
 	)
 end
 
+function AIPlannerTabClass:OpenProviderPopup()
+	local controls = { }
+	local profile = type(self.state.providerStatus) == "table" and self.state.providerStatus.profile or { }
+	controls.endpointLabel = new("LabelControl"):LabelControl(nil, {0, 14, 0, 16}, "^7OpenAI-compatible endpoint")
+	controls.endpoint = new("EditControl"):EditControl(nil, {0, 34, 500, 20}, profile.baseURL or "https://api.openai.com/v1", nil, nil, 2048)
+	controls.modelLabel = new("LabelControl"):LabelControl(nil, {0, 64, 0, 16}, "^7Model")
+	controls.model = new("EditControl"):EditControl(nil, {0, 84, 500, 20}, profile.model or "gpt-5.4", nil, nil, 256)
+	controls.keyLabel = new("LabelControl"):LabelControl(nil, {0, 114, 0, 16}, "^7API key (stored only in Windows Credential Manager)")
+	controls.key = new("EditControl"):EditControl(nil, {0, 134, 500, 20}, "", "Required to configure", nil, 16384)
+	controls.key:SetProtected(true)
+	controls.save = new("ButtonControl"):ButtonControl(nil, {-98, 174, 90, 20}, "Configure", function()
+		if controls.endpoint.buf == "" or controls.model.buf == "" or controls.key.buf == "" then return end
+		local accepted = self:ControllerCall("ConfigureProvider", {
+			baseUrl = controls.endpoint.buf, model = controls.model.buf, apiKey = controls.key.buf,
+		})
+		controls.key:SetText("")
+		if accepted then main:ClosePopup() end
+	end)
+	controls.clear = new("ButtonControl"):ButtonControl(nil, {8, 174, 90, 20}, "Clear", function()
+		controls.key:SetText("")
+		if self:ControllerCall("ClearProvider") then main:ClosePopup() end
+	end)
+	controls.cancel = new("ButtonControl"):ButtonControl(nil, {114, 174, 90, 20}, "Cancel", function()
+		controls.key:SetText("")
+		main:ClosePopup()
+	end)
+	main:OpenPopup(550, 205, "Planner LLM", controls, "save", "key", "cancel")
+end
+
+function AIPlannerTabClass:ConfirmProviderConsent()
+	local preview = self.state.consentPreview
+	if type(preview) ~= "table" then
+		self:ControllerCall("PreviewProviderConsent")
+		return
+	end
+	local categories = type(preview.dataCategories) == "table" and t_concat(preview.dataCategories, ", ") or "unknown"
+	local payload = type(preview.payloadPreview) == "table" and preview.payloadPreview or { }
+	main:OpenConfirmPopup(
+		"First LLM Authorization",
+		"Endpoint: "..safeText(preview.endpoint).."\nModel: "..safeText(preview.model)
+			.."\nData: "..safeText(categories).."\nRedacted bytes: "..safeText(payload.estimatedBytes)
+			.."\n\nGrant access for this exact endpoint/model/policy? Revocation aborts active provider calls.",
+		"Grant",
+		function() self:ControllerCall("GrantProviderConsent") end
+	)
+end
+
+function AIPlannerTabClass:OpenDraftPopup()
+	local controls = { }
+	controls.label = new("LabelControl"):LabelControl(nil, {0, 14, 0, 16}, "^7Describe desired changes. Chat text is ephemeral.")
+	controls.message = new("EditControl"):EditControl(nil, {0, 40, 520, 74}, "", "Example: more Uber max hit without losing mapping speed", nil, 8000, nil, 14, false, true)
+	controls.draft = new("ButtonControl"):ButtonControl(nil, {-98, 130, 90, 20}, "Draft", function()
+		if controls.message.buf == "" then return end
+		local accepted = self:ControllerCall("DraftObjective", controls.message.buf, self:BuildObjective())
+		controls.message:SetText("")
+		if accepted then main:ClosePopup() end
+	end)
+	controls.cancel = new("ButtonControl"):ButtonControl(nil, {8, 130, 90, 20}, "Cancel", function()
+		controls.message:SetText("")
+		main:ClosePopup()
+	end)
+	main:OpenPopup(570, 165, "Planner Chat", controls, "draft", "message", "cancel")
+end
+
+function AIPlannerTabClass:ApplyPlannerDraft()
+	local draft = self.state.objectiveDraft
+	if type(draft) ~= "table" then return end
+	if type(self.state.objectiveDraftUnresolved) == "table" and #self.state.objectiveDraftUnresolved > 0 then
+		self.runtimeError = "Planner draft contains unknown metrics; resolve them before use."
+		return
+	end
+	self.draftedObjective = draft
+	if type(draft.primaryScenario) == "string" then self.controls.primaryScenario:SelByValue(draft.primaryScenario, "id") end
+	if type(draft.budgetDivine) == "number" then self.controls.budget:SetText(tostring(draft.budgetDivine)) end
+	if type(draft.candidateSources) == "table" then
+		self.controls.sourceUniques.state = draft.candidateSources.uniques == true
+		self.controls.sourceTargetRares.state = draft.candidateSources.targetRares == true
+		self.controls.sourceTrade.state = draft.candidateSources.trade == true
+	end
+	if type(draft.tradeContext) == "table" then
+		self.controls.tradeRealm:SelByValue(draft.tradeContext.realm or "pc", "id")
+		self.controls.tradeLeague:SetText(draft.tradeContext.league or "")
+	end
+	self.controls.confirmed.state = false
+	self.modFlag = true
+	self.runtimeError = nil
+	self.state.objectiveDraft = nil
+	self.state.message = "Draft applied to controls; review and confirm before search"
+end
+
 function AIPlannerTabClass:OnFrame()
 	if not self.controller then
 		return
@@ -453,6 +578,9 @@ function AIPlannerTabClass:Load(xml)
 	self.controls.budget:SetText(attrib.budgetDivine or "")
 	self.controls.sourceUniques.state = attrib.sourceUniques == "true"
 	self.controls.sourceTargetRares.state = attrib.sourceTargetRares == "true"
+	self.controls.sourceTrade.state = attrib.sourceTrade == "true"
+	self.controls.tradeRealm:SelByValue(attrib.tradeRealm or "pc", "id")
+	self.controls.tradeLeague:SetText(attrib.tradeLeague or "")
 	self.controls.minEHP:SetText(attrib.minEHP or "")
 	self.controls.minWorstCaseMaxHit:SetText(attrib.minWorstCaseMaxHit or "")
 	self.controls.lockClass.state = attrib.lockClass ~= "false"
@@ -478,6 +606,9 @@ function AIPlannerTabClass:Save(xml)
 		budgetDivine = objective.budgetDivine and tostring(objective.budgetDivine) or nil,
 		sourceUniques = tostring(objective.candidateSources.uniques),
 		sourceTargetRares = tostring(objective.candidateSources.targetRares),
+		sourceTrade = tostring(objective.candidateSources.trade),
+		tradeRealm = objective.tradeContext and objective.tradeContext.realm or nil,
+		tradeLeague = objective.tradeContext and objective.tradeContext.league or nil,
 		minEHP = self.controls.minEHP.buf ~= "" and self.controls.minEHP.buf or nil,
 		minWorstCaseMaxHit = self.controls.minWorstCaseMaxHit.buf ~= "" and self.controls.minWorstCaseMaxHit.buf or nil,
 		lockClass = tostring(objective.locks.class),
@@ -529,12 +660,15 @@ function AIPlannerTabClass:Draw(viewPort, inputEvents)
 	self.controls.goalText.width = m_max(260, m_floor(self.width * 0.52) - 24)
 	self.controls.hardConstraints.width = self.controls.goalText.width
 	local rightX = m_floor(self.width * 0.55)
-	for _, name in ipairs({ "primaryScenario", "budget", "sourceUniques", "sourceTargetRares", "lockClass", "lockAscendancy", "lockMainSkill", "confirmed", "start" }) do
+	for _, name in ipairs({ "primaryScenario", "budget", "sourceUniques", "sourceTargetRares", "sourceTrade", "tradeRealm", "tradeLeague", "lockClass", "lockAscendancy", "lockMainSkill", "confirmed", "start" }) do
 		self.controls[name].x = rightX
 	end
 	self.controls.sourceTargetRares.x = rightX + 140
+	self.controls.sourceTrade.x = rightX + 270
+	self.controls.tradeLeague.x = rightX + 100
 	self.controls.lockAscendancy.x = rightX + 80
 	self.controls.lockMainSkill.x = rightX + 200
+	self.controls.llmSetup.x = m_max(rightX, self.width - 410)
 
 	self:ProcessControlsInput(inputEvents, viewPort)
 	main:DrawBackground(viewPort)
@@ -557,6 +691,7 @@ function AIPlannerTabClass:Draw(viewPort, inputEvents)
 	DrawString(self.x + rightX, self.y + 50, "LEFT", 14, "VAR", "^7Primary scenario")
 	DrawString(self.x + rightX, self.y + 96, "LEFT", 14, "VAR", "^7Budget (Divine)")
 	DrawString(self.x + rightX, self.y + 158, "LEFT", 14, "VAR", "^7Locked domains")
+	DrawString(self.x + rightX, self.y + 194, "LEFT", 13, "VAR", "^7Trade realm / exact league")
 	DrawString(self.x + 12, self.y + 274, "LEFT", 14, "VAR", wrapText("^7Deep: 40 steps / 30 min / 100k evaluations / 16 model calls; all four scenarios evaluated", self.width - 24, 1))
 
 	local status = safeText(self.state.status ~= nil and self.state.status or "idle")

@@ -8,8 +8,8 @@ links to upstream sources instead of copying fast-changing Path of Exile data.
 
 | Item | Baseline |
 | --- | --- |
-| Last verified | 2026-08-28 |
-| AIPoB commit | `e2fe9d736c114a740004c1951a8686dffaa6dda4` |
+| Last verified | 2026-08-29 |
+| AIPoB working-tree base | `35eb12b444b135e6a991ba285cc648162a62e1c4` |
 | Upstream PoB base | `ed354c2f8c42e148bc904c7508dbe851fb2cf952` |
 | Path of Building release data | `v2.67.2` |
 | Path of Exile data version | `3.29` |
@@ -27,8 +27,9 @@ available.
 3. [Planner workflows](aipob/workflows.md)
 4. [Troubleshooting](aipob/troubleshooting.md)
 
-The current branch is an implementation baseline, not a release candidate.
-The getting-started guide calls out unavailable integrations explicitly.
+The current branch is an implementation baseline, not a published release.
+The getting-started guide separates connected behavior, remaining breadth, and
+Windows CI release gates.
 
 ### Maintainers
 
@@ -68,6 +69,7 @@ minimum context is:
 
 - [ADR 0001: Keep Path of Building authoritative behind a hybrid graph architecture](adr/0001-aipob-hybrid-graph-architecture.md)
 - [ADR 0002: Require a human-gated transaction for every Build change](adr/0002-aipob-human-gated-transactions.md)
+- [ADR 0003: Bind brokers, native proof, and provider consent to protocol v2](adr/0003-aipob-protocol-v2-broker-consent-boundary.md)
 
 ## Upstream Path of Building developer references
 

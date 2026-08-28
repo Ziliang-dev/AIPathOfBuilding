@@ -28,7 +28,8 @@ PoB calculation remains authoritative.
 - A missing Budget forces Unique, target-Rare, and Trade sources off.
 - A present Budget does not make a source available; its broker and typed
   proposals must also exist.
-- Trade is forced off by the current controller even when requested.
+- Trade additionally requires an exact realm/league context and a connected
+  reverse broker. Unavailable Trade degrades to a warning and local search.
 
 ## Scenario matrix
 
@@ -64,9 +65,11 @@ preference, uptime, confidence, then condition name. Rejected alternatives are
 marked `conflicting`. The resolver can create bounded alternate variants for
 conflict exploration.
 
-Current proof quality depends on exported catalog claims and registered
-mechanic adapters. It is not yet complete for every native PoE condition source.
-That limitation is tracked in [Status and roadmap](status-and-roadmap.md).
+Candidate proof combines registered mechanic adapters with post-action native
+PoB extraction. Each ranked Scenario requires its own complete, non-truncated
+native result. Candidate, native-probe, evidence, and source fingerprints bind
+the facts to one calculator run. Missing proof does not fall back to manual
+truth.
 
 ## Domain Graph rules
 
@@ -97,10 +100,48 @@ candidate generator for every field.
   passive-point constraints before evaluation.
 - External source metadata cannot bypass the controller's source policy.
 - Raw model text, raw Lua, and unvalidated item text are not Build Actions.
+- A proposed `replaceSkillLinks` action must fit native socket capacity and each
+  enabled support gem must appear in PoB's accepted-support matrix for an active
+  skill in that group.
+- Metrics-only cache entries cannot bypass the native proof barrier.
 
-The current deterministic adapters infer proposals from content already
-exported by PoB. Complete link beam search, cross-domain packages, and several
-specialized actor or seasonal generators remain roadmap work.
+The current deterministic adapters infer proposals from content exported by PoB
+and dynamic Trade records. Native compatibility is authoritative for proposed
+links. Broader full-catalog link generation and cross-domain packages remain
+roadmap work.
+
+## Trade/catalog rules
+
+- The sidecar may send only schema-validated semantic constraints: ruleset,
+  realm, exact league, slot, category, rarity, corruption, item level, bounded
+  stat ranges, result limit, and deadline.
+- Raw Trade query JSON is built only in the PoB process.
+- PoB owns OAuth, request queue, rate limiting, currency conversion, seller
+  identity, listing IDs, whispers, URLs, and upstream error details.
+- Only fixed-price items within the confirmed Divine Budget cross the boundary.
+- Catalog items are bounded, hash-validated, seller-free, and tied to the query
+  hash and ruleset.
+- `importAndEquip` rechecks item text SHA-256, exact slot/item set, source, price,
+  PoB parsing, and slot compatibility inside the human-approved Transaction.
+- A broker error never authorizes a mutation and does not turn unverified items
+  into local Candidates.
+
+## Provider and consent rules
+
+- Only OpenAI-compatible profiles are supported by the connected provider path.
+- API keys may exist only in Windows Credential Manager under
+  `AIPathOfBuilding/LLM/<providerId>`. Project files, `.env`, command arguments,
+  logs, status payloads, and SQLite profiles must not contain keys.
+- The credential helper refuses every target outside the LLM namespace. It does
+  not read, migrate, or delete PoE OAuth credentials.
+- Before the first provider call, consent must bind the exact endpoint, model,
+  data categories, privacy policy, redaction policy, and redacted payload
+  preview. Profile or policy changes require new consent.
+- Revocation prevents new provider calls and aborts matching active provider
+  work. Deterministic fallback remains valid.
+- Planner Chat text is ephemeral. Its output must pass the strict Objective Draft
+  schema; unresolved metrics block use; applying a draft resets human
+  confirmation. Chat never produces a Build Action.
 
 ## Evaluation and ranking rules
 
@@ -125,6 +166,12 @@ item, tree, party, and loadout operations. Each operation validates the target
 against the active PoB structures. Unsupported precondition expressions fail
 closed; a base-fingerprint precondition is supported.
 
+Protocol-v2 public actions include `importAndEquip`,
+`selectSecondaryAscendancy`, `setTreeOverride`, and `setPartyBuffer`. Imported
+item and party-buffer content must match its SHA-256 source hash. Secondary
+ascendancy and override actions use PoB-native tree structures and restore the
+captured undo state on failure.
+
 Passive-tree actions recheck point budgets, mastery availability, node
 connectivity, and ascendancy limits. Item, skill, party, and loadout actions
 similarly require the target set, slot, actor, or control to exist.
@@ -140,7 +187,8 @@ An Apply Transaction must satisfy all of these conditions:
 5. Exactly one Sustainable Scenario for each ranked Scenario is provided.
 6. Fresh verification still satisfies all hard constraints.
 7. Commit metrics match preflight metrics within implemented numeric tolerance.
-8. Any failure restores and verifies the original Build fingerprint.
+8. Commit-time native link/evidence proof matches the preflight proof.
+9. Any failure restores and verifies the original Build fingerprint.
 
 If rollback itself cannot be verified, the result is non-recoverable and the UI
 must report the failure instead of claiming success.

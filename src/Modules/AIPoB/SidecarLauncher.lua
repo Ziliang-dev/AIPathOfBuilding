@@ -2,7 +2,7 @@ local json = require("dkjson")
 local sha = require("sha2")
 local Util = require("Modules.AIPoB.Util")
 
-local SidecarLauncher = { PROTOCOL_VERSION = 1 }
+local SidecarLauncher = { PROTOCOL_VERSION = 2 }
 SidecarLauncher.__index = SidecarLauncher
 
 local function exists(path)
@@ -68,6 +68,7 @@ function SidecarLauncher:Start()
 	local workerScript = self.scriptPath .. "/AIPoBWorker.lua"
 	if not exists(workerScript) then return nil, "AIPoBWorker.lua missing" end
 	local bundledNode = self.assetRoot .. "/sidecar/runtime/node.exe"
+	local credentialHelper = self.assetRoot .. "/sidecar/runtime/aipob-credential-helper.exe"
 	local command
 	if exists(bundledNode) then
 		command = bundledNode
@@ -84,6 +85,10 @@ function SidecarLauncher:Start()
 		"--worker-count", tostring(self.workerCount),
 		"--owner-connect-timeout-ms", tostring(self.timeout),
 	}
+	if exists(credentialHelper) then
+		table.insert(args, "--credential-helper")
+		table.insert(args, credentialHelper)
+	end
 	local encoded = { }
 	for _, value in ipairs(args) do
 		local item, err = quoted(value)

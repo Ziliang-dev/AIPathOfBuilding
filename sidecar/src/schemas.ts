@@ -1,7 +1,16 @@
 import { z } from "zod";
 
-export const SCHEMA_VERSION = 1 as const;
-export const PROTOCOL_VERSION = 1 as const;
+export const SCHEMA_VERSION = 2 as const;
+export const PROTOCOL_VERSION = 2 as const;
+
+export const CapabilitySchema = z.enum([
+  "nativeLinkProbe",
+  "nativeEvidence",
+  "tradeBroker",
+  "providerConsent",
+  "objectiveDraft",
+]);
+export type Capability = z.infer<typeof CapabilitySchema>;
 
 export const ScenarioIdSchema = z.enum([
   "current",
@@ -88,6 +97,10 @@ export const ObjectiveSpecSchema = z.object({
       targetRares: false,
       trade: false,
     }),
+  tradeContext: z.object({
+    realm: z.enum(["pc", "xbox", "sony"]),
+    league: z.string().min(1).max(128),
+  }).optional(),
 });
 export type ObjectiveSpec = z.infer<typeof ObjectiveSpecSchema>;
 export const ObjectiveSpecDraftSchema = ObjectiveSpecSchema.partial().extend({
@@ -215,6 +228,9 @@ export const ConditionEvidenceSchema = z.object({
   conflictsWith: z.array(z.string().min(1)).default([]),
   confidence: z.number().min(0).max(1),
   reason: z.string().min(1),
+  nativeProbeFingerprint: z.string().min(1).optional(),
+  sourceFingerprint: z.string().min(1).optional(),
+  coverageStatus: z.enum(["proven", "nonSearchable", "unsupported"]).optional(),
 });
 export type ConditionEvidence = z.infer<typeof ConditionEvidenceSchema>;
 
@@ -231,6 +247,116 @@ const ActionBaseSchema = z.object({
   payload: z.record(z.string(), z.unknown()),
 });
 
+export const TradePriceSchema = z.object({
+  amount: z.number().positive(),
+  currency: z.string().min(1).max(32),
+  divineEquivalent: z.number().nonnegative(),
+});
+export type TradePrice = z.infer<typeof TradePriceSchema>;
+
+const Sha256Schema = z.string().regex(/^sha256:[0-9a-f]{64}$/);
+
+export const TradeStatFilterSchema = z.object({
+  id: z.string().min(1).max(256),
+  min: z.number().finite().optional(),
+  max: z.number().finite().optional(),
+  weight: z.number().finite().optional(),
+}).superRefine((filter, context) => {
+  if (filter.min !== undefined && filter.max !== undefined && filter.min > filter.max) {
+    context.addIssue({ code: "custom", message: "Trade stat filter min cannot exceed max" });
+  }
+});
+
+export const TradeCatalogQuerySchema = z.object({
+  runId: z.string().min(1).max(128),
+  requestId: z.string().min(1).max(128),
+  queryHash: Sha256Schema,
+  ruleset: z.enum(["3_29", "3_29_ruthless"]),
+  realm: z.enum(["pc", "xbox", "sony"]),
+  league: z.string().min(1).max(128),
+  slot: z.string().min(1).max(64),
+  itemSetId: z.number().int().positive().optional(),
+  constraints: z.object({
+    category: z.string().min(1).max(128),
+    baseType: z.string().min(1).max(256).optional(),
+    rarity: z.enum(["unique", "rare", "nonunique"]).optional(),
+    corrupted: z.boolean().optional(),
+    minItemLevel: z.number().int().min(1).max(100).optional(),
+    statFilters: z.array(TradeStatFilterSchema).max(64).default([]),
+  }),
+  limit: z.number().int().min(1).max(10).default(10),
+  deadlineAt: z.string().datetime(),
+});
+export type TradeCatalogQuery = z.infer<typeof TradeCatalogQuerySchema>;
+
+export const TradeCatalogItemSchema = z.object({
+  catalogId: z.string().min(1).max(256),
+  queryHash: Sha256Schema,
+  ruleset: z.enum(["3_29", "3_29_ruthless"]),
+  league: z.string().min(1).max(128),
+  slot: z.string().min(1).max(64),
+  itemSetId: z.number().int().positive().optional(),
+  itemRaw: z.string().min(1).max(32 * 1024),
+  itemHash: Sha256Schema,
+  price: TradePriceSchema,
+});
+export type TradeCatalogItem = z.infer<typeof TradeCatalogItemSchema>;
+
+export const TradeCatalogResultSchema = z.object({
+  runId: z.string().min(1).max(128),
+  requestId: z.string().min(1).max(128),
+  queryHash: Sha256Schema,
+  fetchedAt: z.string().datetime(),
+  currencySnapshotAt: z.string().datetime(),
+  items: z.array(TradeCatalogItemSchema).max(10),
+  warnings: z.array(z.string().min(1).max(512)).max(32).default([]),
+});
+export type TradeCatalogResult = z.infer<typeof TradeCatalogResultSchema>;
+
+export const TradeCatalogCancelSchema = z.object({
+  runId: z.string().min(1).max(128),
+  requestId: z.string().min(1).max(128),
+  reason: z.string().min(1).max(512).optional(),
+});
+export type TradeCatalogCancel = z.infer<typeof TradeCatalogCancelSchema>;
+
+export const ImportAndEquipPayloadSchema = z.object({
+  catalogId: z.string().min(1).max(256),
+  slot: z.string().min(1).max(64),
+  itemSetId: z.number().int().positive().optional(),
+  itemRaw: z.string().min(1).max(32 * 1024),
+  itemHash: Sha256Schema,
+  source: z.enum(["trade", "unique", "targetRare", "seasonal"]),
+  price: TradePriceSchema.optional(),
+});
+
+export const SecondaryAscendancyPayloadSchema = z.object({
+  secondaryAscendClassId: z.number().int().nonnegative(),
+});
+
+export const TreeOverridePayloadSchema = z.object({
+  nodeId: z.number().int().positive(),
+  name: z.string().min(1).max(256),
+  overrideType: z.string().min(1).max(128),
+  activeEffectImage: z.string().max(512).optional(),
+  icon: z.string().max(512).optional(),
+});
+
+export const CatalogPartyBufferPayloadSchema = z.object({
+  buffer: z.enum([
+    "Aura",
+    "Curse",
+    "Warcry Skills",
+    "Link Skills",
+    "PartyMemberStats",
+    "EnemyConditions",
+    "EnemyMods",
+  ]),
+  catalogId: z.string().min(1).max(256),
+  sourceHash: Sha256Schema,
+  text: z.string().max(64_000),
+});
+
 export const BuildActionSchema = z.discriminatedUnion("kind", [
   ActionBaseSchema.extend({ kind: z.literal("setRules") }),
   ActionBaseSchema.extend({ kind: z.literal("setIdentity") }),
@@ -242,6 +368,13 @@ export const BuildActionSchema = z.discriminatedUnion("kind", [
   ActionBaseSchema.extend({ kind: z.literal("setConfig") }),
   ActionBaseSchema.extend({ kind: z.literal("selectExternal") }),
   ActionBaseSchema.extend({ kind: z.literal("addProgressionStep") }),
+  ActionBaseSchema.extend({ kind: z.literal("importAndEquip"), payload: ImportAndEquipPayloadSchema }),
+  ActionBaseSchema.extend({
+    kind: z.literal("selectSecondaryAscendancy"),
+    payload: SecondaryAscendancyPayloadSchema,
+  }),
+  ActionBaseSchema.extend({ kind: z.literal("setTreeOverride"), payload: TreeOverridePayloadSchema }),
+  ActionBaseSchema.extend({ kind: z.literal("setPartyBuffer"), payload: CatalogPartyBufferPayloadSchema }),
 ]);
 export type BuildAction = z.infer<typeof BuildActionSchema>;
 
@@ -254,6 +387,9 @@ export const CandidateSchema = z.object({
   label: CandidateLabelSchema,
   summary: z.string().min(1),
   baseFingerprint: z.string().min(1),
+  candidateFingerprint: z.string().min(1).optional(),
+  nativeProbeFingerprint: z.string().min(1).optional(),
+  evidenceFingerprint: z.string().min(1).optional(),
   cost: z.object({ divine: z.number().nonnegative().default(0), display: z.string().min(1) }),
   metrics: MetricSetSchema,
   scenarioMetrics: z.record(RankedScenarioIdSchema, MetricSetSchema),

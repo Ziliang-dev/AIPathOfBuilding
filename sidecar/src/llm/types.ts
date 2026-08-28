@@ -57,6 +57,7 @@ export type FallbackReason =
   | "provider_unavailable"
   | "provider_timeout"
   | "invalid_provider_response"
+  | "provider_consent_required"
   | "model_call_limit";
 
 export interface DeterministicFallbackSignal {

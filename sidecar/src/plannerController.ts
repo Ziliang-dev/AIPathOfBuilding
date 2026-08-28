@@ -13,6 +13,8 @@ import type {
   RankedScenarioId,
   ScenarioSpec,
   SearchStopReason,
+  TradeCatalogQuery,
+  TradeCatalogResult,
 } from "./schemas.js";
 import {
   DomainGraph,
@@ -23,6 +25,7 @@ import {
 } from "./domain/index.js";
 import {
   BuildActionSchema,
+  ConditionEvidenceSchema,
   PROTOCOL_VERSION,
   SCHEMA_VERSION,
   normalizeObjectiveSpec,
@@ -33,16 +36,32 @@ import type {
   RpcParams,
 } from "./rpc/controller.js";
 import { JsonRpcError, JsonRpcErrorCode } from "./rpc/json-rpc.js";
+import { ReadonlyToolDispatcher, runReadonlyAgentLoop } from "./agent/index.js";
+import type { HighLevelToolName } from "./llm/toolSchemas.js";
+import type { ModelAdapter } from "./llm/types.js";
 import {
+  ConsentGrantParamsSchema,
+  ConsentPreviewParamsSchema,
+  ConsentRevokeParamsSchema,
   BuildCaptureParamsSchema,
   CandidatePreviewParamsSchema,
   HelloParamsSchema,
+  ObjectiveDraftParamsSchema,
+  ProviderClearParamsSchema,
+  ProviderConfigureParamsSchema,
+  ProviderStatusParamsSchema,
   RunCancelParamsSchema,
   RunResumeParamsSchema,
   RunStartParamsSchema,
   RunStreamParamsSchema,
   TransactionResultParamsSchema,
 } from "./protocol.js";
+import {
+  EphemeralPlannerChatService,
+  type ConsentDataCategory,
+  ProviderModelAdapterFactory,
+  ProviderProfileService,
+} from "./provider/index.js";
 import {
   DEFAULT_SEARCH_LIMITS,
   SearchEngine,
@@ -86,14 +105,25 @@ interface ActiveRun {
   readonly objective: ObjectiveSpec;
   readonly controller: AbortController;
   readonly pool: EvaluationPool;
+  readonly providerController: AbortController;
+  readonly providerId: string;
+  readonly tradeAccess: TradeAccess;
   notify: PlannerControllerContext["notify"];
   cancelled: boolean;
+}
+
+interface TradeAccess {
+  requestTradeCatalog: PlannerControllerContext["requestTradeCatalog"];
+  cancelTradeCatalog: PlannerControllerContext["cancelTradeCatalog"];
 }
 
 interface PlannerControllerOptions {
   readonly store: PlannerStore;
   readonly checkpointer: BaseCheckpointSaver;
   readonly workerPoolFactory?: WorkerPoolFactory;
+  readonly providerService?: ProviderProfileService;
+  readonly modelAdapterFactory?: ProviderModelAdapterFactory;
+  readonly providerId?: string;
 }
 
 const SourceMetadataSchema = z.object({
@@ -105,6 +135,14 @@ export class DefaultPlannerController implements PlannerController {
   readonly #store: PlannerStore;
   readonly #checkpointer: BaseCheckpointSaver;
   readonly #workerPoolFactory: WorkerPoolFactory;
+  readonly #providerService: ProviderProfileService | undefined;
+  readonly #modelAdapterFactory: ProviderModelAdapterFactory | undefined;
+  readonly #providerId: string;
+  readonly #pendingConsent = new Map<string, {
+    consentKey: string;
+    payloadHash: string;
+    dataCategories: readonly ConsentDataCategory[];
+  }>();
   readonly #active = new Map<string, ActiveRun>();
   readonly #pending = new Map<string, AbortController>();
   readonly #cancelled = new Set<string>();
@@ -120,10 +158,16 @@ export class DefaultPlannerController implements PlannerController {
     this.#workerPoolFactory = options.workerPoolFactory ?? (() => {
       throw new Error("PoB worker command is required; synthetic evaluation is disabled");
     });
+    this.#providerService = options.providerService;
+    this.#modelAdapterFactory = options.modelAdapterFactory;
+    this.#providerId = options.providerId ?? "openai";
   }
 
-  hello(params: RpcParams): unknown {
+  async hello(params: RpcParams): Promise<unknown> {
     const hello = HelloParamsSchema.parse(params);
+    const providerStatus = this.#providerService === undefined
+      ? undefined
+      : await this.#providerService.status(this.#providerId);
     return {
       protocolVersion: PROTOCOL_VERSION,
       serverName: "AIPathOfBuilding Sidecar",
@@ -133,10 +177,136 @@ export class DefaultPlannerController implements PlannerController {
         domainGraph: true,
         deterministicFallback: true,
         humanGatedTransactions: true,
-        trade: false,
-        providerConfigured: false,
+        nativeLinkProbe: true,
+        nativeEvidence: true,
+        tradeBroker: hello.capabilities.includes("tradeBroker"),
+        providerConsent: this.#providerService !== undefined,
+        objectiveDraft: this.#modelAdapterFactory !== undefined,
+        trade: hello.capabilities.includes("tradeBroker"),
+        providerConfigured: providerStatus?.configured === true && providerStatus.credentialConfigured,
       },
       client: hello,
+    };
+  }
+
+  async providerStatus(params: RpcParams): Promise<unknown> {
+    const parsed = ProviderStatusParamsSchema.parse(params);
+    const providerId = parsed.providerId ?? this.#providerId;
+    if (this.#providerService === undefined) {
+      return {
+        providerId,
+        configured: false,
+        credentialConfigured: false,
+        consent: "required",
+        unavailableReason: "Windows Credential Manager helper is unavailable",
+      };
+    }
+    return { providerId, ...(await this.#providerService.status(providerId)) };
+  }
+
+  async configureProvider(params: RpcParams): Promise<unknown> {
+    if (this.#providerService === undefined) throw providerUnavailable();
+    const parsed = ProviderConfigureParamsSchema.parse(params);
+    const profile = await this.#providerService.configure({
+      providerId: parsed.providerId,
+      baseURL: parsed.baseUrl,
+      model: parsed.model,
+      apiKey: parsed.apiKey,
+    });
+    this.#pendingConsent.delete(parsed.providerId);
+    return { providerId: profile.providerId, configured: true, credentialConfigured: true, consent: "required" };
+  }
+
+  async clearProvider(params: RpcParams): Promise<unknown> {
+    if (this.#providerService === undefined) throw providerUnavailable();
+    const { providerId } = ProviderClearParamsSchema.parse(params);
+    const profile = await this.#providerService.profiles.get(providerId);
+    if (profile !== undefined) await this.#providerService.credentials.delete(profile.credentialTarget);
+    await this.#providerService.profiles.delete(providerId);
+    await this.#providerService.revokeConsent(providerId);
+    this.#pendingConsent.delete(providerId);
+    return { providerId, configured: false, credentialConfigured: false, consent: "revoked" };
+  }
+
+  async previewConsent(params: RpcParams): Promise<unknown> {
+    if (this.#providerService === undefined) throw providerUnavailable();
+    const parsed = ConsentPreviewParamsSchema.parse(params);
+    const snapshot = parsed.snapshotFingerprint === undefined
+      ? undefined
+      : this.#store.getSnapshot(parsed.snapshotFingerprint);
+    if (parsed.snapshotFingerprint !== undefined && snapshot === undefined) {
+      throw notFound(`Build snapshot not found: ${parsed.snapshotFingerprint}`);
+    }
+    const preview = await this.#providerService.preview(parsed.providerId, {
+      dataCategories: parsed.dataCategories,
+      snapshot,
+    }, parsed.dataCategories);
+    this.#pendingConsent.set(parsed.providerId, {
+      consentKey: preview.consentKey,
+      payloadHash: preview.payloadPreview.redactedHash,
+      dataCategories: preview.dataCategories,
+    });
+    return preview;
+  }
+
+  async grantConsent(params: RpcParams): Promise<unknown> {
+    if (this.#providerService === undefined) throw providerUnavailable();
+    const parsed = ConsentGrantParamsSchema.parse(params);
+    const pending = this.#pendingConsent.get(parsed.providerId);
+    if (pending === undefined || pending.consentKey !== parsed.consentKey || pending.payloadHash !== parsed.payloadHash) {
+      throw new JsonRpcError(JsonRpcErrorCode.Conflict, "Consent preview is missing or stale");
+    }
+    const record = await this.#providerService.grantConsent(
+      parsed.providerId,
+      parsed.consentKey,
+      pending.dataCategories,
+    );
+    this.#pendingConsent.delete(parsed.providerId);
+    return record;
+  }
+
+  async revokeConsent(params: RpcParams): Promise<unknown> {
+    if (this.#providerService === undefined) throw providerUnavailable();
+    const { providerId } = ConsentRevokeParamsSchema.parse(params);
+    await this.#providerService.revokeConsent(providerId);
+    for (const active of this.#active.values()) {
+      if (active.providerId === providerId) active.providerController.abort(new Error("Provider consent revoked"));
+    }
+    this.#pendingConsent.delete(providerId);
+    return { providerId, consent: "revoked" };
+  }
+
+  async draftObjective(params: RpcParams, context: PlannerControllerContext): Promise<unknown> {
+    if (this.#modelAdapterFactory === undefined) throw providerUnavailable();
+    const parsed = ObjectiveDraftParamsSchema.parse(params);
+    const snapshot = parsed.snapshotFingerprint === undefined
+      ? undefined
+      : this.#store.getSnapshot(parsed.snapshotFingerprint);
+    if (parsed.snapshotFingerprint !== undefined && snapshot === undefined) {
+      throw notFound(`Build snapshot not found: ${parsed.snapshotFingerprint}`);
+    }
+    const adapter = await this.#modelAdapterFactory.create(parsed.providerId);
+    const chat = new EphemeralPlannerChatService(adapter);
+    const result = await chat.draftObjective({
+      messages: [{ role: "user", content: parsed.message }],
+      context: { currentObjective: parsed.currentObjective, snapshot },
+    }, context.signal);
+    if (result.kind !== "draft") return result;
+    const knownMetrics = new Set(Object.keys(snapshot?.metrics ?? {}));
+    const unresolved = [
+      ...(result.draft.goals ?? []).filter(({ metric }) => knownMetrics.size > 0 && !knownMetrics.has(metric))
+        .map(({ metric }) => ({ kind: "goal", metric })),
+      ...(result.draft.hardConstraints ?? []).filter(({ metric }) => knownMetrics.size > 0 && !knownMetrics.has(metric))
+        .map(({ metric }) => ({ kind: "hardConstraint", metric })),
+    ];
+    return {
+      ...result,
+      unresolved,
+      warnings: knownMetrics.size === 0
+        ? ["Snapshot metric catalog unavailable; draft metrics require manual confirmation"]
+        : unresolved.length > 0
+          ? ["Unknown metrics were left unresolved and cannot become confirmed constraints"]
+          : [],
     };
   }
 
@@ -168,7 +338,11 @@ export class DefaultPlannerController implements PlannerController {
     const budgetEnabled = normalized.budgetDivine !== undefined;
     const uniqueEnabled = budgetEnabled && normalized.candidateSources.uniques && hasCatalogSource("unique");
     const targetRareEnabled = budgetEnabled && normalized.candidateSources.targetRares && hasCatalogSource("targetRare");
-    const externalDisabled = normalized.candidateSources.trade
+    const tradeEnabled = budgetEnabled
+      && normalized.candidateSources.trade
+      && normalized.tradeContext !== undefined
+      && context.requestTradeCatalog !== undefined;
+    const externalDisabled = (normalized.candidateSources.trade && !tradeEnabled)
       || (normalized.candidateSources.uniques && !uniqueEnabled)
       || (normalized.candidateSources.targetRares && !targetRareEnabled);
     const objective: ObjectiveSpec = {
@@ -177,7 +351,7 @@ export class DefaultPlannerController implements PlannerController {
         currentBuild: true,
         uniques: uniqueEnabled,
         targetRares: targetRareEnabled,
-        trade: false,
+        trade: tradeEnabled,
       },
     };
     const runId = randomUUID();
@@ -199,13 +373,13 @@ export class DefaultPlannerController implements PlannerController {
     });
     this.#pending.set(runId, new AbortController());
     this.#operations.add(runId);
-    const task = this.#start(runId, snapshot, objective, context.notify);
+    const task = this.#start(runId, snapshot, objective, context);
     this.#trackTask(task);
     return {
       runId,
       status: "running",
       ...(externalDisabled ? {
-        warnings: ["External item search disabled: authenticated PoB Trade/catalog broker is not connected"],
+        warnings: ["External item search disabled: requested external sources unavailable; continuing with connected deterministic catalogs"],
       } : {}),
     };
   }
@@ -271,7 +445,7 @@ export class DefaultPlannerController implements PlannerController {
       throw new JsonRpcError(JsonRpcErrorCode.InvalidParams, `Run is terminal and cannot be resumed: ${persisted.status}`);
     }
     return this.#withRunOperation(resume.runId, async () => {
-    const active = await this.#ensureActive(resume.runId, context.notify, context.signal);
+    const active = await this.#ensureActive(resume.runId, context.notify, context.signal, tradeAccessFrom(context));
     const operationSignal = AbortSignal.any([active.controller.signal, context.signal]);
     operationSignal.throwIfAborted();
     active.notify = context.notify;
@@ -392,7 +566,7 @@ export class DefaultPlannerController implements PlannerController {
       assertScenarioMetricsMatch(candidate.scenarioMetrics, result.scenarioMetrics);
     }
     this.#store.saveTransaction(result);
-    const active = await this.#ensureActive(result.runId, context.notify, context.signal);
+    const active = await this.#ensureActive(result.runId, context.notify, context.signal, tradeAccessFrom(context));
     const operationSignal = AbortSignal.any([active.controller.signal, context.signal]);
     operationSignal.throwIfAborted();
     let output: WorkflowState;
@@ -451,8 +625,9 @@ export class DefaultPlannerController implements PlannerController {
     runId: string,
     snapshot: BuildSnapshot,
     objective: ObjectiveSpec,
-    notify: PlannerControllerContext["notify"],
+    context: PlannerControllerContext,
   ): Promise<void> {
+    const notify = context.notify;
     let startedActive: ActiveRun | undefined;
     try {
       notify({
@@ -466,7 +641,7 @@ export class DefaultPlannerController implements PlannerController {
           message: "Starting isolated PoB workers",
         },
       });
-      const active = await this.#activate(runId, snapshot, objective, notify);
+      const active = await this.#activate(runId, snapshot, objective, notify, undefined, tradeAccessFrom(context));
       startedActive = active;
       this.#pending.delete(runId);
       if (active.controller.signal.aborted) {
@@ -539,7 +714,12 @@ export class DefaultPlannerController implements PlannerController {
     objective: ObjectiveSpec,
     notify: PlannerControllerContext["notify"],
     requestSignal?: AbortSignal,
+    tradeAccess?: TradeAccess,
   ): Promise<ActiveRun> {
+    const tradeBridge: TradeAccess = {
+      requestTradeCatalog: tradeAccess?.requestTradeCatalog,
+      cancelTradeCatalog: tradeAccess?.cancelTradeCatalog,
+    };
     const existingController = this.#pending.get(runId);
     const controller = existingController ?? new AbortController();
     if (existingController === undefined) this.#pending.set(runId, controller);
@@ -564,6 +744,15 @@ export class DefaultPlannerController implements PlannerController {
       if (this.#pending.get(runId) === controller) this.#pending.delete(runId);
       throw error;
     }
+    const providerController = new AbortController();
+    let modelAdapter: ModelAdapter<HighLevelToolName> | undefined;
+    if (this.#modelAdapterFactory !== undefined) {
+      try {
+        modelAdapter = await this.#modelAdapterFactory.create(this.#providerId);
+      } catch {
+        modelAdapter = undefined;
+      }
+    }
     const graph = createWorkflowGraph({
       checkpointer: this.#checkpointer,
       nodes: {
@@ -586,11 +775,21 @@ export class DefaultPlannerController implements PlannerController {
             },
           },
         }),
-        planSearch: (state) => ({
-          artifacts: {
-            searchPlan: { domains: 9, proposals: state.snapshot.contentCatalog?.length ?? 0 },
-          },
-        }),
+        planSearch: async (state) => {
+          const guidance = await this.#modelGuidance(
+            state,
+            "PlanSearch",
+            modelAdapter,
+            AbortSignal.any([controller.signal, providerController.signal]),
+          );
+          return {
+            ...guidance,
+            artifacts: {
+              ...guidance.artifacts,
+              searchPlan: { domains: 9, proposals: state.snapshot.contentCatalog?.length ?? 0 },
+            },
+          };
+        },
         searchDomains: async (state, nodeContext) => this.#search(
           runId,
           state,
@@ -598,10 +797,26 @@ export class DefaultPlannerController implements PlannerController {
           pool,
           controller.signal,
           notify,
+          tradeBridge,
         ),
         mergePareto: () => ({}),
-        verify: () => ({ needsRefinement: false, improvementRatio: 0, paretoFrontierChanged: true }),
-        refineSearch: () => ({}),
+        verify: (state) => ({
+          needsRefinement: state.frontier.length === 0 && state.refinementRounds < 1,
+          improvementRatio: 0,
+          paretoFrontierChanged: state.frontier.length > 0,
+        }),
+        refineSearch: async (state) => this.#modelGuidance(
+          state,
+          "RefineSearch",
+          modelAdapter,
+          AbortSignal.any([controller.signal, providerController.signal]),
+        ),
+        explain: async (state) => this.#modelGuidance(
+          state,
+          "Explain",
+          modelAdapter,
+          AbortSignal.any([controller.signal, providerController.signal]),
+        ),
         finalVerify: (state) => {
           const result = state.transactionResult;
           if (result !== undefined && (!result.accepted || !result.applied)) {
@@ -611,7 +826,18 @@ export class DefaultPlannerController implements PlannerController {
         },
       },
     });
-    const active: ActiveRun = { graph, snapshot, objective, controller, pool, notify, cancelled: false };
+    const active: ActiveRun = {
+      graph,
+      snapshot,
+      objective,
+      controller,
+      pool,
+      providerController,
+      providerId: this.#providerId,
+      tradeAccess: tradeBridge,
+      notify,
+      cancelled: false,
+    };
     this.#pools.add(pool);
     this.#active.set(runId, active);
     if (this.#pending.get(runId) === controller) this.#pending.delete(runId);
@@ -639,16 +865,21 @@ export class DefaultPlannerController implements PlannerController {
     objective: ObjectiveSpec,
     notify: PlannerControllerContext["notify"],
     requestSignal?: AbortSignal,
+    tradeAccess?: TradeAccess,
   ): Promise<ActiveRun> {
     const active = this.#active.get(runId);
-    if (active !== undefined) return active;
+    if (active !== undefined) {
+      active.tradeAccess.requestTradeCatalog = tradeAccess?.requestTradeCatalog ?? active.tradeAccess.requestTradeCatalog;
+      active.tradeAccess.cancelTradeCatalog = tradeAccess?.cancelTradeCatalog ?? active.tradeAccess.cancelTradeCatalog;
+      return active;
+    }
     const existing = this.#activations.get(runId);
     if (existing !== undefined) {
       const shared = await existing;
       requestSignal?.throwIfAborted();
       return shared;
     }
-    const activation = this.#createActive(runId, snapshot, objective, notify, requestSignal);
+    const activation = this.#createActive(runId, snapshot, objective, notify, requestSignal, tradeAccess);
     this.#activations.set(runId, activation);
     try {
       return await activation;
@@ -693,6 +924,7 @@ export class DefaultPlannerController implements PlannerController {
     runId: string,
     notify: PlannerControllerContext["notify"],
     requestSignal?: AbortSignal,
+    tradeAccess?: TradeAccess,
   ): Promise<ActiveRun> {
     const run = this.#store.getRun(runId);
     if (run === undefined) throw notFound(`Run not found: ${runId}`);
@@ -700,10 +932,14 @@ export class DefaultPlannerController implements PlannerController {
       throw new JsonRpcError(JsonRpcErrorCode.InvalidParams, `Run is terminal and cannot be resumed: ${run.status}`);
     }
     const current = this.#active.get(runId);
-    if (current !== undefined) return current;
+    if (current !== undefined) {
+      current.tradeAccess.requestTradeCatalog = tradeAccess?.requestTradeCatalog ?? current.tradeAccess.requestTradeCatalog;
+      current.tradeAccess.cancelTradeCatalog = tradeAccess?.cancelTradeCatalog ?? current.tradeAccess.cancelTradeCatalog;
+      return current;
+    }
     const snapshot = this.#store.getSnapshot(run.buildFingerprint);
     if (snapshot === undefined) throw notFound(`Build snapshot not found for run: ${runId}`);
-    return this.#activate(runId, snapshot, run.objective, notify, requestSignal);
+    return this.#activate(runId, snapshot, run.objective, notify, requestSignal, tradeAccess);
   }
 
   async #verifyCandidateForApply(
@@ -743,6 +979,18 @@ export class DefaultPlannerController implements PlannerController {
       signal.throwIfAborted();
       const actual = evaluated[0];
       if (actual === undefined) throw new Error("Apply verification worker returned no candidate evaluation");
+      if (candidate.candidateFingerprint !== undefined
+        && actual.metadata?.["candidateFingerprint"] !== candidate.candidateFingerprint) {
+        throw new JsonRpcError(JsonRpcErrorCode.InvalidParams, "Candidate fingerprint changed during fresh apply verification");
+      }
+      if (candidate.nativeProbeFingerprint !== undefined
+        && actual.metadata?.["nativeProbeFingerprint"] !== candidate.nativeProbeFingerprint) {
+        throw new JsonRpcError(JsonRpcErrorCode.InvalidParams, "Native link proof changed during fresh apply verification");
+      }
+      if (candidate.evidenceFingerprint !== undefined
+        && actual.metadata?.["evidenceFingerprint"] !== candidate.evidenceFingerprint) {
+        throw new JsonRpcError(JsonRpcErrorCode.InvalidParams, "Native evidence proof changed during fresh apply verification");
+      }
       assertScenarioMetricsMatch(candidate.scenarioMetrics, actual.metricsByScenario);
       const constraints = evaluateConstraints(
         actual,
@@ -770,6 +1018,113 @@ export class DefaultPlannerController implements PlannerController {
     return task;
   }
 
+  async #modelGuidance(
+    state: Readonly<WorkflowState>,
+    phase: "PlanSearch" | "RefineSearch" | "Explain",
+    adapter: ModelAdapter<HighLevelToolName> | undefined,
+    signal: AbortSignal,
+  ) {
+    if (adapter === undefined || state.objective === undefined) {
+      return {
+        artifacts: { model: { phase, configured: false, mode: "deterministic_fallback" } },
+        usage: { evaluations: 0, modelCalls: 0 },
+        providerFallback: true,
+      };
+    }
+    const dispatcher = new ReadonlyToolDispatcher({
+      inspect_build: (_args, context) => ({
+        fingerprint: context.snapshot.fingerprint,
+        ruleset: context.snapshot.ruleset,
+        metrics: context.snapshot.metrics,
+        catalogEntries: context.snapshot.contentCatalog?.length ?? 0,
+        graph: context.snapshot.buildGraph,
+      }),
+      diagnose_build: (_args, context) => ({
+        goals: context.objective.goals,
+        hardConstraints: context.objective.hardConstraints,
+        missingGoalMetrics: context.objective.goals
+          .map(({ metric }) => metric)
+          .filter((metric) => context.snapshot.metrics[metric] === undefined),
+      }),
+      search_build: (args, context) => ({
+        requestedDomains: args.domains,
+        candidates: context.candidates?.map(({ id, label, scenarioMetrics }) => ({ id, label, scenarioMetrics })) ?? [],
+        note: "Deterministic search is controller-owned; this tool returns verified search state only",
+      }),
+      refine_search: (args, context) => ({
+        focus: args.focus,
+        candidates: context.candidates?.map(({ id, summary }) => ({ id, summary })) ?? [],
+      }),
+      evaluate_candidate: (args, context) => context.candidates?.find(({ id }) => id === args.candidateId)
+        ?? { error: "candidate_not_found" },
+      explain_candidate: (args, context) => {
+        const candidate = context.candidates?.find(({ id }) => id === args.candidateId);
+        return candidate === undefined
+          ? { error: "candidate_not_found" }
+          : { id: candidate.id, summary: candidate.summary, metrics: candidate.scenarioMetrics, evidence: candidate.evidence };
+      },
+      plan_progression: (args, context) => ({
+        candidateId: args.candidateId,
+        milestones: args.milestones,
+        budget: args.budget,
+        candidate: context.candidates?.find(({ id }) => id === args.candidateId),
+        note: "Read-only milestone draft; no BuildAction is emitted",
+      }),
+    });
+    try {
+      const result = await runReadonlyAgentLoop({
+        adapter,
+        dispatcher,
+        messages: [{
+          role: "user",
+          content: `${phase}: provide read-only guidance for the confirmed objective. Use verified tools for build facts and numbers.`,
+        }],
+        context: {
+          snapshot: state.snapshot,
+          objective: state.objective,
+          scenarios: state.scenarios,
+          candidates: state.selected.length > 0 ? state.selected : state.frontier,
+          signal,
+        },
+        limits: { recursionLimit: 8, modelCallLimit: 4, wallTimeMs: 60_000 },
+        signal,
+      });
+      return {
+        artifacts: {
+          model: {
+            phase,
+            configured: true,
+            mode: result.fallback === undefined ? "provider" : "deterministic_fallback",
+            content: result.content,
+            stopReason: result.stopReason,
+            toolCalls: result.toolCalls,
+            fallback: result.fallback,
+          },
+        },
+        usage: { evaluations: 0, modelCalls: result.modelCalls },
+        providerFallback: result.fallback !== undefined,
+        toolCallFingerprint: canonicalHash({
+          phase,
+          toolResults: result.toolResults.map(({ name, ok }) => ({ name, ok })),
+          content: result.content,
+        }),
+      };
+    } catch (error) {
+      return {
+        artifacts: {
+          model: {
+            phase,
+            configured: true,
+            mode: "deterministic_fallback",
+            error: error instanceof Error ? error.message : "Provider failed",
+          },
+        },
+        usage: { evaluations: 0, modelCalls: 0 },
+        providerFallback: true,
+      };
+    }
+  }
+
   async #search(
     runId: string,
     state: Readonly<WorkflowState>,
@@ -777,6 +1132,7 @@ export class DefaultPlannerController implements PlannerController {
     pool: EvaluationPool,
     signal: AbortSignal,
     notify: PlannerControllerContext["notify"],
+    tradeAccess?: TradeAccess,
   ) {
     if (state.objective === undefined) throw new Error("Search requires confirmed objective");
     const sustainable = nodeContext.sustainableScenarios;
@@ -808,6 +1164,17 @@ export class DefaultPlannerController implements PlannerController {
     const initial = baselineEvaluation[0];
     if (initial === undefined) throw new Error("PoB worker returned no baseline evaluation");
     const domainCandidates = catalogCandidates(state.snapshot);
+    const trade = await fetchTradeCandidates(
+      runId,
+      state.snapshot,
+      state.objective,
+      tradeAccess,
+      signal,
+      notify,
+    );
+    if (trade.candidates.length > 0) {
+      domainCandidates.gear = [...(domainCandidates.gear ?? []), ...trade.candidates];
+    }
     const searchState: DomainSearchState<BuildAction> = {
       domainCandidates,
       buildXml: state.snapshot.xml,
@@ -831,13 +1198,8 @@ export class DefaultPlannerController implements PlannerController {
         wallTimeMs: Math.max(1, nodeContext.remaining.wallTimeMs),
         evaluationLimit: nodeContext.remaining.evaluations - baselineCost,
       },
-      store: this.#store,
-      cacheContext: {
-        engineCommit: state.snapshot.engineVersion,
-        ruleset: `${state.snapshot.ruleset}:${state.snapshot.dataVersion}`,
-        buildFingerprint: state.snapshot.fingerprint,
-        objectiveVersion: state.objective.schemaVersion,
-      },
+      // Candidate-native proofs are per calculator run. Reusing a metrics-only
+      // cache entry would bypass the required probe/evidence barrier.
       onProgress: (progress) => {
         persistSearchSnapshot(
           this.#store,
@@ -908,11 +1270,150 @@ export class DefaultPlannerController implements PlannerController {
           mechanicAdapters: domain.appliedAdapterIds,
           evidence: domain.evidence.length,
         },
+        trade: {
+          enabled: state.objective.candidateSources.trade,
+          candidates: trade.candidates.length,
+          warnings: trade.warnings,
+        },
       },
       searchStopReason: result.stopReason,
       providerFallback: true,
       toolCallFingerprint: canonicalHash({ runId, frontier: publicFrontier.map(({ id }) => id) }),
     };
+  }
+}
+
+const TRADE_SLOT_CATEGORIES = [
+  ["Helmet", "armour.helmet"],
+  ["Body Armour", "armour.chest"],
+  ["Gloves", "armour.gloves"],
+  ["Boots", "armour.boots"],
+  ["Amulet", "accessory.amulet"],
+  ["Ring 1", "accessory.ring"],
+  ["Ring 2", "accessory.ring"],
+  ["Belt", "accessory.belt"],
+] as const;
+
+function tradeAccessFrom(context: PlannerControllerContext): TradeAccess {
+  return {
+    requestTradeCatalog: context.requestTradeCatalog,
+    cancelTradeCatalog: context.cancelTradeCatalog,
+  };
+}
+
+async function fetchTradeCandidates(
+  runId: string,
+  snapshot: BuildSnapshot,
+  objective: ObjectiveSpec,
+  access: TradeAccess | undefined,
+  signal: AbortSignal,
+  notify: PlannerControllerContext["notify"],
+): Promise<{ candidates: SearchCandidate<BuildAction>[]; warnings: string[] }> {
+  if (!objective.candidateSources.trade) return { candidates: [], warnings: [] };
+  if (objective.budgetDivine === undefined || objective.tradeContext === undefined
+    || access?.requestTradeCatalog === undefined) {
+    return { candidates: [], warnings: ["Trade broker unavailable; deterministic local search continued"] };
+  }
+  if (snapshot.ruleset !== "3_29" && snapshot.ruleset !== "3_29_ruthless") {
+    return { candidates: [], warnings: [`Trade ruleset unsupported: ${snapshot.ruleset}`] };
+  }
+  const ruleset = snapshot.ruleset;
+  const tradeContext = objective.tradeContext;
+  const pending = new Set<string>();
+  const warnings: string[] = [];
+  const cancelPending = (): void => {
+    for (const requestId of pending) {
+      access.cancelTradeCatalog?.({ runId, requestId, reason: "Planner search cancelled" });
+    }
+  };
+  signal.addEventListener("abort", cancelPending, { once: true });
+  try {
+    const settled = await Promise.all(TRADE_SLOT_CATEGORIES.map(async ([slot, category]) => {
+      signal.throwIfAborted();
+      const requestId = `trade:${runId}:${canonicalHash({ slot, category }).slice(0, 16)}`;
+      const query: TradeCatalogQuery = {
+        runId,
+        requestId,
+        queryHash: `sha256:${canonicalHash({
+          ruleset,
+          realm: tradeContext.realm,
+          league: tradeContext.league,
+          slot,
+          category,
+          rarity: "rare",
+          budgetDivine: objective.budgetDivine,
+        })}`,
+        ruleset,
+        realm: tradeContext.realm,
+        league: tradeContext.league,
+        slot,
+        constraints: { category, rarity: "rare", statFilters: [] },
+        limit: 10,
+        deadlineAt: new Date(Date.now() + 30_000).toISOString(),
+      };
+      pending.add(requestId);
+      try {
+        return await access.requestTradeCatalog!(query);
+      } finally {
+        pending.delete(requestId);
+      }
+    }).map((promise) => promise.then(
+      (result): { result: TradeCatalogResult } => ({ result }),
+      (error): { error: unknown } => ({ error }),
+    )));
+    const items = settled.flatMap((entry) => {
+      if ("result" in entry) {
+        warnings.push(...entry.result.warnings);
+        return entry.result.items;
+      }
+      warnings.push(entry.error instanceof Error ? entry.error.message : "Trade query failed");
+      return [];
+    }).sort((left, right) => left.price.divineEquivalent - right.price.divineEquivalent
+      || left.itemHash.localeCompare(right.itemHash))
+      .slice(0, 100);
+    if (warnings.length > 0) {
+      notify({
+        method: "run.progress",
+        params: {
+          runId,
+          phase: "TradeCatalog",
+          progress: 0,
+          evaluations: 0,
+          frontierSize: 0,
+          message: `Trade degraded (${warnings.length} warning${warnings.length === 1 ? "" : "s"}); continuing search`,
+        },
+      });
+    }
+    return {
+      warnings: [...new Set(warnings)].slice(0, 32),
+      candidates: items.map((item, index) => ({
+        id: `trade:${item.catalogId}:${index + 1}`,
+        baseFingerprint: snapshot.fingerprint,
+        domain: "gear" as const,
+        estimatedCost: item.price.divineEquivalent,
+        metadata: { source: "trade" as const, catalogId: item.catalogId, queryHash: item.queryHash },
+        actions: [{
+          id: `action:trade:${canonicalHash({ itemHash: item.itemHash, slot: item.slot }).slice(0, 24)}`,
+          kind: "importAndEquip" as const,
+          description: `Import and equip catalog item for ${item.slot}`,
+          dependsOn: [],
+          preconditions: { baseFingerprint: snapshot.fingerprint },
+          reversible: true,
+          costDivine: item.price.divineEquivalent,
+          payload: {
+            catalogId: item.catalogId,
+            slot: item.slot,
+            ...(item.itemSetId === undefined ? {} : { itemSetId: item.itemSetId }),
+            itemRaw: item.itemRaw,
+            itemHash: item.itemHash,
+            source: "trade" as const,
+            price: item.price,
+          },
+        }],
+      })),
+    };
+  } finally {
+    signal.removeEventListener("abort", cancelPending);
   }
 }
 
@@ -1076,7 +1577,25 @@ async function evaluateCandidateSet(
   return evaluations.map((evaluation) => {
     const candidate = byId.get(evaluation.candidateId);
     if (candidate === undefined) throw new Error(`Worker returned unknown candidate: ${evaluation.candidateId}`);
-    return { ...candidate, metricsByScenario: evaluation.metricsByScenario };
+    return {
+      ...candidate,
+      metricsByScenario: evaluation.metricsByScenario,
+      metadata: {
+        ...candidate.metadata,
+        ...(evaluation.candidateFingerprint === undefined ? {} : {
+          candidateFingerprint: evaluation.candidateFingerprint,
+        }),
+        ...(evaluation.nativeProbeFingerprint === undefined ? {} : {
+          nativeProbeFingerprint: evaluation.nativeProbeFingerprint,
+        }),
+        ...(evaluation.evidenceFingerprint === undefined ? {} : {
+          evidenceFingerprint: evaluation.evidenceFingerprint,
+        }),
+        ...(evaluation.resolvedEvidence === undefined ? {} : {
+          resolvedEvidence: evaluation.resolvedEvidence,
+        }),
+      },
+    };
   });
 }
 
@@ -1124,18 +1643,34 @@ function publicCandidate(
   const actionSummary = candidate.actions.length === 0
     ? "Current build baseline; no mutation required."
     : candidate.actions.map(({ description }) => description).join("; ");
+  const metadata = candidate.metadata ?? {};
+  const nativeEvidence = Array.isArray(metadata["resolvedEvidence"])
+    ? metadata["resolvedEvidence"].flatMap((entry) => {
+      const parsed = ConditionEvidenceSchema.safeParse(entry);
+      return parsed.success ? [parsed.data] : [];
+    })
+    : undefined;
   return {
     schemaVersion: SCHEMA_VERSION,
     id: candidate.id,
     label,
     summary: actionSummary,
     baseFingerprint: candidate.baseFingerprint,
+    ...(typeof metadata["candidateFingerprint"] === "string"
+      ? { candidateFingerprint: metadata["candidateFingerprint"] }
+      : {}),
+    ...(typeof metadata["nativeProbeFingerprint"] === "string"
+      ? { nativeProbeFingerprint: metadata["nativeProbeFingerprint"] }
+      : {}),
+    ...(typeof metadata["evidenceFingerprint"] === "string"
+      ? { evidenceFingerprint: metadata["evidenceFingerprint"] }
+      : {}),
     cost: { divine: cost, display: cost === 0 ? "No paid-source cost" : `${cost.toFixed(2)} Divine` },
     metrics: { ...primaryMetrics },
     scenarioMetrics: exactScenarioMetrics(candidate.metricsByScenario),
     peakScenarioMetrics: exactScenarioMetrics(peakMetrics),
     actions: [...candidate.actions],
-    evidence: [...evidence],
+    evidence: nativeEvidence ?? [...evidence],
     hardConstraintsSatisfied: true,
   };
 }
@@ -1225,4 +1760,11 @@ function sendSearchProgress(
 
 function notFound(message: string): JsonRpcError {
   return new JsonRpcError(JsonRpcErrorCode.InvalidParams, message);
+}
+
+function providerUnavailable(): JsonRpcError {
+  return new JsonRpcError(
+    JsonRpcErrorCode.InternalError,
+    "Provider configuration is unavailable; install the Windows Credential Manager helper",
+  );
 }

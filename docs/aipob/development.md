@@ -15,11 +15,16 @@ both sides.
 | `sidecar/src/workflow/` | LangGraph state, nodes, limits, and checkpoints |
 | `sidecar/src/domain/` | Graph, coverage, scenarios, evidence, mechanic adapters |
 | `sidecar/src/search/` | Proposal expansion, evaluation, constraints, Pareto selection, cache |
-| `sidecar/src/llm/` and `sidecar/src/agent/` | Read-only model adapter and tool loop; not connected to current controller |
+| `sidecar/src/llm/`, `sidecar/src/agent/`, and `sidecar/src/provider/` | Read-only model adapter, consent gate, Planner Chat drafting, and controller injection |
+| `sidecar/src/trade/` | Sanitized Trade catalog contract and bounded search broker |
+| `sidecar/src/credentials/` and `native/wincred-helper/` | LLM-only Windows Credential Manager client and native helper |
+| `sidecar/src/domain/nativeProbe.ts` and `sidecar/src/worker/nativeProbeWorkerPool.ts` | Native compatibility/evidence proof barrier |
+| `sidecar/src/domain/actor-season.ts` | Actor, passive override, and season projections |
 | `sidecar/src/storage/` | SQLite and memory planner stores |
 | `spec/System/TestAIPoB*_spec.lua` | Lua integration and transaction tests |
 | `sidecar/tests/` | TypeScript unit, integration, RPC, workflow, and worker tests |
-| `scripts/` | PowerShell install, validation, build, manifest, and packaging entry points |
+| `spec/AIPoBGolden/` | Versioned Standard and Ruthless release corpus |
+| `scripts/` and `installer/` | Validation, release gate, canonical Windows package, NSIS, and E2E entry points |
 
 ## Required reading
 
@@ -80,6 +85,10 @@ AIPoB coverage currently lives primarily in:
 - `spec/System/TestAIPlannerTab_spec.lua`
 - `spec/System/TestAIPoBCore_spec.lua`
 - `spec/System/TestAIPoBRpc_spec.lua`
+- `spec/System/TestAIPoBTradeBroker_spec.lua`
+- `spec/System/TestAIPoBNativeProbe_spec.lua`
+- `spec/System/TestAIPoBActorSeason_spec.lua`
+- `spec/System/TestAIPoBGolden_spec.lua`
 
 ## Cross-language contract changes
 
@@ -135,7 +144,8 @@ The deterministic bundle must exist before manifest generation:
 ./scripts/install-sidecar.ps1
 ./scripts/check-sidecar.ps1
 ./scripts/build-sidecar.ps1
-python update_manifest.py --in-place
+./scripts/check-manifest.ps1
+./scripts/release-gate.ps1
 ```
 
 `sidecar/dist/server.cjs` is tracked because it participates in PoB's manifest
@@ -145,7 +155,7 @@ Node.js and the native `better-sqlite3` runtime are installer-owned. Auto-update
 may replace `server.cjs`; a Node major or native ABI change requires a new
 installer or portable package.
 
-For local Windows packaging:
+For local Windows packaging, supply exact Node.js 24.20.0 x64 / ABI 137:
 
 ```powershell
 $env:AIPOB_NODE_EXE = 'C:\Tools\node-v24-win-x64\node.exe'
@@ -153,6 +163,24 @@ $env:AIPOB_NODE_EXE = 'C:\Tools\node-v24-win-x64\node.exe'
 ```
 
 The packaging script refuses to overwrite existing output.
+
+The portable ZIP is the canonical staging input for NSIS:
+
+```powershell
+./scripts/verify-package-windows.ps1 `
+  -PackagePath artifacts/AIPathOfBuilding-AIPoB-windows-x64.zip
+./scripts/package-installer-windows.ps1 `
+  -PackagePath artifacts/AIPathOfBuilding-AIPoB-windows-x64.zip `
+  -OutputPath artifacts/AIPathOfBuilding-AIPoB-Setup.exe
+./scripts/verify-installer-windows.ps1 `
+  -InstallerPath artifacts/AIPathOfBuilding-AIPoB-Setup.exe `
+  -PackagePath artifacts/AIPathOfBuilding-AIPoB-windows-x64.zip
+```
+
+`e2e-windows.ps1` covers Apply, Reject, injected failure/rollback, restart, and
+an optional real packaged-PoB worker path. CI must prove the exact Windows
+runtime, native helper, NSIS silent install, and real process-level E2E before
+publication. Code signing and publication remain release operations.
 
 ## Upstream synchronization
 

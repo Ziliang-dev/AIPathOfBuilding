@@ -37,6 +37,33 @@ socket.on('data', chunk => {
     const message = JSON.parse(frame);
     if (message.type === 'shutdown') { socket.end(); process.exit(0); }
     if (message.type !== 'evaluate') continue;
+    if (message.job.payload.operation === 'probe') {
+      const nativeEvidenceByScenario = {};
+      for (const scenario of message.job.payload.scenarios) {
+        nativeEvidenceByScenario[scenario.id + ':' + scenario.profile] = {
+          schemaVersion: 1, complete: true, truncated: false,
+          engineVersion: 'fixture', dataVersion: '3_29', claims: [], nativeUptime: {},
+          probeFingerprint: 'scenario-evidence:' + scenario.id + ':' + scenario.profile,
+        };
+      }
+      socket.write(JSON.stringify({
+        type: 'result', jobId: message.job.id, result: {
+          jobId: message.job.id, candidateId: message.job.candidateId, operation: 'probe',
+          candidateFingerprint: 'candidate:' + JSON.stringify(message.job.payload.actions),
+          nativeProbeFingerprint: 'native-link:fixture', evidenceFingerprint: 'native-evidence:fixture',
+          nativeLinkProbe: {
+            schemaVersion: 1, complete: true, truncated: false, engineVersion: 'fixture',
+            dataVersion: '3_29', groups: [], probeFingerprint: 'native-link:fixture',
+          },
+          nativeEvidence: {
+            schemaVersion: 1, complete: true, truncated: false, engineVersion: 'fixture',
+            dataVersion: '3_29', claims: [], nativeUptime: {}, probeFingerprint: 'native-evidence:fixture',
+          },
+          nativeEvidenceByScenario, diagnostics: [],
+        },
+      }) + '\n');
+      continue;
+    }
     const metricsByScenario = {};
     for (const scenario of message.job.payload.scenarios) {
       const metrics = { combinedDps: 1000000, effectiveHitPool: 50000, worstCaseMaxHit: 20000 };
@@ -110,13 +137,13 @@ describe("packaged CLI", () => {
     child.stderr?.on("data", (chunk: Buffer) => errors.push(chunk));
 
     const ready = await pollReadyFile(readyFile, child, errors);
-    expect(ready).toMatchObject({ protocolVersion: 1, host: "127.0.0.1" });
+    expect(ready).toMatchObject({ protocolVersion: 2, host: "127.0.0.1" });
     const client = await RpcTestClient.connect(ready.port, token);
-    const hello = await client.request("hello", { client: "smoke", protocolVersion: 1 });
-    expect(hello).toMatchObject({ protocolVersion: 1 });
+    const hello = await client.request("hello", { client: "smoke", protocolVersion: 2 });
+    expect(hello).toMatchObject({ protocolVersion: 2 });
 
     const snapshot = {
-      schemaVersion: 1,
+      schemaVersion: 2,
       xml: "<PathOfBuilding><Build level=\"90\"/><Config/><Skills/><Items/><Tree/><Party/></PathOfBuilding>",
       fingerprint: "smoke-build",
       engineVersion: "smoke-engine",
@@ -154,7 +181,7 @@ describe("packaged CLI", () => {
     const started = await client.request("run.start", {
       snapshotFingerprint: snapshot.fingerprint,
       objective: {
-        schemaVersion: 1,
+        schemaVersion: 2,
         primaryScenario: "mapping",
         scenarioWeights: { mapping: 0.55, standardBoss: 0.15, pinnacle: 0.15, uber: 0.15 },
         locks: { class: true, ascendancy: true, mainSkill: true, fields: [] },
@@ -221,7 +248,7 @@ class RpcTestClient {
       this.#pending.set(id, { resolve: resolveRequest, reject });
     });
     this.socket.write(`${JSON.stringify({
-      jsonrpc: "2.0", id, method, params, protocolVersion: 1, sessionToken: this.token,
+      jsonrpc: "2.0", id, method, params, protocolVersion: 2, sessionToken: this.token,
     })}\n`);
     return promise;
   }

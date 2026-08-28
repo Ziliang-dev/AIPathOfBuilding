@@ -1,11 +1,19 @@
 import { MemorySaver } from "@langchain/langgraph";
 import { describe, expect, it, vi } from "vitest";
 import { DefaultPlannerController } from "../src/plannerController.js";
+import { MemoryCredentialStore } from "../src/credentials/index.js";
+import {
+  ConsentManager,
+  MemoryConsentRecordStore,
+  MemoryProviderProfileStore,
+  ProviderModelAdapterFactory,
+  ProviderProfileService,
+} from "../src/provider/index.js";
 import { MemoryPlannerStore } from "../src/storage/index.js";
 import { InMemoryWorkerPool } from "../src/worker/index.js";
 
 const objective = {
-  schemaVersion: 1 as const,
+  schemaVersion: 2 as const,
   primaryScenario: "mapping" as const,
   scenarioWeights: { mapping: 0.55, standardBoss: 0.15, pinnacle: 0.15, uber: 0.15 },
   locks: { class: true, ascendancy: true, mainSkill: true, fields: [] },
@@ -20,7 +28,7 @@ describe("DefaultPlannerController", () => {
   it("fails closed on Trade and can cancel while worker startup is pending", async () => {
     const store = new MemoryPlannerStore();
     store.saveSnapshot({
-      schemaVersion: 1,
+      schemaVersion: 2,
       xml: "<PathOfBuilding/>",
       fingerprint: "pending-build",
       engineVersion: "test",
@@ -67,7 +75,7 @@ describe("DefaultPlannerController", () => {
       await new Promise<void>((resolve) => setTimeout(resolve, 5));
     }
     expect(closeStartupPool).toHaveBeenCalledOnce();
-    expect(planner.hello({ clientName: "test", clientVersion: "1" })).toMatchObject({
+    await expect(planner.hello({ clientName: "test", clientVersion: "1" })).resolves.toMatchObject({
       capabilities: { trade: false, providerConfigured: false },
     });
     await planner.close();
@@ -76,7 +84,7 @@ describe("DefaultPlannerController", () => {
   it("persists the live Pareto frontier when cancelled during search", async () => {
     const store = new MemoryPlannerStore();
     store.saveSnapshot({
-      schemaVersion: 1,
+      schemaVersion: 2,
       xml: "<PathOfBuilding/>",
       fingerprint: "cancel-search-build",
       engineVersion: "test",
@@ -157,7 +165,7 @@ describe("DefaultPlannerController", () => {
   it("emits run.failed instead of run.completed when workflow search fails", async () => {
     const store = new MemoryPlannerStore();
     store.saveSnapshot({
-      schemaVersion: 1,
+      schemaVersion: 2,
       xml: "<PathOfBuilding/>",
       fingerprint: "failed-build",
       engineVersion: "test",
@@ -191,7 +199,7 @@ describe("DefaultPlannerController", () => {
   it("persists startup failures and refuses to resume terminal runs", async () => {
     const store = new MemoryPlannerStore();
     store.saveSnapshot({
-      schemaVersion: 1,
+      schemaVersion: 2,
       xml: "<PathOfBuilding/>",
       fingerprint: "startup-failed-build",
       engineVersion: "test",
@@ -228,7 +236,7 @@ describe("DefaultPlannerController", () => {
     const store = new MemoryPlannerStore();
     const now = new Date().toISOString();
     store.saveRun({
-      schemaVersion: 1,
+      schemaVersion: 2,
       id: "completed-run",
       buildFingerprint: "completed-build",
       status: "completed",
@@ -273,7 +281,7 @@ describe("DefaultPlannerController", () => {
   it("allows budgeted catalog-backed unique sources while Trade stays fail-closed", async () => {
     const store = new MemoryPlannerStore();
     store.saveSnapshot({
-      schemaVersion: 1,
+      schemaVersion: 2,
       xml: "<PathOfBuilding/>",
       fingerprint: "catalog-source-build",
       engineVersion: "test",
@@ -321,10 +329,173 @@ describe("DefaultPlannerController", () => {
     await planner.close();
   });
 
+  it("queries Trade dynamically and emits a fingerprint-bound importAndEquip candidate", async () => {
+    const store = new MemoryPlannerStore();
+    store.saveSnapshot({
+      schemaVersion: 2,
+      xml: "<PathOfBuilding/>",
+      fingerprint: "trade-build",
+      engineVersion: "test",
+      dataVersion: "3_29",
+      ruleset: "3_29",
+      metrics: { FullDPS: 100 },
+      config: {}, buildState: {}, gameplayFieldPaths: ["Build.level"],
+    });
+    const tradeQueries: Array<Record<string, unknown>> = [];
+    const evaluatedActions: unknown[][] = [];
+    const planner = new DefaultPlannerController({
+      store,
+      checkpointer: new MemorySaver(),
+      workerPoolFactory: () => new InMemoryWorkerPool(1, (job) => {
+        evaluatedActions.push([...job.payload.actions]);
+        const improved = job.payload.actions.some((action) => action.kind === "importAndEquip");
+        return {
+          jobId: job.id,
+          candidateId: job.candidateId,
+          metricsByScenario: Object.fromEntries(job.scenarios.map((scenario) => [
+            scenario,
+            { FullDPS: improved ? 200 : 100 },
+          ])),
+        };
+      }),
+    });
+    const tradeObjective = {
+      ...objective,
+      tradeContext: { realm: "pc" as const, league: "Keepers" },
+    };
+    const started = planner.startRun({ snapshotFingerprint: "trade-build", objective: tradeObjective }, {
+      requestId: "trade-dynamic",
+      signal: new AbortController().signal,
+      notify: () => undefined,
+      requestTradeCatalog: async (query) => {
+        tradeQueries.push(query);
+        const now = new Date().toISOString();
+        return {
+          runId: query.runId,
+          requestId: query.requestId,
+          queryHash: query.queryHash,
+          fetchedAt: now,
+          currencySnapshotAt: now,
+          warnings: [],
+          items: query.slot === "Helmet" ? [{
+            catalogId: "trade:helmet:fixture",
+            queryHash: query.queryHash,
+            ruleset: query.ruleset,
+            league: query.league,
+            slot: query.slot,
+            itemRaw: "Rarity: Rare\nGolden Helm\nHubris Circlet",
+            itemHash: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            price: { amount: 1, currency: "divine", divineEquivalent: 1 },
+          }] : [],
+        };
+      },
+      cancelTradeCatalog: () => undefined,
+    }) as { runId: string };
+    for (let attempt = 0; attempt < 200 && store.getRun(started.runId)?.selected.length === 0; attempt += 1) {
+      await new Promise<void>((resolve) => setTimeout(resolve, 10));
+    }
+    expect(tradeQueries).toHaveLength(8);
+    expect(tradeQueries[0]).toMatchObject({
+      ruleset: "3_29",
+      realm: "pc",
+      league: "Keepers",
+      constraints: { rarity: "rare", statFilters: [] },
+      limit: 10,
+    });
+    const tradeAction = evaluatedActions.flat().find((action) =>
+      typeof action === "object" && action !== null && "kind" in action
+      && action.kind === "importAndEquip") as { preconditions?: unknown; payload?: unknown } | undefined;
+    expect(tradeAction).toMatchObject({
+      preconditions: { baseFingerprint: "trade-build" },
+      payload: {
+        catalogId: "trade:helmet:fixture",
+        slot: "Helmet",
+        source: "trade",
+        price: { divineEquivalent: 1 },
+      },
+    });
+    expect(store.getRun(started.runId)?.objective.candidateSources.trade).toBe(true);
+    if (store.getRun(started.runId)?.status === "paused") planner.cancelRun({ runId: started.runId });
+    await planner.close();
+  });
+
+  it("injects the consent-gated OpenAI-compatible model into workflow nodes", async () => {
+    const store = new MemoryPlannerStore();
+    store.saveSnapshot({
+      schemaVersion: 2,
+      xml: "<PathOfBuilding/>",
+      fingerprint: "provider-build",
+      engineVersion: "test",
+      dataVersion: "3_29",
+      ruleset: "3_29",
+      metrics: { FullDPS: 100 },
+      config: {}, buildState: {}, gameplayFieldPaths: ["Build.level"],
+    });
+    const providerService = new ProviderProfileService({
+      profiles: new MemoryProviderProfileStore(),
+      credentials: new MemoryCredentialStore(),
+      consent: new ConsentManager(new MemoryConsentRecordStore()),
+    });
+    await providerService.configure({
+      providerId: "openai",
+      baseURL: "https://example.com/v1",
+      model: "golden-model",
+      apiKey: "provider-secret",
+    });
+    const preview = await providerService.preview("openai", { objective: "redacted preview" });
+    await providerService.grantConsent("openai", preview.consentKey, preview.dataCategories);
+    const providerRequests: Record<string, unknown>[] = [];
+    const modelAdapterFactory = new ProviderModelAdapterFactory({
+      service: providerService,
+      adapter: {
+        transport: {
+          create: async (request) => {
+            providerRequests.push(request);
+            return {
+              choices: [{ message: { content: "Use verified deterministic search.", tool_calls: [] } }],
+              usage: { prompt_tokens: 10, completion_tokens: 5 },
+            };
+          },
+        },
+      },
+    });
+    const planner = new DefaultPlannerController({
+      store,
+      checkpointer: new MemorySaver(),
+      providerService,
+      modelAdapterFactory,
+      workerPoolFactory: () => new InMemoryWorkerPool(1, (job) => ({
+        jobId: job.id,
+        candidateId: job.candidateId,
+        metricsByScenario: Object.fromEntries(job.scenarios.map((scenario) => [scenario, { FullDPS: 100 }])),
+      })),
+    });
+    const providerObjective = {
+      ...objective,
+      candidateSources: { ...objective.candidateSources, trade: false },
+    };
+    const started = planner.startRun({ snapshotFingerprint: "provider-build", objective: providerObjective }, {
+      requestId: "provider-injection",
+      signal: new AbortController().signal,
+      notify: () => undefined,
+    }) as { runId: string };
+    for (let attempt = 0; attempt < 200 && providerRequests.length === 0; attempt += 1) {
+      await new Promise<void>((resolve) => setTimeout(resolve, 10));
+    }
+    expect(providerRequests.length).toBeGreaterThan(0);
+    expect(JSON.stringify(providerRequests)).not.toContain("provider-secret");
+    for (let attempt = 0; attempt < 200 && (store.getRun(started.runId)?.modelCalls ?? 0) === 0; attempt += 1) {
+      await new Promise<void>((resolve) => setTimeout(resolve, 10));
+    }
+    expect(store.getRun(started.runId)?.modelCalls).toBeGreaterThan(0);
+    if (store.getRun(started.runId)?.status === "paused") planner.cancelRun({ runId: started.runId });
+    await planner.close();
+  });
+
   it("re-evaluates all sustainable scenarios in a fresh pool before Apply", async () => {
     const store = new MemoryPlannerStore();
     store.saveSnapshot({
-      schemaVersion: 1,
+      schemaVersion: 2,
       xml: "<PathOfBuilding/>",
       fingerprint: "apply-verify-build",
       engineVersion: "test",
@@ -377,7 +548,7 @@ describe("DefaultPlannerController", () => {
   it("aborts Apply verification with the request and emits no transaction", async () => {
     const store = new MemoryPlannerStore();
     store.saveSnapshot({
-      schemaVersion: 1,
+      schemaVersion: 2,
       xml: "<PathOfBuilding/>",
       fingerprint: "apply-timeout-build",
       engineVersion: "test",
@@ -445,7 +616,7 @@ describe("DefaultPlannerController", () => {
   it("aborts worker startup when a resumed request expires", async () => {
     const store = new MemoryPlannerStore();
     store.saveSnapshot({
-      schemaVersion: 1,
+      schemaVersion: 2,
       xml: "<PathOfBuilding/>",
       fingerprint: "resume-timeout-build",
       engineVersion: "test",
@@ -456,7 +627,7 @@ describe("DefaultPlannerController", () => {
     });
     const now = new Date().toISOString();
     store.saveRun({
-      schemaVersion: 1,
+      schemaVersion: 2,
       id: "resume-timeout-run",
       buildFingerprint: "resume-timeout-build",
       status: "paused",
@@ -503,7 +674,7 @@ describe("DefaultPlannerController", () => {
   it("serializes concurrent resume operations for one run", async () => {
     const store = new MemoryPlannerStore();
     store.saveSnapshot({
-      schemaVersion: 1,
+      schemaVersion: 2,
       xml: "<PathOfBuilding/>",
       fingerprint: "resume-concurrent-build",
       engineVersion: "test",
@@ -514,7 +685,7 @@ describe("DefaultPlannerController", () => {
     });
     const now = new Date().toISOString();
     store.saveRun({
-      schemaVersion: 1,
+      schemaVersion: 2,
       id: "resume-concurrent-run",
       buildFingerprint: "resume-concurrent-build",
       status: "paused",
@@ -562,7 +733,7 @@ describe("DefaultPlannerController", () => {
   it("awaits startup work and leaves a resumable paused run on controller shutdown", async () => {
     const store = new MemoryPlannerStore();
     store.saveSnapshot({
-      schemaVersion: 1,
+      schemaVersion: 2,
       xml: "<PathOfBuilding/>",
       fingerprint: "shutdown-build",
       engineVersion: "test",
@@ -595,7 +766,7 @@ describe("DefaultPlannerController", () => {
   it("rejects resume activation after controller shutdown starts", async () => {
     const store = new MemoryPlannerStore();
     store.saveSnapshot({
-      schemaVersion: 1,
+      schemaVersion: 2,
       xml: "<PathOfBuilding/>",
       fingerprint: "closed-resume-build",
       engineVersion: "test",
@@ -606,7 +777,7 @@ describe("DefaultPlannerController", () => {
     });
     const now = new Date().toISOString();
     store.saveRun({
-      schemaVersion: 1,
+      schemaVersion: 2,
       id: "closed-resume-run",
       buildFingerprint: "closed-resume-build",
       status: "paused",

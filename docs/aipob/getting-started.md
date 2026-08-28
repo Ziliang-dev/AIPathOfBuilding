@@ -6,11 +6,10 @@ installer is published from this branch yet.
 ## Requirements
 
 - PowerShell Core 7 (`pwsh`)
-- Node.js 22.13 or newer for sidecar development
+- Node.js 24.20.0 x64 for the release-compatible development path
 - pnpm 11.19.0
 - Docker or a local LuaJIT/Busted environment for the upstream PoB Lua tests
-- An existing Node.js 24 x64 `node.exe` when assembling the portable Windows
-  package
+- An existing Node.js 24.20.0 x64 `node.exe` when assembling Windows packages
 
 The repository does not download or commit a Node executable. Do not place API
 keys, OAuth tokens, SQLite databases, logs, `.env` files, or local credential
@@ -48,19 +47,39 @@ With a build open in PoB:
 1. Open **AI Build Planner**.
 2. Choose a goal preset: Balanced, Maximum Offence, Maximum Defence, or Smooth
    Mapping.
-3. Add goal details. Free-text constraint notes are not enforced until they are
-   converted into structured fields.
+3. Add goal details, or use **Planner Chat** to create a draft. Review every
+   draft before using it. Free-text constraint notes are not enforced until
+   they are converted into structured fields.
 4. Optionally set minimum EHP and minimum worst-case maximum hit. These are hard
    constraints across all four sustainable scenarios.
 5. Choose the primary scenario. It receives the largest default ranking weight.
 6. Set a Divine budget only if paid-source candidates should be eligible. The
    current build can still be searched without a budget.
-7. Choose locks. Class, ascendancy, and main skill are locked by default.
-8. Check **Confirm this objective before search**, then select **Start**.
+7. To search authenticated PoE Trade, enable **PoE Trade** and provide an exact
+   league name. Trade requires a Budget.
+8. Choose locks. Class, ascendancy, and main skill are locked by default.
+9. Check **Confirm this objective before search**, then select **Start**.
 
 The sidecar starts lazily on the first search. The current CLI reports
-`providerConfigured=false`, so the run uses the deterministic domain schedule.
-The model adapter is not connected to the Planner controller.
+provider status to the Planner. Without a configured, consented provider, the
+run uses the deterministic domain schedule.
+
+## Configure Planner Chat
+
+Open provider setup in the Planner, then enter an OpenAI-compatible endpoint,
+model name, and API key. The key is stored only in Windows Credential Manager
+under `AIPathOfBuilding/LLM/openai`; the provider profile and consent record do
+not contain the key.
+
+Before the first provider call, inspect the consent preview. It binds the exact
+endpoint, model, data categories, privacy/redaction policy, and redacted payload
+hash. Granting consent enables Planner Chat and model-assisted workflow steps.
+Changing the provider profile requires new consent. Clearing the provider
+removes its LLM credential and consent. It does not modify PoE Trade OAuth data.
+
+Planner Chat returns an Objective Draft or a clarification question. A draft is
+ephemeral and never starts a run or changes the Build. Review it, resolve unknown
+metrics, then confirm the resulting structured Objective normally.
 
 ## Review results
 
@@ -80,21 +99,27 @@ terminal and cannot be resumed.
 
 ## Current limitations
 
-- Authenticated PoB Trade is not connected to the sidecar. Trade requests are
-  disabled with a warning.
-- Unique and target-rare controls accept typed catalog candidates, but the
-  current main-process integration does not supply external proposals.
-- Windows Credential Manager retrieval, first-send consent, model-provider
-  injection, and conversational objective drafting are not connected.
-- Several full-domain adapters and release-gate golden builds are incomplete.
+- Trade queries are bounded, typed, Budget-scoped, and executed by PoB. A Trade
+  failure emits a warning and continues local search. It never authorizes
+  purchase, seller contact, account writes, or game input.
+- Unique and target-Rare controls accept typed catalog candidates, but the
+  current main process does not yet supply a non-Trade external proposal
+  catalog.
+- Native link probing covers proposed links, but full-gem-catalog candidate
+  generation remains partial.
+- Golden coverage has both 3.29 rulesets and required actor/season projections;
+  more archetypes, rotations, conflicts, and negative cases remain useful.
+- No signed installer is published from this branch. Portable, NSIS, native
+  helper, and real-PoB process checks are release CI gates.
 
 The complete list is in [Status and roadmap](status-and-roadmap.md).
 
 ## Portable Windows package
 
-Provide an existing Node.js 24 x64 executable. The packaging script validates
-its major version and refuses to overwrite an existing output directory or
-archive.
+Provide an existing Node.js 24.20.0 x64 executable. The packaging script
+validates the exact version, architecture, ABI, SQLite native binding, WinCred
+helper, manifest, and hashes. It refuses to overwrite an existing output
+directory or archive.
 
 ```powershell
 $env:AIPOB_NODE_EXE = 'C:\Tools\node-v24-win-x64\node.exe'
@@ -107,10 +132,21 @@ Default output:
 artifacts/AIPathOfBuilding-AIPoB-windows-x64.zip
 ```
 
-The package includes the sidecar bundle, `better-sqlite3` and its matching
-native binding, and the supplied Node runtime. A Node major or native ABI change
-requires a new installer or portable package; the PoB auto-updater cannot safely
-replace those installer-owned components.
+The package includes the full PoB runtime, sidecar bundle, `better-sqlite3` and
+its matching native binding, Node runtime, and WinCred helper. A Node or native
+ABI change requires a new installer or portable package; the PoB auto-updater
+cannot safely replace those installer-owned components.
+
+Build and verify the canonical NSIS installer from the portable ZIP:
+
+```powershell
+./scripts/package-installer-windows.ps1 `
+  -PackagePath artifacts/AIPathOfBuilding-AIPoB-windows-x64.zip `
+  -OutputPath artifacts/AIPathOfBuilding-AIPoB-Setup.exe
+./scripts/verify-installer-windows.ps1 `
+  -InstallerPath artifacts/AIPathOfBuilding-AIPoB-Setup.exe `
+  -PackagePath artifacts/AIPathOfBuilding-AIPoB-windows-x64.zip
+```
 
 For contributor setup and release ordering, see
 [Development](development.md). For runtime failures, see

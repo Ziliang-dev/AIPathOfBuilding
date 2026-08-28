@@ -2,6 +2,20 @@ import net, { type AddressInfo, type Socket } from "node:net";
 import { TextDecoder } from "node:util";
 import type { PlannerController } from "./controller.js";
 import {
+  RpcErrorSchema,
+  RpcSuccessSchema,
+  type RpcPeerNotification,
+  type RpcPeerRequest,
+} from "../protocol.js";
+import {
+  PROTOCOL_VERSION,
+  TradeCatalogQuerySchema,
+  TradeCatalogResultSchema,
+  type TradeCatalogCancel,
+  type TradeCatalogQuery,
+  type TradeCatalogResult,
+} from "../schemas.js";
+import {
   JsonRpcErrorCode,
   rpcError,
   type JsonRpcNotification,
@@ -20,7 +34,9 @@ export interface RpcServerOptions extends RpcRouterOptions {
   onLastDisconnect?: () => void;
 }
 
-function serialize(message: JsonRpcResponse | JsonRpcNotification): string {
+type OutboundMessage = JsonRpcResponse | JsonRpcNotification | RpcPeerRequest | RpcPeerNotification;
+
+function serialize(message: OutboundMessage): string {
   return `${JSON.stringify(message)}\n`;
 }
 
@@ -45,6 +61,7 @@ export class RpcServer {
   private readonly sockets = new Set<Socket>();
   private readonly onFirstConnect: (() => void) | undefined;
   private readonly onLastDisconnect: (() => void) | undefined;
+  private readonly sessionToken: string;
   private ownerConnected = false;
   private ownerDisconnectNotified = false;
 
@@ -53,6 +70,7 @@ export class RpcServer {
     this.maxFrameBytes = options.maxFrameBytes ?? DEFAULT_MAX_FRAME_BYTES;
     this.onFirstConnect = options.onFirstConnect;
     this.onLastDisconnect = options.onLastDisconnect;
+    this.sessionToken = options.sessionToken;
     if (!Number.isInteger(this.port) || this.port < 0 || this.port > 65_535) {
       throw new Error("port must be an integer between 0 and 65535");
     }
@@ -115,8 +133,14 @@ export class RpcServer {
     const connectionAbort = new AbortController();
     let buffered = Buffer.alloc(0);
     const activeRequestIds = new Set<string>();
+    let peerRequestSequence = 0;
+    const pendingPeerRequests = new Map<string, {
+      resolve(value: TradeCatalogResult): void;
+      reject(error: Error): void;
+      timeout: NodeJS.Timeout;
+    }>();
 
-    const send = (message: JsonRpcResponse | JsonRpcNotification): void => {
+    const send = (message: OutboundMessage): void => {
       if (!socket.destroyed && socket.writable) {
         const frame = Buffer.from(serialize(message), "utf8");
         if (frame.length > this.maxFrameBytes) {
@@ -138,6 +162,11 @@ export class RpcServer {
 
     const closeConnection = (): void => {
       connectionAbort.abort(new Error("Connection closed"));
+      for (const pending of pendingPeerRequests.values()) {
+        clearTimeout(pending.timeout);
+        pending.reject(new Error("Connection closed during peer request"));
+      }
+      pendingPeerRequests.clear();
       this.sockets.delete(socket);
       if (this.ownerConnected && this.sockets.size === 0 && !this.ownerDisconnectNotified) {
         this.ownerDisconnectNotified = true;
@@ -185,7 +214,45 @@ export class RpcServer {
           send(rpcError(null, JsonRpcErrorCode.ParseError, "Empty frame"));
           continue;
         }
-        this.processFrame(frame, connectionAbort.signal, activeRequestIds, send);
+        this.processFrame(
+          frame,
+          connectionAbort.signal,
+          activeRequestIds,
+          pendingPeerRequests,
+          send,
+          (params) => {
+            const parsed = TradeCatalogQuerySchema.parse(params);
+            const id = `server:trade:${++peerRequestSequence}`;
+            const deadlineMs = Date.parse(parsed.deadlineAt) - Date.now();
+            if (!Number.isFinite(deadlineMs) || deadlineMs <= 0) {
+              return Promise.reject(new Error("Trade catalog request deadline already expired"));
+            }
+            return new Promise<TradeCatalogResult>((resolve, reject) => {
+              const timeout = setTimeout(() => {
+                pendingPeerRequests.delete(id);
+                reject(new Error("Trade catalog peer request timed out"));
+              }, Math.min(deadlineMs, 30_000));
+              timeout.unref();
+              pendingPeerRequests.set(id, { resolve, reject, timeout });
+              send({
+                jsonrpc: "2.0",
+                id,
+                method: "trade.catalog.query",
+                params: parsed,
+                sessionToken: this.sessionToken,
+                protocolVersion: PROTOCOL_VERSION,
+              });
+            });
+          },
+          (params) => {
+            send({
+              jsonrpc: "2.0",
+              method: "trade.catalog.cancel",
+              params,
+              protocolVersion: PROTOCOL_VERSION,
+            });
+          },
+        );
       }
     });
   }
@@ -194,13 +261,53 @@ export class RpcServer {
     frame: Buffer,
     connectionSignal: AbortSignal,
     activeRequestIds: Set<string>,
-    send: (message: JsonRpcResponse | JsonRpcNotification) => void,
+    pendingPeerRequests: Map<string, {
+      resolve(value: TradeCatalogResult): void;
+      reject(error: Error): void;
+      timeout: NodeJS.Timeout;
+    }>,
+    send: (message: OutboundMessage) => void,
+    requestTradeCatalog: (params: TradeCatalogQuery) => Promise<TradeCatalogResult>,
+    cancelTradeCatalog: (params: TradeCatalogCancel) => void,
   ): void {
     let value: unknown;
     try {
       value = JSON.parse(utf8Decoder.decode(frame));
     } catch {
       send(rpcError(null, JsonRpcErrorCode.ParseError, "Malformed JSON or UTF-8"));
+      return;
+    }
+
+    if (typeof value === "object" && value !== null && "id" in value && ("result" in value || "error" in value)) {
+      const rawPeerId = (value as { id?: unknown }).id;
+      if (typeof rawPeerId !== "string") {
+        send(rpcError(null, JsonRpcErrorCode.InvalidRequest, "Unexpected peer response"));
+        return;
+      }
+      const peerId = rawPeerId;
+      const pending = pendingPeerRequests.get(peerId);
+      if (pending === undefined) {
+        send(rpcError(null, JsonRpcErrorCode.InvalidRequest, "Unexpected peer response"));
+        return;
+      }
+      pendingPeerRequests.delete(peerId);
+      clearTimeout(pending.timeout);
+      const failure = RpcErrorSchema.safeParse(value);
+      if (failure.success) {
+        pending.reject(new Error(`PoB Trade broker failed: ${failure.data.error.message}`));
+        return;
+      }
+      const success = RpcSuccessSchema.safeParse(value);
+      if (!success.success) {
+        pending.reject(new Error("PoB Trade broker returned an invalid RPC response"));
+        return;
+      }
+      const result = TradeCatalogResultSchema.safeParse(success.data.result);
+      if (!result.success) {
+        pending.reject(new Error("PoB Trade broker returned an invalid catalog result"));
+        return;
+      }
+      pending.resolve(result.data);
       return;
     }
 
@@ -232,6 +339,8 @@ export class RpcServer {
       .dispatch(value, {
         signal: connectionSignal,
         sendNotification: send,
+        requestTradeCatalog,
+        cancelTradeCatalog,
       })
       .then(send)
       .finally(() => {

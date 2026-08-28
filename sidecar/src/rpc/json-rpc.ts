@@ -33,6 +33,7 @@ export const JsonRpcErrorCode = {
   ProtocolVersionMismatch: RPC_ERROR.PROTOCOL_MISMATCH,
   FrameTooLarge: RPC_ERROR.FRAME_TOO_LARGE,
   DuplicateRequestId: RPC_ERROR.CONFLICT,
+  Conflict: RPC_ERROR.CONFLICT,
   RequestTimedOut: -32006,
 } as const;
 

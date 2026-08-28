@@ -10,7 +10,7 @@ import {
 import { RunResumeParamsSchema } from "../src/protocol.js";
 
 const objective = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   primaryScenario: "mapping",
   scenarioWeights: { mapping: 0.55, standardBoss: 0.15, pinnacle: 0.15, uber: 0.15 },
   locks: { class: true, ascendancy: true, mainSkill: true, fields: [] },
@@ -23,7 +23,7 @@ const objective = {
 describe("public schemas", () => {
   it("accepts bounded optional catalog and graph data", () => {
     const parsed = BuildSnapshotSchema.parse({
-      schemaVersion: 1,
+      schemaVersion: 2,
       xml: "<PathOfBuilding/>",
       fingerprint: "sha256:one",
       engineVersion: "test",
@@ -99,7 +99,7 @@ describe("public schemas", () => {
 
   it("requires all four ranked scenarios on candidates", () => {
     expect(() => CandidateSchema.parse({
-      schemaVersion: 1,
+      schemaVersion: 2,
       id: "candidate-incomplete",
       label: "Offence",
       summary: "Incomplete scenario fixture",

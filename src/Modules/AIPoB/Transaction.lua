@@ -4,6 +4,7 @@ local BuildState = require("Modules.AIPoB.BuildState")
 local Metrics = require("Modules.AIPoB.Metrics")
 local Scenario = require("Modules.AIPoB.Scenario")
 local Snapshot = require("Modules.AIPoB.Snapshot")
+local NativeLinkProbe = require("Modules.AIPoB.NativeLinkProbe")
 
 local Transaction = { SCHEMA_VERSION = 1 }
 Transaction.__index = Transaction
@@ -59,7 +60,7 @@ local function exceptionText(err)
 end
 
 local function rollback(self, base, causeStage, cause, index, actionId)
-	local restoreCalled, restored, restoreErr = pcall(self.restore, self.build, base.xml)
+	local restoreCalled, restored, restoreErr = pcall(self.restore, self.build, base.rollbackXml or base.xml)
 	if not restoreCalled then
 		return failure("rollback.exception", restored, {
 			causeStage = causeStage, cause = cause, actionIndex = index, actionId = actionId, recoverable = false,
@@ -163,7 +164,7 @@ function Transaction:Apply(candidate, scenarios)
 
 		stage = "snapshot"
 		local captureErr
-		base, captureErr = Snapshot.Capture(self.build)
+		base, captureErr = Snapshot.Capture(self.build, { includeRollback = true })
 		if not base then return failure("snapshot", captureErr) end
 		if candidate.baseFingerprint and candidate.baseFingerprint ~= base.fingerprint then
 			return failure("fingerprint", "build changed since candidate search", { expected = candidate.baseFingerprint, actual = base.fingerprint })
@@ -194,6 +195,15 @@ function Transaction:Apply(candidate, scenarios)
 			stage = "verify"
 			ok, err = metricsMatch(preflight.metrics, metrics)
 		end
+		if ok and candidate.nativeProbeFingerprint then
+			stage = "nativeProbe"
+			local probe
+			probe, err = NativeLinkProbe.Extract(self.build)
+			local actual = probe and (probe.nativeProbeFingerprint or probe.probeFingerprint)
+			local expected = tostring(candidate.nativeProbeFingerprint):gsub("^sha256:", "")
+			ok = probe ~= nil and probe.complete == true and probe.truncated ~= true and actual == expected
+			if not ok and not err then err = "native link proof changed before commit" end
+		end
 		if ok and self.verify then
 			stage = "verify"
 			ok, err = self.verify(self.build, candidate, metrics, "commit")
@@ -210,7 +220,7 @@ function Transaction:Apply(candidate, scenarios)
 						baseFingerprint = base.fingerprint, fingerprint = final.fingerprint,
 						metrics = metrics, preflightMetrics = preflight.metrics,
 						scenarioMetrics = scenarioMetricsOrErr,
-						rollbackSnapshot = { xml = base.xml, fingerprint = base.fingerprint },
+						rollbackSnapshot = { xml = base.rollbackXml or base.xml, fingerprint = base.fingerprint },
 					}
 				end
 				ok, err = false, scenarioMetricsOrErr

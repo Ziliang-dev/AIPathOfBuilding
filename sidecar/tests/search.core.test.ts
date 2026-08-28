@@ -570,7 +570,19 @@ describe("full-domain Adapter registry", () => {
             },
             { name: "Added Fire Damage", level: 19, quality: 7, enabled: true, count: 1 },
           ] }],
-          availableGems: [{ name: "Spell Echo", support: true }],
+          availableGems: [{ id: "Metadata/Items/Gems/SupportGemSpellEcho", grantedEffectId: "SupportSpellEcho", name: "Spell Echo", support: true }],
+          nativeLinkProbe: {
+            schemaVersion: 1, complete: true, truncated: false,
+            engineVersion: "test", dataVersion: "3_29", probeFingerprint: "probe:test",
+            groups: [{
+              index: 1, capacity: 2, gems: [], activeSkills: [], currentSupports: [],
+              supports: [{
+                id: "Metadata/Items/Gems/SupportGemSpellEcho#SupportSpellEcho",
+                gemId: "Metadata/Items/Gems/SupportGemSpellEcho",
+                grantedEffectId: "SupportSpellEcho", acceptedBy: [1], acceptedByIds: ["Fireball"], available: true,
+              }],
+            }],
+          },
         } },
         { id: "pob:config", domain: "config", kind: "currentBuild", available: true, data: {
           conditionClaims: [{ condition: "conditionOnslaught", current: false }],

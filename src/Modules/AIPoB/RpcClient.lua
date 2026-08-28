@@ -1,7 +1,7 @@
 local json = require("dkjson")
 local Util = require("Modules.AIPoB.Util")
 
-local RpcClient = { PROTOCOL_VERSION = 1 }
+local RpcClient = { PROTOCOL_VERSION = 2, ASYNC = { } }
 RpcClient.__index = RpcClient
 
 local function encode(value)
@@ -28,6 +28,7 @@ function RpcClient.new(options)
 		handlers = { },
 		sendBuffer = "",
 		receiveBuffer = "",
+		peerResponses = { },
 	}, RpcClient)
 end
 
@@ -112,17 +113,31 @@ function RpcClient:_dispatch(message)
 	if type(message) ~= "table" or message.jsonrpc ~= "2.0" then return self:_fail("invalid JSON-RPC envelope") end
 	if message.protocolVersion ~= RpcClient.PROTOCOL_VERSION then return self:_fail("RPC protocol version mismatch") end
 	if message.method then
+		if message.id ~= nil and message.sessionToken ~= self.token then
+			self:_respond(message.id, nil, { code = -32001, message = "invalid peer session token" })
+			return true
+		end
 		local handler = self.handlers[message.method]
 		if not handler then
 			if message.id ~= nil then self:_respond(message.id, nil, { code = -32601, message = "method not found" }) end
 			return true
 		end
-		local ok, result, handlerErr = pcall(handler, message.params or { }, message)
+		local responded = false
+		local function respond(result, rpcError)
+			if responded or self.state == "closed" then return false end
+			responded = true
+			self.peerResponses[message.id] = nil
+			return self:_respond(message.id, result, rpcError)
+		end
+		if message.id ~= nil then self.peerResponses[message.id] = respond end
+		local ok, result, handlerErr = pcall(handler, message.params or { }, message, respond)
 		if message.id ~= nil then
-			if ok and handlerErr == nil then
-				self:_respond(message.id, result)
+			if ok and result == RpcClient.ASYNC and handlerErr == nil then
+				return true
+			elseif ok and handlerErr == nil then
+				respond(result)
 			else
-				self:_respond(message.id, nil, { code = -32000, message = tostring(ok and handlerErr or result) })
+				respond(nil, { code = -32000, message = tostring(ok and handlerErr or result) })
 			end
 		elseif not ok and self.onError then
 			pcall(self.onError, tostring(result))
@@ -199,6 +214,10 @@ function RpcClient:Close(reason)
 	self.state = "closed"
 	if self.socket then pcall(self.socket.close, self.socket) end
 	self.socket = nil
+	self.sendBuffer = ""
+	self.receiveBuffer = ""
+	self.token = nil
+	self.peerResponses = { }
 	for id, pending in pairs(self.pending) do
 		if pending.callback then pcall(pending.callback, nil, { code = -32002, message = reason or "RPC client closed" }) end
 		self.pending[id] = nil

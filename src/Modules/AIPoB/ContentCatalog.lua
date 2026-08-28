@@ -1,4 +1,6 @@
 local Util = require("Modules.AIPoB.Util")
+local ActorSeason = require("Modules.AIPoB.ActorSeason")
+local NativeLinkProbe = require("Modules.AIPoB.NativeLinkProbe")
 
 local ContentCatalog = { SCHEMA_VERSION = 1 }
 
@@ -63,6 +65,8 @@ local function exportSkills(build, limit)
 		result.availableGemCount = count
 		result.truncated = count > #result.availableGems
 	end
+	local nativeProbe = NativeLinkProbe.Extract(build, { limit = limit })
+	if nativeProbe then result.nativeLinkProbe = nativeProbe end
 	return result
 end
 
@@ -162,19 +166,17 @@ local function exportTree(build, limit)
 end
 
 local function exportActors(build, limit)
-	local party = build.partyTab
-	local buffers = { }
-	local controls = party and party.controls or { }
-	for name, controlName in pairs({
-		Aura = "editAuras", Curse = "editCurses", Warcry = "editWarcries", Link = "editLinks",
-		PartyMemberStats = "editPartyMemberStats", EnemyConditions = "enemyCond", EnemyMods = "enemyMods",
-	}) do
-		local control = controls[controlName]
-		buffers[name] = control and control.buf or ""
-	end
 	local spectres = { }
 	for _, id in ipairs(build.spectreList or { }) do boundedInsert(spectres, id, limit) end
-	return { player = true, minions = build.calcsTab and build.calcsTab.mainEnv and build.calcsTab.mainEnv.minion ~= nil, spectres = spectres, party = buffers }
+	local projection = ActorSeason.Project(build, { limit = limit })
+	return {
+		player = true,
+		minions = build.calcsTab and build.calcsTab.mainEnv and build.calcsTab.mainEnv.minion ~= nil,
+		spectres = spectres,
+		actors = projection.actors,
+		season = projection.season,
+		actorSeason = projection,
+	}
 end
 
 local function exportConfig(build, limit)

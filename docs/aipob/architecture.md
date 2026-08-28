@@ -9,8 +9,9 @@ and release gates belong in [Status and roadmap](status-and-roadmap.md).
 Path of Building process
   AIPlannerTab.lua
        |
-       | capture, run control, preview, approval, transaction result
-       | JSON-RPC 2.0 over authenticated loopback NDJSON
+       | capture, run control, provider consent, Trade broker,
+       | preview, approval, transaction result
+       | bidirectional JSON-RPC 2.0 over authenticated loopback NDJSON
        v
 TypeScript sidecar
   RPC -> controller -> workflow -> domain/search -> store
@@ -33,14 +34,18 @@ active UI build.
 
 [`AIPlannerTab.lua`](../../src/Classes/AIPlannerTab.lua) builds the structured
 objective, requires explicit confirmation, displays progress and three candidate
-slots, requests previews, and opens the final Apply confirmation.
+slots, requests previews, and opens the final Apply confirmation. It also owns
+the visible OpenAI-compatible provider setup, first-send consent confirmation,
+ephemeral Planner Chat, and exact Trade realm/league controls.
 
 ### Planner controller
 
 [`PlannerController.lua`](../../src/Modules/AIPoB/PlannerController.lua)
 launches or reconnects to the sidecar, captures the build, maps RPC
 notifications into UI state, verifies the candidate before apply, and reports
-the transaction result.
+the transaction result. It services reverse `trade.catalog.query` and
+`trade.catalog.cancel` calls while the existing PoB Trade request queue owns
+authentication, rate limiting, currency conversion, and upstream requests.
 
 ### Capture and catalog
 
@@ -48,7 +53,8 @@ the transaction result.
 records gameplay field paths, captures baseline metrics and version metadata,
 and calculates the build fingerprint. [`ContentCatalog.lua`](../../src/Modules/AIPoB/ContentCatalog.lua)
 exports typed entries already visible to PoB. The current export does not include
-an authenticated external Trade result set.
+an authenticated Trade result set in the snapshot. Trade is queried dynamically
+at the search barrier and sanitized before crossing into the sidecar.
 
 ### Evaluation and transactions
 
@@ -57,7 +63,17 @@ an authenticated external Trade result set.
 calculator to produce scenario metrics. The active build is changed only by
 [`Transaction.lua`](../../src/Modules/AIPoB/Transaction.lua), which applies an
 ordered action graph, verifies results, and restores the original XML on
-failure.
+failure. Worker evaluation first runs [`NativeLinkProbe.lua`](../../src/Modules/AIPoB/NativeLinkProbe.lua)
+and [`NativeEvidence.lua`](../../src/Modules/AIPoB/NativeEvidence.lua); incomplete
+or truncated native proof rejects the Candidate. Apply re-probes the committed
+Build before success.
+
+[`ActorSeason.lua`](../../src/Modules/AIPoB/ActorSeason.lua) projects bounded
+player, minion, spectre, Animate Guardian, party, Bloodline, Pact, passive
+override, timeless, Graft, Tincture, and Foulborn records. Party text is replaced
+by a hash before catalog export. [`ItemImport.lua`](../../src/Modules/AIPoB/ItemImport.lua)
+hash-validates raw item text and imports/equips it within the surrounding
+Transaction.
 
 [`TransactionJournal.lua`](../../src/Modules/AIPoB/TransactionJournal.lua)
 keeps rollback XML while an applied transaction is waiting for the sidecar's
@@ -68,7 +84,7 @@ acknowledgement. Successful acknowledgement clears the journal.
 ### Transport boundary
 
 The sidecar listens only on `127.0.0.1`. Each request carries JSON-RPC version
-`2.0`, protocol version `1`, and a random per-launch session token of at least 32
+`2.0`, protocol version `2`, and a random per-launch session token of at least 32
 characters. The server enforces maximum frame size, request timeout,
 authentication, ordered newline-delimited frames, and cancellation.
 
@@ -82,6 +98,18 @@ Request methods:
 - `run.resume`
 - `candidate.preview`
 - `transaction.result`
+- `provider.status`
+- `provider.configure`
+- `provider.clear`
+- `consent.preview`
+- `consent.grant`
+- `consent.revoke`
+- `objective.draft`
+
+Connection-scoped reverse requests from the sidecar to PoB:
+
+- `trade.catalog.query`
+- `trade.catalog.cancel`
 
 Server notifications:
 
@@ -97,7 +125,7 @@ The wire contract is defined by [`protocol.ts`](../../sidecar/src/protocol.ts),
 
 ### Versioned data contracts
 
-Protocol version `1` and schema version `1` currently cross the process
+Protocol version `2` and schema version `2` currently cross the process
 boundary. Principal validated values are:
 
 - `ObjectiveSpec`: confirmed goals, weights, hard constraints, Locks, Budget,
@@ -137,19 +165,36 @@ CaptureBuild -> DraftObjective -> ConfirmObjective -> BuildScenarios
 
 The current controller supplies deterministic handlers for inspection,
 diagnosis, domain search, selection, and apply verification. The graph contains
-refinement nodes, but the connected verification handler currently sets
-`needsRefinement=false` after the search pass.
+one bounded refinement pass when the first pass produces no frontier.
 
 ### Domain and search
 
 The domain layer validates canonical graph relations, classifies saved gameplay
-fields, generates the scenario set, and resolves available condition evidence.
+fields, generates the scenario set, resolves native condition evidence, and
+applies version-gated actor/season adapters for `3_29` and `3_29_ruthless`.
 The search layer expands typed catalog actions, evaluates candidate/scenario
 pairs through workers, rejects hard-constraint violations, maintains a Pareto
 frontier, and selects at most three labelled candidates.
 
-The current CLI does not inject the model adapter. Search therefore uses the
-deterministic schedule and reports provider fallback in the final stop reason.
+Every proposed link Candidate crosses a native probe barrier. The returned
+compatibility matrix, Candidate fingerprint, native-probe fingerprint, and
+per-Scenario evidence fingerprint are persisted and rechecked before Apply.
+This proves proposed links against PoB's active skill/support rules; broad
+full-catalog link generation remains separate roadmap work.
+
+At the search barrier the controller may issue at most eight typed Trade
+queries, ten results each and 100 retained results total, with a 30-second
+deadline. The sidecar sends semantic constraints only. PoB constructs query
+JSON, enforces the user's Divine Budget, removes seller/listing/whisper data,
+and returns bounded catalog records. Failure adds a warning and continues local
+search.
+
+The CLI injects an OpenAI-compatible adapter only when a non-secret provider
+profile, an LLM-only WinCred key, and matching consent are present. The consent
+key binds endpoint, model, data categories, privacy policy, redaction policy,
+and redacted payload preview. Without it, the deterministic schedule remains
+active. Planner Chat returns a strict Objective Draft; the UI requires review
+and another Objective confirmation before search.
 
 ### Persistence
 
@@ -169,6 +214,11 @@ The ready file publishes protocol version, loopback host, selected port, and
 PID. It never contains the session token. The sidecar removes only a ready file
 whose PID still belongs to its process.
 
+Provider profiles and consent decisions contain no secret. The API key is held
+only by Windows Credential Manager under `AIPathOfBuilding/LLM/<providerId>`.
+The native helper accepts JSON lines over stdin/stdout, never command-line
+secrets, and rejects every non-LLM credential target. PoE OAuth remains in PoB.
+
 ## Security and trust boundaries
 
 - Only PoB owns the active build and transaction call.
@@ -177,9 +227,12 @@ whose PID still belongs to its process.
 - Workers receive immutable snapshots and action batches.
 - The RPC listener rejects non-loopback binding and requests without the launch
   token.
-- External Trade and provider credentials are not connected in the current
-  runtime.
-- OAuth credentials and seller identity remain outside the sidecar contract.
+- OAuth credentials, seller identity, whispers, listing IDs, URLs, and raw rate
+  limit state remain outside the sidecar contract.
+- Provider payloads are redacted before the adapter and require descriptor-bound
+  consent before each provider becomes callable.
+- Snapshot XML sent for search is sanitized; rollback XML is requested only by
+  the local Transaction path.
 
 ## Failure behavior
 
@@ -188,10 +241,25 @@ whose PID still belongs to its process.
 | Sidecar startup or ready-file timeout | Planner reports unavailable; active build remains unchanged |
 | RPC authentication or protocol mismatch | Request is rejected with a structured error |
 | Worker startup, crash, timeout, or invalid result | Evaluation/run fails; active build remains unchanged |
-| External source requested | Source is disabled and run returns a warning |
-| Provider unavailable | Deterministic schedule remains active |
+| Trade unavailable, timed out, or rate-limited | Warning is recorded; deterministic local search continues |
+| Provider missing, unconsented, revoked, or unavailable | Deterministic schedule remains active; revocation aborts matching provider calls |
 | Preview requested | Sidecar returns the persisted Candidate action/metric diff without mutating the active build |
 | Apply preflight or action failure | Transaction restores captured XML and reports rollback evidence |
 | Lost sidecar acknowledgement after apply | Lua transaction journal retains rollback XML for reconciliation |
+
+## Release and packaging shape
+
+`scripts/release-gate.ps1` runs sidecar checks/build, manifest validation, the
+TypeScript Golden harness, and all AIPoB Lua specs. The version-2 Golden corpus
+contains Standard and Ruthless XML Builds plus representative actor/season
+projections, required adapters, graph nodes, Candidate actions, baseline
+metrics, and four Sustainable Scenario expectations.
+
+Windows artifacts use one canonical staging tree. Portable and repository-owned
+NSIS packaging pin Node `24.20.0` x64 / module ABI `137`, the matching
+`better-sqlite3` binding, the WinCred helper, the exact sidecar bundle, PoB
+runtime files, metadata, and checksums. CI verifies silent NSIS installation,
+apply/reject/failure paths, checkpoint restart, and a real packaged PoB worker
+process without pixel UI automation.
 
 For invariant definitions, continue with [Domain rules](domain-rules.md).

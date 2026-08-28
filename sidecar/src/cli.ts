@@ -1,13 +1,22 @@
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { z } from "zod";
 import { parseArgs, type SidecarConfig } from "./config.js";
 import { DefaultPlannerController, type WorkerPoolFactory } from "./plannerController.js";
 import { RpcServer } from "./rpc/index.js";
 import { MetricSetSchema, PROTOCOL_VERSION } from "./schemas.js";
+import { WinCredClient } from "./credentials/index.js";
+import {
+  ConsentManager,
+  ProviderModelAdapterFactory,
+  ProviderProfileService,
+  SqliteProviderStore,
+} from "./provider/index.js";
 import { createPlannerStore } from "./storage/index.js";
 import {
   PobWorkerPool,
+  NativeProbeWorkerPool,
   type PobWorkerEvaluatePayload,
   type WorkerCommand,
   type WorkerEvaluation,
@@ -17,9 +26,16 @@ import { createSqliteSaver } from "./workflow/index.js";
 const WorkerEvaluationSchema = z.object({
   jobId: z.string().min(1),
   candidateId: z.string().min(1),
-  metricsByScenario: z.record(z.string(), MetricSetSchema),
+  operation: z.enum(["evaluate", "probe"]).optional(),
+  metricsByScenario: z.record(z.string(), MetricSetSchema).default({}),
   diagnostics: z.array(z.string()).optional(),
-});
+  candidateFingerprint: z.string().optional(),
+  nativeProbeFingerprint: z.string().optional(),
+  evidenceFingerprint: z.string().optional(),
+  nativeLinkProbe: z.unknown().optional(),
+  nativeEvidence: z.unknown().optional(),
+  nativeEvidenceByScenario: z.unknown().optional(),
+}).passthrough();
 
 interface RunningApplication {
   readonly server: RpcServer;
@@ -52,10 +68,15 @@ export async function startApplication(config: SidecarConfig): Promise<RunningAp
     onWarning: (message, error) => warn(`${message}: ${errorText(error)}`),
   });
   const worker = processWorkerFactory(config);
+  const provider = createProviderRuntime(config);
   const controller = new DefaultPlannerController({
     store,
     checkpointer: saver.checkpointer,
     ...(worker.factory === undefined ? {} : { workerPoolFactory: worker.factory }),
+    ...(provider === undefined ? {} : {
+      providerService: provider.service,
+      modelAdapterFactory: provider.factory,
+    }),
   });
   let closing = false;
   let ownerConnectTimer: NodeJS.Timeout | undefined;
@@ -67,6 +88,7 @@ export async function startApplication(config: SidecarConfig): Promise<RunningAp
     await server.close();
     await controller.close();
     await worker.close();
+    provider?.close();
     saver.close();
     store.close();
     if (config.readyFile !== undefined) await removeOwnReadyFile(config.readyFile);
@@ -110,7 +132,34 @@ export async function startApplication(config: SidecarConfig): Promise<RunningAp
     }
     try { saver.close(); } catch (closeError) { warn(`Checkpoint cleanup failed: ${errorText(closeError)}`); }
     try { store.close(); } catch (closeError) { warn(`Store cleanup failed: ${errorText(closeError)}`); }
+    try { provider?.close(); } catch (closeError) { warn(`Provider store cleanup failed: ${errorText(closeError)}`); }
     throw error;
+  }
+}
+
+function createProviderRuntime(config: SidecarConfig): {
+  service: ProviderProfileService;
+  factory: ProviderModelAdapterFactory;
+  close(): void;
+} | undefined {
+  if (config.credentialHelper === undefined) return undefined;
+  if (!existsSync(config.credentialHelper)) {
+    warn(`Credential helper unavailable: ${config.credentialHelper}`);
+    return undefined;
+  }
+  try {
+    const persistence = new SqliteProviderStore(join(config.dataDir, "provider.sqlite"));
+    const consent = new ConsentManager(persistence.consentRecords);
+    const credentials = new WinCredClient({ helperPath: config.credentialHelper });
+    const service = new ProviderProfileService({ profiles: persistence, credentials, consent });
+    return {
+      service,
+      factory: new ProviderModelAdapterFactory({ service }),
+      close: () => persistence.close(),
+    };
+  } catch (error) {
+    warn(`Provider configuration unavailable: ${errorText(error)}`);
+    return undefined;
   }
 }
 
@@ -128,16 +177,10 @@ function processWorkerFactory(config: SidecarConfig): {
       shutdownTimeoutMs: 10_000,
       signal,
       parseResult: (value): WorkerEvaluation => {
-        const parsed = WorkerEvaluationSchema.parse(value);
-        return {
-          jobId: parsed.jobId,
-          candidateId: parsed.candidateId,
-          metricsByScenario: parsed.metricsByScenario,
-          ...(parsed.diagnostics === undefined ? {} : { diagnostics: parsed.diagnostics }),
-        };
+        return WorkerEvaluationSchema.parse(value) as WorkerEvaluation;
       },
     });
-    return pool;
+    return new NativeProbeWorkerPool(pool);
   };
   return {
     factory,

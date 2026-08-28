@@ -1,8 +1,16 @@
 import type { z } from "zod";
+import type { TradeCatalogCancel, TradeCatalogQuery, TradeCatalogResult } from "../schemas.js";
 import {
   BuildCaptureParamsSchema,
   CandidatePreviewParamsSchema,
+  ConsentGrantParamsSchema,
+  ConsentPreviewParamsSchema,
+  ConsentRevokeParamsSchema,
   HelloParamsSchema,
+  ObjectiveDraftParamsSchema,
+  ProviderClearParamsSchema,
+  ProviderConfigureParamsSchema,
+  ProviderStatusParamsSchema,
   RunCancelParamsSchema,
   RunAwaitingApprovalNotificationSchema,
   RunCompletedNotificationSchema,
@@ -25,6 +33,13 @@ export type RunStreamParams = z.infer<typeof RunStreamParamsSchema>;
 export type RunResumeParams = z.infer<typeof RunResumeParamsSchema>;
 export type CandidatePreviewParams = z.infer<typeof CandidatePreviewParamsSchema>;
 export type TransactionResultParams = z.infer<typeof TransactionResultParamsSchema>;
+export type ProviderStatusParams = z.infer<typeof ProviderStatusParamsSchema>;
+export type ProviderConfigureParams = z.infer<typeof ProviderConfigureParamsSchema>;
+export type ProviderClearParams = z.infer<typeof ProviderClearParamsSchema>;
+export type ConsentPreviewParams = z.infer<typeof ConsentPreviewParamsSchema>;
+export type ConsentGrantParams = z.infer<typeof ConsentGrantParamsSchema>;
+export type ConsentRevokeParams = z.infer<typeof ConsentRevokeParamsSchema>;
+export type ObjectiveDraftParams = z.infer<typeof ObjectiveDraftParamsSchema>;
 
 export type RunNotificationMethod =
   | "run.progress"
@@ -44,6 +59,8 @@ export interface PlannerControllerContext {
   readonly requestId: string | number;
   readonly signal: AbortSignal;
   notify(notification: RunNotification): void;
+  requestTradeCatalog?(params: TradeCatalogQuery): Promise<TradeCatalogResult>;
+  cancelTradeCatalog?(params: TradeCatalogCancel): void;
 }
 
 /**
@@ -60,4 +77,11 @@ export interface PlannerController {
   resumeRun(params: RunResumeParams, context: PlannerControllerContext): Promise<unknown> | unknown;
   previewCandidate(params: CandidatePreviewParams, context: PlannerControllerContext): Promise<unknown> | unknown;
   recordTransactionResult(params: TransactionResultParams, context: PlannerControllerContext): Promise<unknown> | unknown;
+  providerStatus(params: ProviderStatusParams, context: PlannerControllerContext): Promise<unknown> | unknown;
+  configureProvider(params: ProviderConfigureParams, context: PlannerControllerContext): Promise<unknown> | unknown;
+  clearProvider(params: ProviderClearParams, context: PlannerControllerContext): Promise<unknown> | unknown;
+  previewConsent(params: ConsentPreviewParams, context: PlannerControllerContext): Promise<unknown> | unknown;
+  grantConsent(params: ConsentGrantParams, context: PlannerControllerContext): Promise<unknown> | unknown;
+  revokeConsent(params: ConsentRevokeParams, context: PlannerControllerContext): Promise<unknown> | unknown;
+  draftObjective(params: ObjectiveDraftParams, context: PlannerControllerContext): Promise<unknown> | unknown;
 }

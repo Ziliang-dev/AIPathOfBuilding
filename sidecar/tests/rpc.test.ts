@@ -25,6 +25,13 @@ function createController(overrides: Partial<PlannerController> = {}): PlannerCo
     resumeRun: async () => ({ resumed: true }),
     previewCandidate: async () => ({ candidateId: "candidate-1" }),
     recordTransactionResult: async () => ({ recorded: true }),
+    providerStatus: async () => ({ configured: false }),
+    configureProvider: async () => ({ configured: true }),
+    clearProvider: async () => ({ configured: false }),
+    previewConsent: async () => ({ preview: true }),
+    grantConsent: async () => ({ granted: true }),
+    revokeConsent: async () => ({ revoked: true }),
+    draftObjective: async () => ({ draft: true }),
     ...overrides,
   };
 }
@@ -181,7 +188,7 @@ describe("RpcServer", () => {
     const badAuth = request(2, "hello", { clientName: "PoB", clientVersion: "1" });
     badAuth.sessionToken = "x".repeat(32);
     const badVersion = request(3, "hello", { clientName: "PoB", clientVersion: "1" });
-    badVersion.protocolVersion = 2;
+    badVersion.protocolVersion = PROTOCOL_VERSION + 1;
 
     const responses = await sendAndCollect(
       socket,
@@ -229,7 +236,7 @@ describe("RpcServer", () => {
         request(7, "run.start", {
           snapshotFingerprint: "fingerprint",
           objective: {
-            schemaVersion: 1,
+            schemaVersion: 2,
             goals: [{ metric: "TotalDPS", direction: "maximize" }],
           },
         }),
@@ -237,8 +244,8 @@ describe("RpcServer", () => {
       3,
     );
 
-    expect(messages[0]).toMatchObject({ method: "run.progress", protocolVersion: 1 });
-    expect(messages[1]).toMatchObject({ method: "run.completed", protocolVersion: 1 });
+    expect(messages[0]).toMatchObject({ method: "run.progress", protocolVersion: 2 });
+    expect(messages[1]).toMatchObject({ method: "run.completed", protocolVersion: 2 });
     expect(messages[2]).toMatchObject({ id: 7, result: { runId: "run-1", accepted: true } });
   });
 
@@ -264,7 +271,7 @@ describe("RpcServer", () => {
       [
         request(10, "build.capture", {
           snapshot: {
-            schemaVersion: 1,
+            schemaVersion: 2,
             xml: "<PathOfBuilding/>",
             fingerprint: "fingerprint",
             engineVersion: "dev",
@@ -369,7 +376,7 @@ describe("RPC Lua adapter normalization", () => {
     const input = {
       snapshotFingerprint: "fingerprint",
       objective: {
-        schemaVersion: 1,
+        schemaVersion: 2,
         primaryScenario: "guardian",
         scenarioWeights: { mapping: 0.55, boss: 0.15, guardian: 0.15, uberPinnacle: 0.15 },
         goals: {},

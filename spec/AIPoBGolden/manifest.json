@@ -1,0 +1,116 @@
+{
+  "schemaVersion": 2,
+  "corpusVersion": "3.29-actor-season-v2",
+  "defaults": {
+    "absTolerance": 0.000001,
+    "relTolerance": 0.0001
+  },
+  "builds": [
+    {
+      "id": "3_29/player-representative",
+      "variant": "standard",
+      "ruleset": "3_29",
+      "dataVersion": "3_29",
+      "xmlPath": "spec/AIPoBGolden/3_29/player-representative.xml",
+      "projectionPath": "spec/AIPoBGolden/3_29/actor-season-projection.json",
+      "fieldPolicies": [
+        { "pattern": "Build.targetVersion", "domain": "rules", "policy": "nonSearchable", "description": "Ruleset is pinned by the fixture." },
+        { "pattern": "Build.gameVersion", "domain": "rules", "policy": "nonSearchable" },
+        { "pattern": "Build.league", "domain": "rules", "policy": "nonSearchable" },
+        { "pattern": "Build.mode", "domain": "rules", "policy": "nonSearchable" },
+        { "pattern": "Build.mainSocketGroup", "domain": "skills", "policy": "nonSearchable" },
+        { "pattern": "Build.bloodline.**", "domain": "identity", "policy": "searchable", "mechanicAdapterId": "bloodline" },
+        { "pattern": "Build.pacts.**", "domain": "identity", "policy": "searchable", "mechanicAdapterId": "pacts" },
+        { "pattern": "Build.Spectre.**", "domain": "actor", "policy": "searchable" },
+        { "pattern": "Build.TimelessData.**", "domain": "tree", "policy": "searchable" },
+        { "pattern": "Build.**", "domain": "identity", "policy": "nonSearchable", "description": "Identity fields in the minimal representative fixture are not search proposals." },
+        { "pattern": "Config.**", "domain": "config", "policy": "nonSearchable" },
+        { "pattern": "Party.**", "domain": "actor", "policy": "searchable" },
+        { "pattern": "Tree.**", "domain": "tree", "policy": "searchable" },
+        { "pattern": "Items.**", "domain": "gear", "policy": "searchable" },
+        { "pattern": "Skills.**", "domain": "skills", "policy": "nonSearchable" }
+      ],
+      "requiredMechanicAdapters": ["actor-native", "bloodline", "pacts", "advanced-passives-native", "equipment-seasonal"],
+      "requiredGraphNodeIds": [
+        "actor:minion:zombie",
+        "actor:spectre:kitava-cultist",
+        "actor:animate-guardian",
+        "actor:party:Aura",
+        "season:bloodline:Farrul",
+        "season:pact:Pact of Beidat",
+        "season:timeless:9",
+        "season:passiveOverride:37999",
+        "season:runegraft:4492",
+        "season:graft:graft-1",
+        "season:tincture:tincture-1",
+        "season:foulborn:foulborn-1"
+      ],
+      "candidateRequirements": [
+        { "domain": "identity", "minCandidates": 1, "actionKinds": ["selectSecondaryAscendancy"] },
+        { "domain": "tree", "minCandidates": 1, "actionKinds": ["setTreeOverride"] },
+        { "domain": "actor", "minCandidates": 1, "actionKinds": ["setPartyBuffer"] },
+        { "domain": "gear", "minCandidates": 1, "actionKinds": ["importAndEquip"] }
+      ],
+      "baselineMetrics": { "fullDps": { "value": 0 } },
+      "scenarios": {
+        "mapping": { "fullDps": { "value": 0 } },
+        "standardBoss": { "fullDps": { "value": 0 } },
+        "pinnacle": { "fullDps": { "value": 0 } },
+        "uber": { "fullDps": { "value": 0 } }
+      }
+    },
+    {
+      "id": "3_29_ruthless/player-representative",
+      "variant": "ruthless",
+      "ruleset": "3_29_ruthless",
+      "dataVersion": "3_29_ruthless",
+      "xmlPath": "spec/AIPoBGolden/3_29_ruthless/player-representative.xml",
+      "projectionPath": "spec/AIPoBGolden/3_29_ruthless/actor-season-projection.json",
+      "fieldPolicies": [
+        { "pattern": "Build.targetVersion", "domain": "rules", "policy": "nonSearchable", "description": "Ruleset is pinned by the fixture." },
+        { "pattern": "Build.gameVersion", "domain": "rules", "policy": "nonSearchable" },
+        { "pattern": "Build.league", "domain": "rules", "policy": "nonSearchable" },
+        { "pattern": "Build.mode", "domain": "rules", "policy": "nonSearchable" },
+        { "pattern": "Build.mainSocketGroup", "domain": "skills", "policy": "nonSearchable" },
+        { "pattern": "Build.bloodline.**", "domain": "identity", "policy": "searchable", "mechanicAdapterId": "bloodline" },
+        { "pattern": "Build.pacts.**", "domain": "identity", "policy": "searchable", "mechanicAdapterId": "pacts" },
+        { "pattern": "Build.Spectre.**", "domain": "actor", "policy": "searchable" },
+        { "pattern": "Build.TimelessData.**", "domain": "tree", "policy": "searchable" },
+        { "pattern": "Build.**", "domain": "identity", "policy": "nonSearchable", "description": "Identity fields in the minimal representative fixture are not search proposals." },
+        { "pattern": "Config.**", "domain": "config", "policy": "nonSearchable" },
+        { "pattern": "Party.**", "domain": "actor", "policy": "searchable" },
+        { "pattern": "Tree.**", "domain": "tree", "policy": "searchable" },
+        { "pattern": "Items.**", "domain": "gear", "policy": "searchable" },
+        { "pattern": "Skills.**", "domain": "skills", "policy": "nonSearchable" }
+      ],
+      "requiredMechanicAdapters": ["actor-native", "bloodline", "pacts", "advanced-passives-native", "equipment-seasonal"],
+      "requiredGraphNodeIds": [
+        "actor:minion:zombie",
+        "actor:spectre:kitava-cultist",
+        "actor:animate-guardian",
+        "actor:party:Aura",
+        "season:bloodline:Warlock",
+        "season:pact:Pact of Power",
+        "season:timeless:9",
+        "season:passiveOverride:37999",
+        "season:runegraft:4492",
+        "season:graft:ruthless-graft-1",
+        "season:tincture:ruthless-tincture-1",
+        "season:foulborn:ruthless-foulborn-1"
+      ],
+      "candidateRequirements": [
+        { "domain": "identity", "minCandidates": 1, "actionKinds": ["selectSecondaryAscendancy"] },
+        { "domain": "tree", "minCandidates": 1, "actionKinds": ["setTreeOverride"] },
+        { "domain": "actor", "minCandidates": 1, "actionKinds": ["setPartyBuffer"] },
+        { "domain": "gear", "minCandidates": 1, "actionKinds": ["importAndEquip"] }
+      ],
+      "baselineMetrics": { "fullDps": { "value": 0 } },
+      "scenarios": {
+        "mapping": { "fullDps": { "value": 0 } },
+        "standardBoss": { "fullDps": { "value": 0 } },
+        "pinnacle": { "fullDps": { "value": 0 } },
+        "uber": { "fullDps": { "value": 0 } }
+      }
+    }
+  ]
+}

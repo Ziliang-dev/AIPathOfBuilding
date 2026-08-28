@@ -2,7 +2,14 @@ import type { ZodType } from "zod";
 import {
   BuildCaptureParamsSchema,
   CandidatePreviewParamsSchema,
+  ConsentGrantParamsSchema,
+  ConsentPreviewParamsSchema,
+  ConsentRevokeParamsSchema,
   HelloParamsSchema,
+  ObjectiveDraftParamsSchema,
+  ProviderClearParamsSchema,
+  ProviderConfigureParamsSchema,
+  ProviderStatusParamsSchema,
   RpcRequestSchema,
   RunCancelParamsSchema,
   RunResumeParamsSchema,
@@ -12,6 +19,7 @@ import {
   type RpcRequest,
 } from "../protocol.js";
 import { PROTOCOL_VERSION } from "../schemas.js";
+import type { TradeCatalogCancel, TradeCatalogQuery, TradeCatalogResult } from "../schemas.js";
 import type {
   PlannerController,
   PlannerControllerContext,
@@ -37,6 +45,8 @@ export interface RpcRouterOptions {
 export interface RpcDispatchContext {
   readonly signal: AbortSignal;
   sendNotification(notification: JsonRpcNotification): void;
+  requestTradeCatalog(params: TradeCatalogQuery): Promise<TradeCatalogResult>;
+  cancelTradeCatalog(params: TradeCatalogCancel): void;
 }
 
 type ControllerMethod<T = unknown> = (
@@ -69,6 +79,13 @@ const SUPPORTED_METHODS = new Set([
   "run.resume",
   "candidate.preview",
   "transaction.result",
+  "provider.status",
+  "provider.configure",
+  "provider.clear",
+  "consent.preview",
+  "consent.grant",
+  "consent.revoke",
+  "objective.draft",
 ]);
 
 function parseRequest(
@@ -189,6 +206,8 @@ export class RpcRouter {
           protocolVersion: this.protocolVersion,
         });
       },
+      requestTradeCatalog: dispatchContext.requestTradeCatalog,
+      cancelTradeCatalog: dispatchContext.cancelTradeCatalog,
     };
 
     try {
@@ -254,6 +273,20 @@ export class RpcRouter {
           this.controller.recordTransactionResult,
           parseParams(TransactionResultParamsSchema),
         );
+      case "provider.status":
+        return this.bind(this.controller.providerStatus, parseParams(ProviderStatusParamsSchema));
+      case "provider.configure":
+        return this.bind(this.controller.configureProvider, parseParams(ProviderConfigureParamsSchema));
+      case "provider.clear":
+        return this.bind(this.controller.clearProvider, parseParams(ProviderClearParamsSchema));
+      case "consent.preview":
+        return this.bind(this.controller.previewConsent, parseParams(ConsentPreviewParamsSchema));
+      case "consent.grant":
+        return this.bind(this.controller.grantConsent, parseParams(ConsentGrantParamsSchema));
+      case "consent.revoke":
+        return this.bind(this.controller.revokeConsent, parseParams(ConsentRevokeParamsSchema));
+      case "objective.draft":
+        return this.bind(this.controller.draftObjective, parseParams(ObjectiveDraftParamsSchema));
     }
   }
 

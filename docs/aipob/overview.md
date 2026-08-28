@@ -5,10 +5,11 @@ Community fork. Path of Building remains the source of truth for build loading,
 game data, and calculated outcomes. A local TypeScript sidecar coordinates
 search, checkpoints, candidate selection, and the approval workflow.
 
-The current branch is an implementation baseline. It demonstrates the complete
-local control path, but several external and full-domain integrations are not
-connected. See [Status and roadmap](status-and-roadmap.md) for the authoritative
-capability list.
+The current branch is an implementation baseline. The six completion packages
+are connected, while full-catalog candidate breadth, more Golden Builds, and
+published Windows artifacts remain incomplete or CI-gated. See
+[Status and roadmap](status-and-roadmap.md) for the authoritative capability
+list.
 
 ## Product goal
 
@@ -55,11 +56,26 @@ Select Apply and confirm the dialog. The planner verifies the captured build
 fingerprint and candidate metrics, applies the action graph as one transaction,
 and restores the prior build if an action or final verification fails.
 
+### Draft with a model
+
+Configure an OpenAI-compatible endpoint and grant first-send consent for its
+exact model and redacted payload. Planner Chat can draft a structured Objective;
+the user must review and confirm it. Without provider configuration or consent,
+the deterministic search path remains available.
+
+### Search authenticated Trade
+
+Set a Budget, realm, and exact league, then enable PoE Trade. PoB owns Trade
+authentication, rate limiting, seller identity, and raw responses. The sidecar
+receives sanitized typed items only. Failure produces a warning and local search
+continues.
+
 ## Product boundaries
 
 The planning domain is PoB's gameplay-relevant saved build state: rules and
 identity, skills, equipment, passive trees, supported actors, and combat
-configuration. Coverage is still incomplete in the current baseline.
+configuration. Connected adapters cover both 3.29 rulesets; full-catalog search
+and regression-corpus breadth remain partial.
 
 The project deliberately does not perform:
 
@@ -93,8 +109,10 @@ material remains indexed from the [Wiki home](../index.md).
 - **Human-gated:** no build mutation occurs without explicit Apply approval.
 - **Reversible:** candidate actions are typed and transactions restore the
   captured build on failure.
-- **Fail closed:** unavailable external candidate sources are disabled rather
-  than simulated.
+- **Fail closed:** stale proof, invalid mutation, and unavailable credentials
+  are rejected; degradable Trade failure is reported and excluded from results.
+- **Private by boundary:** PoE Trade secrets stay in PoB; only the LLM API key
+  uses the restricted Windows Credential Manager namespace.
 - **Versioned:** cross-process schemas and game-dependent claims carry explicit
   versions.
 

@@ -287,7 +287,25 @@ export class SearchEngine<State extends DomainSearchState<Action>, Action = unkn
           }), metrics);
         }
       }
-      ready.push({ ...entry.candidate, metricsByScenario });
+      ready.push({
+        ...entry.candidate,
+        metricsByScenario,
+        metadata: {
+          ...entry.candidate.metadata,
+          ...(result.candidateFingerprint === undefined ? {} : {
+            candidateFingerprint: result.candidateFingerprint,
+          }),
+          ...(result.nativeProbeFingerprint === undefined ? {} : {
+            nativeProbeFingerprint: result.nativeProbeFingerprint,
+          }),
+          ...(result.evidenceFingerprint === undefined ? {} : {
+            evidenceFingerprint: result.evidenceFingerprint,
+          }),
+          ...(result.resolvedEvidence === undefined ? {} : {
+            resolvedEvidence: result.resolvedEvidence,
+          }),
+        },
+      });
     }
     return {
       candidates: ready.sort((left, right) => left.id.localeCompare(right.id)),

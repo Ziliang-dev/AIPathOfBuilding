@@ -266,14 +266,34 @@ function inferCatalogGear(catalogId: string, data: Readonly<Record<string, unkno
 
 function inferCatalogLinks(catalogId: string, data: Readonly<Record<string, unknown>>, add: AddProposal): void {
   if (!Array.isArray(data.groups) || !Array.isArray(data.availableGems)) return;
-  const supports = data.availableGems.filter((gem) => plainRecord(gem) && gem.support === true && typeof gem.name === "string");
+  const availableGems: unknown[] = data.availableGems;
+  const probe = plainRecord(data.nativeLinkProbe) && data.nativeLinkProbe.complete === true
+    && data.nativeLinkProbe.truncated !== true && Array.isArray(data.nativeLinkProbe.groups)
+    ? data.nativeLinkProbe
+    : undefined;
+  if (probe === undefined) return;
+  const probeGroups: unknown[] = probe.groups as unknown[];
   data.groups.forEach((group, groupIndex) => {
     if (!plainRecord(group) || !positiveInteger(group.index) || !Array.isArray(group.gems) || group.gems.length === 0) return;
+    const nativeGroup = probeGroups.find((value: unknown) => plainRecord(value) && value.index === group.index);
+    if (!plainRecord(nativeGroup) || nativeGroup.noSupports === true || !Array.isArray(nativeGroup.supports)) return;
+    const compatibleIds = new Set(nativeGroup.supports.flatMap((value) => {
+      if (!plainRecord(value) || value.available === false) return [];
+      const accepted = Array.isArray(value.acceptedBy) && value.acceptedBy.length > 0
+        || Array.isArray(value.acceptedByIds) && value.acceptedByIds.length > 0;
+      if (!accepted) return [];
+      return [value.gemId, value.grantedEffectId].filter((id): id is string => typeof id === "string");
+    }));
+    const supports = availableGems.filter((gem: unknown) => plainRecord(gem)
+      && gem.support === true
+      && typeof gem.name === "string"
+      && (typeof gem.id === "string" && compatibleIds.has(gem.id)
+        || typeof gem.grantedEffectId === "string" && compatibleIds.has(gem.grantedEffectId)));
     const current = group.gems.map(catalogGemPayload);
     if (current.some((gem) => gem === undefined)) return;
     const currentGems = current as Record<string, unknown>[];
     const currentNames = currentGems.map((gem) => gem.nameSpec);
-    supports.slice(0, 32).forEach((support, supportIndex) => {
+    supports.slice(0, 32).forEach((support: unknown, supportIndex: number) => {
       if (!plainRecord(support) || typeof support.name !== "string" || currentNames.includes(support.name)) return;
       const gems = currentGems.map((gem) => ({ ...gem }));
       gems[gems.length - 1] = {

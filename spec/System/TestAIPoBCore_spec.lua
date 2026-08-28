@@ -3,6 +3,7 @@ describe("AIPathOfBuilding Lua core", function()
 	local ConditionEvidence = require("Modules.AIPoB.ConditionEvidence")
 	local ContentCatalog = require("Modules.AIPoB.ContentCatalog")
 	local Metrics = require("Modules.AIPoB.Metrics")
+	local ItemImport = require("Modules.AIPoB.ItemImport")
 	local Scenario = require("Modules.AIPoB.Scenario")
 	local Snapshot = require("Modules.AIPoB.Snapshot")
 
@@ -12,7 +13,7 @@ describe("AIPathOfBuilding Lua core", function()
 
 	it("captures a canonical sidecar snapshot without account state", function()
 		local snapshot = assert(Snapshot.Capture(build))
-		assert.are.equal(1, snapshot.schemaVersion)
+		assert.are.equal(2, snapshot.schemaVersion)
 		assert.is_string(snapshot.fingerprint)
 		assert.is_string(snapshot.dataVersion)
 		assert.is_string(snapshot.ruleset)
@@ -152,6 +153,41 @@ describe("AIPathOfBuilding Lua core", function()
 		assert.are.equal("Uber", build.configTab.input.enemyIsBoss)
 	end)
 
+	it("validates protocol v2 Trade, actor, and season actions", function()
+		local raw = "Rarity: Rare\nGolden Helm\nHubris Circlet"
+		local importAction = {
+			id = "trade-import", kind = "importAndEquip", description = "Import Trade item",
+			preconditions = { baseFingerprint = "build-fingerprint" },
+			payload = {
+				catalogId = "trade:helmet:1", slot = "Helmet", itemRaw = raw,
+				itemHash = "sha256:" .. ItemImport.Hash(raw), source = "trade",
+				price = { amount = 1, currency = "divine", divineEquivalent = 1 },
+			},
+		}
+		assert.is_true(BuildAction.Validate(importAction))
+		local normalized = assert(BuildAction.Normalize(importAction))
+		assert.are.equal(2, normalized.version)
+		assert.are.equal("items.importAndEquip", normalized.kind)
+		assert.are.equal(ItemImport.Hash(raw), normalized.payload.itemHash)
+
+		assert.is_true(BuildAction.Validate({
+			id = "secondary", kind = "selectSecondaryAscendancy", description = "Select Bloodline",
+			payload = { secondaryAscendClassId = 1 },
+		}))
+		assert.is_true(BuildAction.Validate({
+			id = "override", kind = "setTreeOverride", description = "Set native override",
+			payload = { nodeId = 37999, name = "Tattoo of the Tawhoa Shaman", overrideType = "AlternateMastery" },
+		}))
+		local partyText = "Aura effect: Golden fixture"
+		assert.is_true(BuildAction.Validate({
+			id = "party", kind = "setPartyBuffer", description = "Set approved party buffer",
+			payload = {
+				buffer = "Aura", catalogId = "golden:party:aura", text = partyText,
+				sourceHash = "sha256:" .. ItemImport.Hash(partyText),
+			},
+		}))
+	end)
+
 	it("enforces structured action fingerprint preconditions", function()
 		local action = {
 			id = "guarded", kind = "setConfig", description = "Guarded config",
@@ -173,7 +209,7 @@ describe("AIPathOfBuilding Lua core", function()
 		assert.is_nil(ok)
 		assert.matches("unsupported precondition expression", err)
 		local invalid, invalidErr = BuildAction.Validate({
-			version = 1, id = "guarded-object", kind = "config.setInput",
+			version = 2, id = "guarded-object", kind = "config.setInput",
 			preconditions = { expectedSlot = "Helmet" },
 			payload = { name = "enemyIsBoss", value = "Uber" },
 		})
@@ -189,7 +225,7 @@ describe("AIPathOfBuilding Lua core", function()
 			},
 		}
 		local action = {
-			version = 1, id = "links", kind = "skills.replaceLinks",
+			version = 2, id = "links", kind = "skills.replaceLinks",
 			payload = { group = 1, gems = { {
 				nameSpec = "Fireball", level = 18, quality = 17, qualityId = "Anomalous",
 				skillPart = 2, skillPartCalcs = 3, skillStage = 4, skillStageCount = 5,
@@ -218,8 +254,8 @@ describe("AIPathOfBuilding Lua core", function()
 		assert.is_nil(ok)
 		assert.matches("dedicated PoB conversion", err, nil, true)
 		local actions = {
-			{ version = 1, id = "a", kind = "build.setProperty", dependsOn = { "b" }, payload = { property = "characterLevel", value = 90 } },
-			{ version = 1, id = "b", kind = "build.setProperty", dependsOn = { "a" }, payload = { property = "characterLevel", value = 91 } },
+			{ version = 2, id = "a", kind = "build.setProperty", dependsOn = { "b" }, payload = { property = "characterLevel", value = 90 } },
+			{ version = 2, id = "b", kind = "build.setProperty", dependsOn = { "a" }, payload = { property = "characterLevel", value = 91 } },
 		}
 		local ordered, cycle = BuildAction.Order(actions)
 		assert.is_nil(ordered)
@@ -241,7 +277,7 @@ describe("AIPathOfBuilding Lua core", function()
 			calcsTab = { mainOutput = { ExtraPoints = 0 } },
 		}
 		local ok, err = BuildAction.Apply(fake, {
-			version = 1, id = "over-budget", kind = "tree.setNode",
+			version = 2, id = "over-budget", kind = "tree.setNode",
 			payload = { nodeId = 1, allocated = true },
 		})
 		assert.is_nil(ok)
@@ -293,8 +329,8 @@ describe("AIPathOfBuilding transaction", function()
 		local result = transaction:Apply({
 			id = "candidate", baseFingerprint = base.fingerprint,
 			actions = {
-				{ version = 1, id = "level", kind = "build.setProperty", payload = { property = "characterLevel", value = 90 } },
-				{ version = 1, id = "config", kind = "config.setInput", dependsOn = { "level" }, payload = { name = "enemyIsBoss", value = "Boss" } },
+				{ version = 2, id = "level", kind = "build.setProperty", payload = { property = "characterLevel", value = 90 } },
+				{ version = 2, id = "config", kind = "config.setInput", dependsOn = { "level" }, payload = { name = "enemyIsBoss", value = "Boss" } },
 			},
 		})
 		assert.is_false(result.ok)
@@ -317,7 +353,7 @@ describe("AIPathOfBuilding transaction", function()
 		})
 		local result = transaction:Apply({
 			id = "candidate", baseFingerprint = base.fingerprint,
-			actions = { { version = 1, id = "level", kind = "build.setProperty", payload = { property = "characterLevel", value = 90 } } },
+			actions = { { version = 2, id = "level", kind = "build.setProperty", payload = { property = "characterLevel", value = 90 } } },
 		})
 		assert.is_false(result.ok)
 		assert.is_true(result.rolledBack)
@@ -339,7 +375,7 @@ describe("AIPathOfBuilding transaction", function()
 		})
 		local result = transaction:Apply({
 			id = "scenario-failure", baseFingerprint = base.fingerprint,
-			actions = { { version = 1, id = "level", kind = "build.setProperty", payload = { property = "characterLevel", value = 90 } } },
+			actions = { { version = 2, id = "level", kind = "build.setProperty", payload = { property = "characterLevel", value = 90 } } },
 		})
 		assert.is_false(result.ok)
 		assert.is_true(result.rolledBack)
@@ -402,7 +438,7 @@ describe("AIPathOfBuilding transaction", function()
 		})
 		local result = transaction:Apply({
 			id = "exception-failure", baseFingerprint = base.fingerprint,
-			actions = { { version = 1, id = "level", kind = "build.setProperty", payload = { property = "characterLevel", value = 90 } } },
+			actions = { { version = 2, id = "level", kind = "build.setProperty", payload = { property = "characterLevel", value = 90 } } },
 		})
 		assert.is_false(result.ok)
 		assert.is_true(result.rolledBack)
@@ -426,7 +462,7 @@ describe("AIPathOfBuilding transaction", function()
 		local result = transaction:Apply({
 			id = "rollback-full-build", baseFingerprint = base.fingerprint,
 			actions = {
-				{ version = 1, id = "level", kind = "build.setProperty", payload = { property = "characterLevel", value = 90 } },
+				{ version = 2, id = "level", kind = "build.setProperty", payload = { property = "characterLevel", value = 90 } },
 			},
 		})
 		assert.is_false(result.ok)

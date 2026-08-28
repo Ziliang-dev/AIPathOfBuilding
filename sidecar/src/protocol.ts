@@ -1,10 +1,15 @@
 import { z } from "zod";
 import {
   BuildSnapshotSchema,
+  CapabilitySchema,
   CandidateSchema,
+  ObjectiveSpecDraftSchema,
   ObjectiveSpecSchema,
   PROTOCOL_VERSION,
   ScenarioSpecSchema,
+  TradeCatalogCancelSchema,
+  TradeCatalogQuerySchema,
+  TradeCatalogResultSchema,
   TransactionResultSchema,
 } from "./schemas.js";
 
@@ -23,12 +28,37 @@ export const RpcRequestSchema = z.object({
     "run.resume",
     "candidate.preview",
     "transaction.result",
+    "provider.status",
+    "provider.configure",
+    "provider.clear",
+    "consent.preview",
+    "consent.grant",
+    "consent.revoke",
+    "objective.draft",
   ]),
   params: z.unknown(),
   sessionToken: z.string().min(32),
   protocolVersion: z.literal(PROTOCOL_VERSION),
 });
 export type RpcRequest = z.infer<typeof RpcRequestSchema>;
+
+export const RpcPeerRequestSchema = z.object({
+  jsonrpc: z.literal("2.0"),
+  id: RpcIdSchema,
+  method: z.literal("trade.catalog.query"),
+  params: TradeCatalogQuerySchema,
+  sessionToken: z.string().min(32),
+  protocolVersion: z.literal(PROTOCOL_VERSION),
+});
+export type RpcPeerRequest = z.infer<typeof RpcPeerRequestSchema>;
+
+export const RpcPeerNotificationSchema = z.object({
+  jsonrpc: z.literal("2.0"),
+  method: z.literal("trade.catalog.cancel"),
+  params: TradeCatalogCancelSchema,
+  protocolVersion: z.literal(PROTOCOL_VERSION),
+});
+export type RpcPeerNotification = z.infer<typeof RpcPeerNotificationSchema>;
 
 export const RpcSuccessSchema = z.object({
   jsonrpc: z.literal("2.0"),
@@ -59,7 +89,11 @@ export const RpcNotificationSchema = z.object({
 });
 export type RpcNotification = z.infer<typeof RpcNotificationSchema>;
 
-export const HelloParamsSchema = z.object({ clientName: z.string().min(1), clientVersion: z.string().min(1) });
+export const HelloParamsSchema = z.object({
+  clientName: z.string().min(1),
+  clientVersion: z.string().min(1),
+  capabilities: z.array(CapabilitySchema).default([]),
+});
 export const BuildCaptureParamsSchema = z.object({ snapshot: BuildSnapshotSchema });
 export const RunStartParamsSchema = z.object({
   snapshotFingerprint: z.string().min(1),
@@ -76,6 +110,39 @@ export const RunResumeParamsSchema = z.union([
 ]);
 export const CandidatePreviewParamsSchema = z.object({ runId: z.string().min(1), candidateId: z.string().min(1) });
 export const TransactionResultParamsSchema = z.object({ result: TransactionResultSchema });
+
+export const ProviderIdSchema = z.string().regex(/^[a-z0-9][a-z0-9._-]{0,63}$/);
+export const ProviderStatusParamsSchema = z.object({ providerId: ProviderIdSchema.optional() });
+export const ProviderConfigureParamsSchema = z.object({
+  providerId: ProviderIdSchema,
+  baseUrl: z.url().max(2_048),
+  model: z.string().min(1).max(256),
+  apiKey: z.string().min(1).max(16_384).refine((value) => !/[\u0000-\u001f\u007f]/.test(value), {
+    message: "API key cannot contain control characters",
+  }),
+});
+export const ProviderClearParamsSchema = z.object({ providerId: ProviderIdSchema });
+export const ConsentPreviewParamsSchema = z.object({
+  providerId: ProviderIdSchema,
+  snapshotFingerprint: z.string().min(1).optional(),
+  dataCategories: z.array(z.enum([
+    "objective", "build_snapshot", "metrics", "tool_outputs", "chat_messages",
+  ])).max(5).default([]),
+});
+export const ConsentGrantParamsSchema = z.object({
+  providerId: ProviderIdSchema,
+  consentKey: z.string().min(1).max(512),
+  payloadHash: z.string().regex(/^sha256:[0-9a-f]{64}$/),
+});
+export const ConsentRevokeParamsSchema = z.object({ providerId: ProviderIdSchema });
+export const ObjectiveDraftParamsSchema = z.object({
+  providerId: ProviderIdSchema,
+  message: z.string().min(1).max(8_000),
+  currentObjective: ObjectiveSpecDraftSchema.optional(),
+  snapshotFingerprint: z.string().min(1).optional(),
+});
+
+export const TradeCatalogQueryResultSchema = TradeCatalogResultSchema;
 
 export const RunProgressNotificationSchema = z.object({
   runId: z.string().min(1),

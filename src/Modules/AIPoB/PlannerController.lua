@@ -4,6 +4,7 @@ local SidecarLauncher = require("Modules.AIPoB.SidecarLauncher")
 local Snapshot = require("Modules.AIPoB.Snapshot")
 local Transaction = require("Modules.AIPoB.Transaction")
 local TransactionJournal = require("Modules.AIPoB.TransactionJournal")
+local TradeBroker = require("Modules.AIPoB.TradeBroker")
 
 local Controller = { }
 Controller.__index = Controller
@@ -59,6 +60,19 @@ function Controller.new(build, options)
 		helloComplete = false,
 		shutdown = false,
 	}, Controller)
+	if options.tradeBroker then
+		self.tradeBroker = options.tradeBroker
+	else
+		local tradeQuery = build.itemsTab and build.itemsTab.tradeQuery
+		self.tradeBroker = TradeBroker.new({
+			currencyToDivine = function(currency, amount)
+				if string.lower(tostring(currency)) == "divine" then return amount end
+				if tradeQuery and type(tradeQuery.ConvertCurrencyToDivs) == "function" then
+					return tradeQuery:ConvertCurrencyToDivs(currency, amount)
+				end
+			end,
+		})
+	end
 	local pending, journalErr = self.journal:Load()
 	if pending then
 		self.state.runId = pending.runId
@@ -219,6 +233,51 @@ function Controller:_registerHandlers()
 		self:_applyCandidate(candidate, params.scenarios)
 		return { accepted = true }
 	end)
+	self.rpc:Register("trade.catalog.query", function(params, _, respond)
+		if type(params) ~= "table" or type(params.requestId) ~= "string" or type(params.queryHash) ~= "string" then
+			return nil, "Trade catalog request is invalid"
+		end
+		if self.state.runId and params.runId ~= self.state.runId then return nil, "Trade catalog runId does not match" end
+		local objective = self.activeObjective
+		if type(objective) ~= "table" or type(objective.budgetDivine) ~= "number" then
+			return nil, "Trade catalog requires an active Divine budget"
+		end
+		local query, queryErr = TradeBroker.BuildTypedQuery(params.constraints)
+		if not query then return nil, errorText(queryErr) end
+		local spec = {
+			requestId = params.requestId, idempotencyKey = params.queryHash,
+			realm = params.realm, league = params.league, slot = params.slot,
+			itemSetId = params.itemSetId, ruleset = params.ruleset,
+			query = query, budgetDivine = objective.budgetDivine,
+			maxResults = params.limit,
+		}
+		self.tradeBroker:Search(spec, function(items, brokerErr)
+			if brokerErr then
+				respond(nil, { code = -32040, message = errorText(brokerErr), data = { tradeCode = brokerErr.code } })
+				return
+			end
+			local catalogItems = { }
+			for _, item in ipairs(items or { }) do
+				table.insert(catalogItems, {
+					catalogId = item.id, queryHash = params.queryHash, ruleset = params.ruleset,
+					league = params.league, slot = item.slot, itemSetId = item.itemSetId,
+					itemRaw = item.itemRaw, itemHash = "sha256:" .. item.itemHash, price = item.price,
+				})
+			end
+			local now = os.date("!%Y-%m-%dT%H:%M:%SZ")
+			respond({
+				runId = params.runId, requestId = params.requestId, queryHash = params.queryHash,
+				fetchedAt = now, currencySnapshotAt = now, items = catalogItems, warnings = { },
+			})
+		end)
+		return RpcClient.ASYNC
+	end)
+	self.rpc:Register("trade.catalog.cancel", function(params)
+		if type(params) == "table" and type(params.requestId) == "string" then
+			self.tradeBroker:Cancel(params.requestId)
+		end
+		return { cancelled = true }
+	end)
 end
 
 function Controller:_hello()
@@ -226,15 +285,109 @@ function Controller:_hello()
 	self.helloPending = true
 	self.state.status = "connecting"
 	self.state.message = "Connecting to AIPathOfBuilding sidecar"
-	self.rpc:Request("hello", { clientName = "pob-lua", clientVersion = tostring(_G.version or "1") }, function(result, err)
+	self.rpc:Request("hello", {
+		clientName = "pob-lua", clientVersion = tostring(_G.version or "1"),
+		capabilities = { "nativeLinkProbe", "nativeEvidence", "tradeBroker", "providerConsent", "objectiveDraft" },
+	}, function(result, err)
 		self.helloPending = false
 		if err then self:_setError("Sidecar handshake failed: " .. errorText(err)) return end
 		self.helloComplete = true
 		self.state.status = "idle"
 		self.state.message = "Sidecar connected"
+		self:RefreshProviderStatus()
 		if self.reconnectRunId then self:_resumeCheckpoint()
 		elseif self.pendingObjective then self:_captureAndStart() end
 	end, 10000)
+end
+
+function Controller:RefreshProviderStatus()
+	if not self.rpc or not self.helloComplete then return nil, "sidecar is not connected" end
+	self.rpc:Request("provider.status", { providerId = "openai" }, function(result, err)
+		if err then
+			self.state.providerStatus = { configured = false, credentialConfigured = false, error = errorText(err) }
+			return
+		end
+		self.state.providerStatus = result
+	end, 10000)
+	return true
+end
+
+function Controller:ConfigureProvider(profile)
+	if not self.rpc or not self.helloComplete then return nil, "sidecar is not connected" end
+	if type(profile) ~= "table" then return nil, "provider profile is required" end
+	self.rpc:Request("provider.configure", {
+		providerId = "openai", baseUrl = profile.baseUrl, model = profile.model, apiKey = profile.apiKey,
+	}, function(result, err)
+		if err then self:_setError("LLM configuration failed: " .. errorText(err)) return end
+		self.state.providerStatus = result
+		self.state.message = "LLM configured; review and grant first-call consent"
+		self:PreviewProviderConsent()
+	end, 30000)
+	return true
+end
+
+function Controller:ClearProvider()
+	if not self.rpc or not self.helloComplete then return nil, "sidecar is not connected" end
+	self.rpc:Request("provider.clear", { providerId = "openai" }, function(result, err)
+		if err then self:_setError("LLM configuration clear failed: " .. errorText(err)) return end
+		self.state.providerStatus = result
+		self.state.consentPreview = nil
+		self.state.objectiveDraft = nil
+		self.state.message = "LLM credential and consent cleared"
+	end, 10000)
+	return true
+end
+
+function Controller:PreviewProviderConsent()
+	if not self.rpc or not self.helloComplete then return nil, "sidecar is not connected" end
+	self.rpc:Request("consent.preview", {
+		providerId = "openai",
+		dataCategories = { "objective", "build_snapshot", "metrics", "tool_outputs", "chat_messages" },
+	}, function(result, err)
+		if err then self:_setError("Consent preview failed: " .. errorText(err)) return end
+		self.state.consentPreview = result
+		self.state.message = "LLM consent preview ready"
+	end, 10000)
+	return true
+end
+
+function Controller:GrantProviderConsent()
+	local preview = self.state.consentPreview
+	if not self.rpc or type(preview) ~= "table" then return nil, "consent preview is unavailable" end
+	local payload = preview.payloadPreview
+	if type(payload) ~= "table" or type(payload.redactedHash) ~= "string" then return nil, "consent payload hash is unavailable" end
+	self.rpc:Request("consent.grant", {
+		providerId = "openai", consentKey = preview.consentKey, payloadHash = payload.redactedHash,
+	}, function(result, err)
+		if err then self:_setError("Consent grant failed: " .. errorText(err)) return end
+		self.state.providerConsent = result
+		self.state.consentPreview = nil
+		self.state.message = "LLM consent granted"
+		self:RefreshProviderStatus()
+	end, 10000)
+	return true
+end
+
+function Controller:DraftObjective(message, currentObjective)
+	if not self.rpc or not self.helloComplete then return nil, "sidecar is not connected" end
+	if type(message) ~= "string" or message == "" then return nil, "Planner Chat message is required" end
+	self.rpc:Request("objective.draft", {
+		providerId = "openai", message = message, currentObjective = currentObjective,
+	}, function(result, err)
+		if err then self:_setError("Planner Chat failed: " .. errorText(err)) return end
+		if type(result) == "table" and result.kind == "draft" and type(result.draft) == "table" then
+			self.state.objectiveDraft = result.draft
+			self.state.objectiveDraftWarnings = result.warnings
+			self.state.objectiveDraftUnresolved = result.unresolved
+			self.state.message = "Planner Chat draft ready; review before confirmation"
+		elseif type(result) == "table" and result.kind == "question" then
+			self.state.draftQuestion = result.question
+			self.state.message = result.question or "Planner Chat needs clarification"
+		else
+			self:_setError("Planner Chat returned an invalid draft")
+		end
+	end, 120000)
+	return true
 end
 
 function Controller:_captureAndStart()
@@ -266,14 +419,12 @@ end
 function Controller:Start(objective)
 	if self.shutdown then return nil, "controller is shut down" end
 	if type(objective) ~= "table" then return nil, "objective must be an object" end
-	if objective.candidateSources and objective.candidateSources.trade then
-		return nil, "Trade search is unavailable until the main-process Trade broker is connected"
-	end
 	if self.state.runId and not restartableStatus[self.state.status] then
 		return nil, "current optimization must be applied, rejected, or cancelled before starting another"
 	end
 	if self.state.status == "running" or self.state.status == "starting" or self.state.status == "capturing" then return nil, "optimization already running" end
 	self.state = initialState()
+	self.activeObjective = objective
 	self.pendingObjective = objective
 	self.launchRequested = true
 	if self.helloComplete then
@@ -462,6 +613,7 @@ end
 
 function Controller:OnFrame()
 	if self.shutdown then return end
+	if self.tradeBroker then self.tradeBroker:OnFrame() end
 	if not self.rpc and self.launcher and self.launchRequested then
 		local endpoint, err = self.launcher:Poll()
 		if endpoint then
