@@ -398,7 +398,16 @@ def verify_package_root(root: Path, *, skip_launch: bool = False) -> dict[str, o
     node = root / "sidecar" / "runtime" / "node.exe"
     credential = safe_package_path(root, str(metadata["native"]["credentialHelper"]["path"]))
     native = safe_package_path(root, str(metadata["native"]["packages"][0]["nativeBinding"]))
-    required = [bundle, node, credential, native, root / "src" / "AIPoBWorker.lua", root / "manifest.cfg", root / "manifest.xml"]
+    required = [
+        bundle,
+        node,
+        credential,
+        native,
+        root / "src" / "AIPoBWorker.lua",
+        root / "src" / "_SimpleGraphic.def.lua",
+        root / "manifest.cfg",
+        root / "manifest.xml",
+    ]
     for path in required:
         if not path.is_file():
             fail(f"Required packaged file missing: {path}")
