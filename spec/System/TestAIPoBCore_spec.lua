@@ -467,7 +467,14 @@ describe("AIPathOfBuilding transaction", function()
 		})
 		assert.is_false(result.ok)
 		if result.rolledBack ~= true then
-			error("rollback result: " .. require("dkjson").encode(result))
+			local current = assert(Snapshot.Capture(build))
+			local offset = 1
+			local limit = math.min(#base.xml, #current.xml)
+			while offset <= limit and base.xml:sub(offset, offset) == current.xml:sub(offset, offset) do offset = offset + 1 end
+			error("rollback result: " .. require("dkjson").encode(result)
+				.. "\noffset=" .. tostring(offset)
+				.. "\nbase=" .. base.xml:sub(math.max(1, offset - 100), offset + 200)
+				.. "\ncurrent=" .. current.xml:sub(math.max(1, offset - 100), offset + 200))
 		end
 		local restored = assert(Snapshot.Capture(build))
 		assert.are.equal(base.xml, restored.xml)
