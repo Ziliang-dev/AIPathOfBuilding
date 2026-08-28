@@ -1,4 +1,4 @@
-#@ AIPoBWorker
+#@ SimpleGraphic
 ---@diagnostic disable: lowercase-global
 
 local source = debug.getinfo(1, "S").source:gsub("^@", "")
