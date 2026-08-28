@@ -19,7 +19,7 @@ on:
       - ".github/workflows/installer.yml"
       - "manifest.cfg"
       - "manifest.xml"
-      - "runtime-win32.zip"
+      - "runtime/**"
       - "update_manifest.py"
   pull_request:
     branches: [dev]
@@ -39,7 +39,7 @@ on:
       - ".github/workflows/installer.yml"
       - "manifest.cfg"
       - "manifest.xml"
-      - "runtime-win32.zip"
+      - "runtime/**"
       - "update_manifest.py"
   workflow_dispatch:
   workflow_call:

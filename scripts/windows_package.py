@@ -157,6 +157,22 @@ def create_zip(source: Path, destination: Path) -> None:
             archive.write(file_path, file_path.relative_to(source).as_posix())
 
 
+def runtime_tree_hash(source: Path) -> str:
+    digest = hashlib.sha256()
+    for file_path in sorted(path for path in source.rglob("*") if path.is_file()):
+        relative = file_path.relative_to(source).as_posix().encode("utf-8")
+        digest.update(relative)
+        digest.update(b"\0")
+        digest.update(bytes.fromhex(sha256(file_path)))
+    return digest.hexdigest()
+
+
+def copy_runtime_tree(source: Path, destination: Path) -> None:
+    for file_path in sorted(path for path in source.rglob("*") if path.is_file()):
+        relative = file_path.relative_to(source).as_posix().replace("{space}", " ")
+        copy_file(file_path, safe_package_path(destination, relative))
+
+
 def remove_tree(path: Path, timeout: float = 15) -> None:
     deadline = time.monotonic() + timeout
     while True:
@@ -193,10 +209,12 @@ def package_windows(args: argparse.Namespace) -> None:
         fail(f"Portable package requires Node ABI 137; found {node_info['modules']}.")
 
     manifest_config = required_file(Path(args.manifest_config or ROOT / "manifest.cfg"), "Manifest configuration")
-    runtime_archive = required_file(Path(args.runtime_archive or ROOT / "runtime-win32.zip"), "Windows runtime archive")
-    with zipfile.ZipFile(runtime_archive) as archive:
-        for entry in archive.infolist():
-            safe_member(entry.filename)
+    runtime_archive = required_file(Path(args.runtime_archive), "Windows runtime archive") if args.runtime_archive else None
+    runtime_source = required_directory(ROOT / "runtime", "Tracked Windows runtime")
+    if runtime_archive is not None:
+        with zipfile.ZipFile(runtime_archive) as archive:
+            for entry in archive.infolist():
+                safe_member(entry.filename)
     credential_helper = required_file(
         Path(args.credential_helper or ROOT / "native" / "wincred-helper" / "wincred-helper.exe"),
         "WinCred helper",
@@ -237,7 +255,12 @@ def package_windows(args: argparse.Namespace) -> None:
     if output.exists() or zip_path.exists():
         fail(f"Package output already exists: {output if output.exists() else zip_path}")
     output.mkdir(parents=True)
-    safe_extract(runtime_archive, output)
+    if runtime_archive is not None:
+        safe_extract(runtime_archive, output)
+        runtime_input = {"path": runtime_archive.name, "sha256": sha256(runtime_archive)}
+    else:
+        copy_runtime_tree(runtime_source, output)
+        runtime_input = {"path": "runtime/", "sha256": runtime_tree_hash(runtime_source)}
 
     selected = manifest_files(manifest_config)
     for source, relative in selected:
@@ -312,7 +335,7 @@ def package_windows(args: argparse.Namespace) -> None:
             }],
         },
         "inputs": {
-            "runtimeArchive": {"path": "runtime-win32.zip", "sha256": sha256(runtime_archive)},
+            "runtime": runtime_input,
             "manifestConfig": {"path": "manifest.cfg", "sha256": sha256(manifest_config)},
             "manifestXml": {"path": "manifest.xml", "sha256": sha256(release_manifest_path)},
             "lockfile": {"path": "sidecar/pnpm-lock.yaml", "sha256": sha256(required_file(SIDECAR / "pnpm-lock.yaml", "sidecar lockfile"))},
