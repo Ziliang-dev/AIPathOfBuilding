@@ -34,6 +34,12 @@ describe("AIPathOfBuilding Lua core", function()
 		assert.are.equal(first, second)
 	end)
 
+	it("drops empty trade-search weights from canonical snapshots", function()
+		local first = assert(Snapshot.SanitizeXML([[<PathOfBuilding><Items activeItemSet="1"/></PathOfBuilding>]]))
+		local second = assert(Snapshot.SanitizeXML([[<PathOfBuilding><Items activeItemSet="1"><TradeSearchWeights/></Items></PathOfBuilding>]]))
+		assert.are.equal(first, second)
+	end)
+
 	it("fails coverage on an unknown saved gameplay section", function()
 		local paths, err = Snapshot.GameplayFieldPaths("<PathOfBuilding><Build/><UnknownGameplay value='1'/></PathOfBuilding>")
 		assert.is_nil(paths)

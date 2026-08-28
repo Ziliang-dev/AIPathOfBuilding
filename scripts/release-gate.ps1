@@ -11,7 +11,7 @@ $checkPowerShellPath = Join-Path $PSScriptRoot 'check-powershell.ps1'
 $checkSidecarPath = Join-Path $PSScriptRoot 'check-sidecar.ps1'
 $buildSidecarPath = Join-Path $PSScriptRoot 'build-sidecar.ps1'
 $checkManifestPath = Join-Path $PSScriptRoot 'check-manifest.ps1'
-$luaSpecs = @(
+$luaSpecPaths = @(
     'spec/System/TestAIPoBCore_spec.lua',
     'spec/System/TestAIPoBRpc_spec.lua',
     'spec/System/TestAIPoBTradeBroker_spec.lua',
@@ -20,9 +20,10 @@ $luaSpecs = @(
     'spec/System/TestAIPoBGolden_spec.lua',
     'spec/System/TestAIPlannerTab_spec.lua'
 )
+$bustedSpecs = @($luaSpecPaths | ForEach-Object { "../$_" })
 $manifestPath = Join-Path $repositoryRoot 'spec/AIPoBGolden/manifest.json'
 
-foreach ($requiredPath in @($checkPowerShellPath, $checkSidecarPath, $buildSidecarPath, $checkManifestPath, $manifestPath) + @($luaSpecs | ForEach-Object { Join-Path $repositoryRoot $_ })) {
+foreach ($requiredPath in @($checkPowerShellPath, $checkSidecarPath, $buildSidecarPath, $checkManifestPath, $manifestPath) + @($luaSpecPaths | ForEach-Object { Join-Path $repositoryRoot $_ })) {
     if (-not (Test-Path -LiteralPath $requiredPath -PathType Leaf)) {
         throw "Release gate input not found: $requiredPath"
     }
@@ -64,9 +65,9 @@ try {
     }
 
     if ($null -ne $bustedCommand) {
-        & $bustedCommand.Source '--lua=luajit' @luaSpecs
+        & $bustedCommand.Source '--lua=luajit' @bustedSpecs
     } else {
-        & $dockerCommand.Source 'compose' 'run' '--rm' '--no-deps' 'busted-tests' 'busted' '--lua=luajit' @luaSpecs
+        & $dockerCommand.Source 'compose' 'run' '--rm' '--no-deps' 'busted-tests' 'busted' '--lua=luajit' @bustedSpecs
     }
     if ($LASTEXITCODE -ne 0) {
         throw "Golden corpus Lua harness failed with exit code $LASTEXITCODE."

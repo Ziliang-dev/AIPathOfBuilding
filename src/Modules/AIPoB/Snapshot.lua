@@ -73,6 +73,15 @@ local function canonicalizeConfig(configNode)
 	end
 end
 
+local function canonicalizeItems(itemsNode)
+	for index = #itemsNode, 1, -1 do
+		local child = itemsNode[index]
+		if type(child) == "table" and child.elem == "TradeSearchWeights" and #child == 0 then
+			table.remove(itemsNode, index)
+		end
+	end
+end
+
 function Snapshot.SanitizeXML(xml)
 	local document, err = common.xml.ParseXML(xml)
 	if err then return nil, tostring(err) end
@@ -82,6 +91,7 @@ function Snapshot.SanitizeXML(xml)
 	for _, node in ipairs(root) do
 		if type(node) == "table" and gameplayRoots[node.elem] then
 			if node.elem == "Config" then canonicalizeConfig(node) end
+			if node.elem == "Items" then canonicalizeItems(node) end
 			table.insert(sanitized, node)
 		end
 	end
