@@ -9,6 +9,15 @@ local function parse(xmlText)
 	return document[1]
 end
 
+local function restoreAbsentBuildDefaults(build, buildNode)
+	for _, child in ipairs(buildNode or { }) do
+		if type(child) == "table" and child.elem == "TimelessData" then
+			if (child.attrib or { }).socketFilterDistance == nil then build.timelessData.socketFilterDistance = nil end
+			return
+		end
+	end
+end
+
 function BuildState.Rebuild(build)
 	if build.configTab and type(build.configTab.BuildModList) == "function" then build.configTab:BuildModList() end
 	if build.skillsTab and type(build.skillsTab.UpdateSocketGroups) == "function" then build.skillsTab:UpdateSocketGroups() end
@@ -35,6 +44,7 @@ function BuildState.Restore(build, xmlText)
 		if type(loader) ~= "function" then return nil, "build section loader unavailable" end
 		local ok, loadErr = pcall(loader, build, buildNode, "AIPathOfBuilding rollback")
 		if not ok then return nil, "build section restore failed: " .. tostring(loadErr) end
+		restoreAbsentBuildDefaults(build, buildNode)
 	end
 
 	local ok, createErr = pcall(function()
