@@ -96,7 +96,9 @@ local function evaluate(job)
 	if not rebuilt then error(rebuildErr) end
 	local candidateXml, saveErr = build:SaveDB()
 	if not candidateXml then error(saveErr) end
-	local candidateFingerprint = Snapshot.Fingerprint(candidateXml)
+	local canonicalCandidateXml, sanitizeErr = Snapshot.SanitizeXML(candidateXml)
+	if not canonicalCandidateXml then error("candidate snapshot sanitization failed: " .. tostring(sanitizeErr)) end
+	local candidateFingerprint = Snapshot.Fingerprint(canonicalCandidateXml)
 	if operation == "probe" then
 		local linkProbe, linkErr = NativeLinkProbe.Extract(build, payload.probeOptions)
 		if not linkProbe then error(linkErr) end
