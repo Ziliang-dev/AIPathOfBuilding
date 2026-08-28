@@ -1,0 +1,133 @@
+name: AIPoB Sidecar
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - "sidecar/**"
+      - "scripts/**"
+      - "src/Modules/AIPoB/**"
+      - "src/Classes/AIPlannerTab.lua"
+      - "src/AIPoBWorker.lua"
+      - "src/Modules/Build.lua"
+      - "spec/System/TestAIPoB*_spec.lua"
+      - "spec/System/TestAIPlannerTab_spec.lua"
+      - ".github/workflows/aipob.yml"
+      - "manifest.cfg"
+      - "update_manifest.py"
+  pull_request:
+    branches: [dev]
+    paths:
+      - "sidecar/**"
+      - "scripts/**"
+      - "src/Modules/AIPoB/**"
+      - "src/Classes/AIPlannerTab.lua"
+      - "src/AIPoBWorker.lua"
+      - "src/Modules/Build.lua"
+      - "spec/System/TestAIPoB*_spec.lua"
+      - "spec/System/TestAIPlannerTab_spec.lua"
+      - ".github/workflows/aipob.yml"
+      - "manifest.cfg"
+      - "update_manifest.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sidecar:
+    name: Node ${{ matrix.node }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22.x, 24.x]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate PowerShell scripts
+        shell: pwsh
+        run: ./scripts/check-powershell.ps1
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.19.0
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+          cache-dependency-path: sidecar/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm --dir sidecar install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm --dir sidecar run --if-present lint
+
+      - name: Typecheck
+        run: pnpm --dir sidecar run check
+
+      - name: Build release bundle
+        run: pnpm --dir sidecar run build
+
+      - name: Test
+        run: pnpm --dir sidecar run test
+
+      - name: Verify release entry
+        shell: pwsh
+        run: |
+          if (-not (Test-Path -LiteralPath 'sidecar/dist/server.cjs' -PathType Leaf)) {
+            throw 'sidecar/dist/server.cjs was not produced.'
+          }
+
+      - name: Verify manifest sidecar entry
+        if: matrix.node == '24.x'
+        shell: pwsh
+        run: ./scripts/check-manifest.ps1
+
+  windows-package:
+    name: Windows portable package
+    needs: sidecar
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.19.0
+
+      - name: Install Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.x
+          cache: pnpm
+          cache-dependency-path: sidecar/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm --dir sidecar install --frozen-lockfile
+
+      - name: Build sidecar
+        shell: pwsh
+        run: ./scripts/build-sidecar.ps1 -SkipChecks
+
+      - name: Assemble portable package
+        shell: pwsh
+        run: |
+          $nodeExe = (Get-Command node -ErrorAction Stop).Source
+          ./scripts/package-windows.ps1 `
+            -NodeExePath $nodeExe `
+            -OutputPath '${{ runner.temp }}/AIPathOfBuilding-AIPoB-windows-x64' `
+            -SkipBuild
+
+      - name: Upload package
+        uses: actions/upload-artifact@v4
+        with:
+          name: AIPathOfBuilding-AIPoB-windows-x64
+          path: ${{ runner.temp }}/AIPathOfBuilding-AIPoB-windows-x64.zip
+          if-no-files-found: error

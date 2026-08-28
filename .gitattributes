@@ -67,3 +67,4 @@
 # (https://git-scm.com/docs/gitattributes#_executable)
 ###############################################################################
 runtime/*.exe binary
+sidecar/dist/server.cjs -whitespace

@@ -1,0 +1,365 @@
+import { z } from "zod";
+
+export const SCHEMA_VERSION = 1 as const;
+export const PROTOCOL_VERSION = 1 as const;
+
+export const ScenarioIdSchema = z.enum([
+  "current",
+  "mapping",
+  "standardBoss",
+  "pinnacle",
+  "uber",
+]);
+export type ScenarioId = z.infer<typeof ScenarioIdSchema>;
+
+export const RankedScenarioIdSchema = z.enum([
+  "mapping",
+  "standardBoss",
+  "pinnacle",
+  "uber",
+]);
+export type RankedScenarioId = z.infer<typeof RankedScenarioIdSchema>;
+
+export const ScenarioWeightsSchema = z
+  .object({
+    mapping: z.number().min(0).max(1),
+    standardBoss: z.number().min(0).max(1),
+    pinnacle: z.number().min(0).max(1),
+    uber: z.number().min(0).max(1),
+  })
+  .superRefine((weights, context) => {
+    const sum = Object.values(weights).reduce((total, value) => total + value, 0);
+    if (Math.abs(sum - 1) > 1e-6) {
+      context.addIssue({
+        code: "custom",
+        message: "Scenario weights must sum to 1",
+      });
+    }
+  });
+
+export const GoalSchema = z.object({
+  metric: z.string().min(1),
+  direction: z.enum(["maximize", "minimize"]),
+  weight: z.number().positive().default(1),
+});
+export type Goal = z.infer<typeof GoalSchema>;
+
+export const HardConstraintSchema = z.object({
+  metric: z.string().min(1),
+  operator: z.enum([">=", ">", "<=", "<", "=="]),
+  value: z.number().finite(),
+  scenario: RankedScenarioIdSchema.optional(),
+});
+export type HardConstraint = z.infer<typeof HardConstraintSchema>;
+
+export const ObjectiveSpecSchema = z.object({
+  schemaVersion: z.literal(SCHEMA_VERSION),
+  description: z.string().max(8_000).optional(),
+  constraintNotes: z.string().max(8_000).optional(),
+  primaryScenario: RankedScenarioIdSchema.default("mapping"),
+  scenarioWeights: ScenarioWeightsSchema.default({
+    mapping: 0.55,
+    standardBoss: 0.15,
+    pinnacle: 0.15,
+    uber: 0.15,
+  }),
+  locks: z
+    .object({
+      class: z.boolean().default(true),
+      ascendancy: z.boolean().default(true),
+      mainSkill: z.boolean().default(true),
+      fields: z.array(z.string().min(1)).default([]),
+    })
+    .default({ class: true, ascendancy: true, mainSkill: true, fields: [] }),
+  budgetDivine: z.number().nonnegative().optional(),
+  searchPreset: z.literal("deep").default("deep"),
+  goals: z.array(GoalSchema).min(1),
+  hardConstraints: z.array(HardConstraintSchema).default([]),
+  candidateSources: z
+    .object({
+      currentBuild: z.boolean().default(true),
+      uniques: z.boolean().default(false),
+      targetRares: z.boolean().default(false),
+      trade: z.boolean().default(false),
+    })
+    .default({
+      currentBuild: true,
+      uniques: false,
+      targetRares: false,
+      trade: false,
+    }),
+});
+export type ObjectiveSpec = z.infer<typeof ObjectiveSpecSchema>;
+export const ObjectiveSpecDraftSchema = ObjectiveSpecSchema.partial().extend({
+  schemaVersion: z.literal(SCHEMA_VERSION).default(SCHEMA_VERSION),
+});
+export type ObjectiveSpecDraft = z.infer<typeof ObjectiveSpecDraftSchema>;
+
+/** Parse UI/RPC input and enforce candidate-source safety policy. */
+export function normalizeObjectiveSpec(input: unknown): ObjectiveSpec {
+  const objective = ObjectiveSpecSchema.parse(input);
+  if (objective.budgetDivine !== undefined) return objective;
+  return {
+    ...objective,
+    candidateSources: {
+      currentBuild: true,
+      uniques: false,
+      targetRares: false,
+      trade: false,
+    },
+  };
+}
+
+export const MetricSetSchema = z.record(z.string().min(1), z.number().finite());
+export type MetricSet = z.infer<typeof MetricSetSchema>;
+
+export const ContentCatalogEntrySchema = z.object({
+  id: z.string().min(1),
+  domain: z.enum([
+    "rules",
+    "identity",
+    "skills",
+    "gear",
+    "tree",
+    "actor",
+    "config",
+    "external",
+    "progression",
+  ]),
+  kind: z.string().min(1),
+  name: z.string().min(1).optional(),
+  available: z.boolean().default(true),
+  data: z.record(z.string(), z.unknown()).default({}),
+});
+export type ContentCatalogEntry = z.infer<typeof ContentCatalogEntrySchema>;
+
+export const BuildGraphSchema = z.object({
+  nodes: z.array(
+    z.object({
+      id: z.string().min(1),
+      domain: z.string().min(1),
+      kind: z.string().min(1),
+      data: z.record(z.string(), z.unknown()).default({}),
+    }),
+  ),
+  edges: z.array(
+    z.object({
+      from: z.string().min(1),
+      to: z.string().min(1),
+      relation: z.enum([
+        "grants",
+        "requires",
+        "triggers",
+        "scales",
+        "consumes",
+        "conflicts",
+        "replaces",
+        "usesSlot",
+        "availableIn",
+      ]),
+      data: z.record(z.string(), z.unknown()).default({}),
+    }),
+  ),
+});
+export type BuildGraph = z.infer<typeof BuildGraphSchema>;
+
+export const BuildSnapshotSchema = z.object({
+  schemaVersion: z.literal(SCHEMA_VERSION),
+  xml: z.string().min(1),
+  fingerprint: z.string().min(1),
+  engineVersion: z.string().min(1),
+  dataVersion: z.string().min(1),
+  ruleset: z.string().min(1),
+  metrics: MetricSetSchema.default({}),
+  config: z.record(z.string(), z.unknown()).default({}),
+  buildState: z.record(z.string(), z.unknown()).default({}),
+  gameplayFieldPaths: z.array(z.string().min(1)).default([]),
+  contentCatalog: z.array(ContentCatalogEntrySchema).optional(),
+  buildGraph: BuildGraphSchema.optional(),
+});
+export type BuildSnapshot = z.infer<typeof BuildSnapshotSchema>;
+
+export const ScenarioSpecSchema = z.object({
+  id: ScenarioIdSchema,
+  name: z.string().min(1),
+  enemyIsBoss: z.enum(["None", "Boss", "Pinnacle", "Uber"]),
+  profile: z.enum(["current", "sustainable", "peak"]),
+  mapModifiers: z.array(z.string()).default([]),
+  bossSkillPreset: z.string().optional(),
+  allowedEvents: z.array(z.enum(["onKill", "onHit", "onCrit", "onBlock", "onUse", "recently"])).default([]),
+  assumptions: z.record(z.string(), z.unknown()).default({}),
+});
+export type ScenarioSpec = z.infer<typeof ScenarioSpecSchema>;
+
+export const EvidenceStatusSchema = z.enum([
+  "proven_sustainable",
+  "proven_peak",
+  "intermittent",
+  "manual",
+  "impossible",
+  "conflicting",
+  "unknown",
+]);
+export type EvidenceStatus = z.infer<typeof EvidenceStatusSchema>;
+
+export const ConditionEvidenceSchema = z.object({
+  condition: z.string().min(1),
+  configKey: z.string().min(1).optional(),
+  value: z.unknown().optional(),
+  scenario: ScenarioIdSchema,
+  profile: z.enum(["current", "sustainable", "peak"]),
+  status: EvidenceStatusSchema,
+  sources: z.array(z.string().min(1)).default([]),
+  triggerChain: z.array(z.string().min(1)).default([]),
+  uptime: z.number().min(0).max(1).optional(),
+  conflictsWith: z.array(z.string().min(1)).default([]),
+  confidence: z.number().min(0).max(1),
+  reason: z.string().min(1),
+});
+export type ConditionEvidence = z.infer<typeof ConditionEvidenceSchema>;
+
+const ActionBaseSchema = z.object({
+  id: z.string().min(1),
+  description: z.string().min(1),
+  dependsOn: z.array(z.string().min(1)).default([]),
+  preconditions: z.union([
+    z.array(z.string().min(1)),
+    z.object({ baseFingerprint: z.string().min(1).optional() }).loose(),
+  ]).default([]),
+  costDivine: z.number().nonnegative().optional(),
+  reversible: z.boolean().default(true),
+  payload: z.record(z.string(), z.unknown()),
+});
+
+export const BuildActionSchema = z.discriminatedUnion("kind", [
+  ActionBaseSchema.extend({ kind: z.literal("setRules") }),
+  ActionBaseSchema.extend({ kind: z.literal("setIdentity") }),
+  ActionBaseSchema.extend({ kind: z.literal("setSkill") }),
+  ActionBaseSchema.extend({ kind: z.literal("replaceSkillLinks") }),
+  ActionBaseSchema.extend({ kind: z.literal("replaceItem") }),
+  ActionBaseSchema.extend({ kind: z.literal("setTree") }),
+  ActionBaseSchema.extend({ kind: z.literal("setActor") }),
+  ActionBaseSchema.extend({ kind: z.literal("setConfig") }),
+  ActionBaseSchema.extend({ kind: z.literal("selectExternal") }),
+  ActionBaseSchema.extend({ kind: z.literal("addProgressionStep") }),
+]);
+export type BuildAction = z.infer<typeof BuildActionSchema>;
+
+export const CandidateLabelSchema = z.enum(["Offence", "Balanced", "Defence"]);
+export type CandidateLabel = z.infer<typeof CandidateLabelSchema>;
+
+export const CandidateSchema = z.object({
+  schemaVersion: z.literal(SCHEMA_VERSION),
+  id: z.string().min(1),
+  label: CandidateLabelSchema,
+  summary: z.string().min(1),
+  baseFingerprint: z.string().min(1),
+  cost: z.object({ divine: z.number().nonnegative().default(0), display: z.string().min(1) }),
+  metrics: MetricSetSchema,
+  scenarioMetrics: z.record(RankedScenarioIdSchema, MetricSetSchema),
+  peakScenarioMetrics: z.record(RankedScenarioIdSchema, MetricSetSchema).default({
+    mapping: {}, standardBoss: {}, pinnacle: {}, uber: {},
+  }),
+  actions: z.array(BuildActionSchema),
+  evidence: z.array(ConditionEvidenceSchema).default([]),
+  hardConstraintsSatisfied: z.boolean(),
+  score: z.number().finite().optional(),
+});
+export type Candidate = z.infer<typeof CandidateSchema>;
+
+export const DeepLimitsSchema = z.object({
+  recursionLimit: z.number().int().min(1).max(1000).default(40),
+  wallTimeMs: z.number().int().positive().default(30 * 60 * 1000),
+  evaluationLimit: z.number().int().positive().default(100_000),
+  modelCallLimit: z.number().int().nonnegative().default(16),
+  convergenceRounds: z.number().int().positive().default(3),
+  convergenceThreshold: z.number().min(0).max(1).default(0.005),
+  duplicateCallLimit: z.number().int().positive().default(3),
+});
+export type DeepLimits = z.infer<typeof DeepLimitsSchema>;
+
+export const SearchStopReasonSchema = z.enum([
+  "converged",
+  "cancelled",
+  "time_limit",
+  "evaluation_limit",
+  "model_call_limit",
+  "recursion_limit",
+  "doom_loop",
+  "exhausted",
+]);
+export type SearchStopReason = z.infer<typeof SearchStopReasonSchema>;
+
+export const StopReasonSchema = z.enum([
+  "completed",
+  "cancelled",
+  "wall_time",
+  "evaluation_limit",
+  "model_call_limit",
+  "converged",
+  "doom_loop",
+  "provider_fallback",
+  "rejected",
+  "failed",
+]);
+export type StopReason = z.infer<typeof StopReasonSchema>;
+
+export const OptimizationRunSchema = z.object({
+  schemaVersion: z.literal(SCHEMA_VERSION),
+  id: z.string().min(1),
+  buildFingerprint: z.string().min(1),
+  status: z.enum(["draft", "running", "paused", "completed", "cancelled", "failed"]),
+  objective: ObjectiveSpecSchema,
+  scenarios: z.array(ScenarioSpecSchema),
+  frontier: z.array(CandidateSchema),
+  selected: z.array(CandidateSchema).max(3).default([]),
+  evaluations: z.number().int().nonnegative(),
+  modelCalls: z.number().int().nonnegative(),
+  refinementRounds: z.number().int().nonnegative(),
+  startedAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+  stopReason: StopReasonSchema.optional(),
+  searchStopReason: SearchStopReasonSchema.optional(),
+  error: z.string().optional(),
+});
+export type OptimizationRun = z.infer<typeof OptimizationRunSchema>;
+
+export const TransactionResultSchema = z.object({
+  runId: z.string().min(1),
+  candidateId: z.string().min(1),
+  accepted: z.boolean(),
+  applied: z.boolean(),
+  rolledBack: z.boolean().default(false),
+  fingerprint: z.string().min(1).optional(),
+  metrics: MetricSetSchema.optional(),
+  scenarioMetrics: z.record(RankedScenarioIdSchema, MetricSetSchema).optional(),
+  error: z.string().optional(),
+}).superRefine((result, context) => {
+  if (!result.applied) return;
+  if (!result.accepted) {
+    context.addIssue({ code: "custom", path: ["accepted"], message: "Applied transaction must be accepted" });
+  }
+  if (result.rolledBack) {
+    context.addIssue({ code: "custom", path: ["rolledBack"], message: "Applied transaction cannot also be rolled back" });
+  }
+  if (result.fingerprint === undefined) {
+    context.addIssue({ code: "custom", path: ["fingerprint"], message: "Applied transaction requires fingerprint" });
+  }
+  if (result.metrics === undefined) {
+    context.addIssue({ code: "custom", path: ["metrics"], message: "Applied transaction requires metrics" });
+  }
+  if (result.scenarioMetrics === undefined) {
+    context.addIssue({ code: "custom", path: ["scenarioMetrics"], message: "Applied transaction requires four scenario metrics" });
+  } else {
+    for (const scenario of RankedScenarioIdSchema.options) {
+      if (result.scenarioMetrics[scenario] === undefined) {
+        context.addIssue({
+          code: "custom",
+          path: ["scenarioMetrics", scenario],
+          message: `Applied transaction requires ${scenario} metrics`,
+        });
+      }
+    }
+  }
+});
+export type TransactionResult = z.infer<typeof TransactionResultSchema>;

@@ -1,0 +1,7 @@
+node_modules/
+dist/*
+!dist/server.cjs
+coverage/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
