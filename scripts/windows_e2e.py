@@ -210,14 +210,14 @@ def base_snapshot(schema_version: int) -> dict[str, Any]:
                 "source": "currentBuild",
                 "action": {
                     "id": "action:e2e",
-                    "kind": "replaceItem",
+                    "kind": "setIdentity",
                     "description": "E2E fixture action",
                     "dependsOn": [],
                     "preconditions": [],
                     "reversible": True,
                     "payload": {
-                        "slot": "Helmet",
-                        "itemId": 1,
+                        "property": "level",
+                        "value": 91,
                         "metricDeltas": {"combinedDps": 100},
                         "peakMetricDeltas": {"combinedDps": 500},
                     },
