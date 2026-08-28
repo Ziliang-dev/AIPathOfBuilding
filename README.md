@@ -1,63 +1,125 @@
-# Path of Building Community
-## Welcome to Path of Building, an offline build planner for Path of Exile!
+# AIPathOfBuilding
 
-<p float="middle">
-  <img alt="Tree tab" src="https://github.com/user-attachments/assets/0826b7ab-84ba-440f-be52-2f216f13e75c" width="48%" />
-  <img alt="Items tab" src="https://github.com/user-attachments/assets/e5af1326-7e22-43d8-ab12-aa5500da611a" width="48%" />
-</p>
+AIPathOfBuilding (AIPoB) adds a local, graph-based build optimizer to the Path
+of Building Community fork. Path of Building's Lua engine remains authoritative
+for build state, game data, and calculated metrics. A TypeScript sidecar manages
+the resumable search workflow and communicates with PoB through authenticated
+loopback JSON-RPC.
 
-### Features
-* Comprehensive offence + defence calculations:
-  * Calculate your skill DPS, damage over time, life/mana/ES totals and much more!
-  * Can factor in auras, buffs, charges, curses, monster resistances and more, to estimate your effective DPS
-  * Also calculates life/mana reservations
-  * Shows a summary of character stats in the side bar, as well as a detailed calculations breakdown tab which can show you how the stats were derived
-  * Supports all skills and support gems, and most passives and item modifiers
-    * Throughout the program, supported modifiers will show in blue and unsupported ones in red
-  * Full support for minions
-  * Support for party play and support builds
-* Passive skill tree planner:
-  * Support for jewels including most radius/conversion and timeless jewels
-  * Features alternate path tracing (mouse over a sequence of nodes while holding shift, then click to allocate them all)
-  * Fully integrated with the offence/defence calculations; see exactly how each node will affect your character!
-  * Can import PathOfExile.com and PoEPlanner.com passive tree links; links shortened with PoEURL.com also work
-* Skill planner:
-  * Add any number of main or supporting skills to your build
-  * Supporting skills (auras, curses, buffs) can be toggled on and off
-  * Automatically applies Socketed Gem modifiers from the item a skill is socketed into
-  * Automatically applies support gems granted by items
-* Item planner:
-  * Add items from in game by copying and pasting them straight into the program!
-  * Automatically adds quality to non-corrupted items
-  * Search the trade site for the most impactful items
-  * Fully integrated with the offence/defence calculations; see exactly how much of an upgrade a given item is!
-  * Contains a searchable database of all uniques that are currently in game (and some that aren't yet!)
-    * You can choose the modifier rolls when you add a unique to your build
-    * Includes all league-specific items and legacy variants
-  * Features an item crafting system:
-    * You can select from any of the game's base item types
-    * You can select prefix/suffix modifiers from lists
-    * Custom modifiers can be added, with Master and Essence modifiers available
-  * Also contains a database of rare item templates:
-    * Allows you to create rare items for your build to approximate the gear you will be using
-    * Choose which modifiers appear on each item, and the rolls for each modifier, to suit your needs
-    * Has templates that should cover the majority of builds
-* Other features:
-  * You can import passive tree, items, and skills from existing characters
-  * Share builds with other users by generating a share code
-  * Automatic updating; most updates will only take a couple of seconds to apply
+> [!IMPORTANT]
+> This branch is an implementation baseline, not a release candidate. Trade,
+> live model-provider configuration, conversational objective drafting, and
+> several full-domain adapters are not connected. Check the
+> [capability matrix](docs/aipob/status-and-roadmap.md) before relying on a
+> feature.
 
-## Download
-Head over to the [Releases](https://github.com/PathOfBuildingCommunity/PathOfBuilding/releases) page to download the install wizard or portable zip.
+## What works now
 
-## Changelog
-You can find the full version history [here](CHANGELOG.md).
+- Structured and explicitly confirmed optimization objectives
+- Immutable Build capture and fingerprint validation
+- Current diagnostic, Mapping, Standard Boss, Guardian/Pinnacle, and Uber
+  Pinnacle evaluation contexts
+- Sustainable and Peak profiles with typed Condition Evidence
+- Deterministic search over typed proposals exported by the current PoB build
+- PoB worker-process evaluation, hard constraints, Pareto filtering, and three
+  candidate views
+- Non-mutating Preview
+- Human-approved, transactional Apply with fresh verification, rollback, and a
+  recovery journal
+- Authenticated loopback RPC, persistent workflow checkpoints, and Windows
+  packaging scripts
 
-## Contribute
-You can find instructions on how to contribute code and bug reports [here](CONTRIBUTING.md).
+## Requirements
+
+- PowerShell Core 7
+- Node.js 22.13 or newer for development
+- pnpm 11.19.0
+- Docker or local LuaJIT/Busted for PoB tests
+- A locally supplied Node.js 24 x64 executable for portable Windows packaging
+
+The repository never downloads or commits a Node executable. API keys, OAuth
+tokens, SQLite data, logs, `.env` files, and local credentials must not enter
+source control.
+
+## Development quick start
+
+Run from the repository root:
+
+```powershell
+./scripts/install-sidecar.ps1
+./scripts/check-sidecar.ps1
+./scripts/build-sidecar.ps1
+./scripts/check-manifest.ps1
+```
+
+Launch the checked-out PoB development runtime, open a Build, and select
+**AI Build Planner**. The sidecar starts lazily when a confirmed search begins.
+The current CLI uses deterministic fallback; it does not load a plaintext API
+key or enable a model provider.
+
+Detailed setup and current UI behavior: [Getting started](docs/aipob/getting-started.md).
+
+## Wiki
+
+[`docs/index.md`](docs/index.md) is the versioned Wiki home.
+
+- Users: [Overview](docs/aipob/overview.md) → [Getting started](docs/aipob/getting-started.md) → [Workflows](docs/aipob/workflows.md)
+- Maintainers: [Architecture](docs/aipob/architecture.md) → [Domain rules](docs/aipob/domain-rules.md) → [Development](docs/aipob/development.md)
+- Development agents: read [`AGENTS.md`](AGENTS.md), the current architecture,
+  domain rules, and relevant ADRs before changing domain behavior
+
+## Portable Windows package
+
+Supply a Node.js 24 x64 executable. The packaging script validates it and
+refuses to overwrite existing output:
+
+```powershell
+$env:AIPOB_NODE_EXE = 'C:\Tools\node-v24-win-x64\node.exe'
+./scripts/package-windows.ps1
+```
+
+Default output:
+
+```text
+artifacts/AIPathOfBuilding-AIPoB-windows-x64.zip
+```
+
+Node and the `better-sqlite3` native module are installer-owned. A Node major or
+native ABI change requires a new installer or portable package.
+
+## Current limitations
+
+- Authenticated PoB Trade/catalog brokerage is not connected and fails closed.
+- Unique and target-Rare source controls normally receive no external proposals.
+- Windows Credential Manager, first-send provider consent, provider injection,
+  and Planner Chat are not connected.
+- Full ruleset conversion, complete link search, native condition-source proof,
+  specialized actors, seasonal mechanics, and golden-build coverage remain
+  release gates.
+- Existing upstream release automation does not yet guarantee sidecar
+  build-before-manifest ordering.
+
+See [Status and roadmap](docs/aipob/status-and-roadmap.md) for precise boundaries.
+
+## Contributing
+
+Read [CONTRIBUTING.md](CONTRIBUTING.md) for upstream PoB contribution practices
+and [AIPoB development](docs/aipob/development.md) for the cross-language
+workflow, tests, generated bundle, manifest, and packaging rules.
+
+## Upstream Path of Building
+
+This project is based on
+[Path of Building Community](https://github.com/PathOfBuildingCommunity/PathOfBuilding),
+the offline build planner for Path of Exile. Upstream PoB provides the
+calculator, build format, game data, item/skill/tree planners, import/export,
+Trade integration, and application runtime. AIPoB does not replace those
+systems.
+
+Upstream developer documentation is preserved and indexed from the
+[Wiki home](docs/index.md#upstream-path-of-building-developer-references).
 
 ## Licence
-[MIT](https://opensource.org/licenses/MIT)
 
-For 3rd-party licences, see [LICENSE](LICENSE.md).
-The licencing information is considered to be part of the documentation.
+[MIT](https://opensource.org/licenses/MIT). See [LICENSE.md](LICENSE.md) for PoB
+and third-party licensing information; it is part of the documentation.

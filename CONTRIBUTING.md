@@ -1,15 +1,42 @@
 # Contributing to Path of Building
 
+## AIPathOfBuilding changes
+
+This fork adds a Lua Planner integration and a local TypeScript sidecar. Before
+changing AIPoB behavior, read the [Wiki](docs/index.md),
+[current architecture](docs/aipob/architecture.md),
+[domain rules](docs/aipob/domain-rules.md), and relevant
+[architecture decisions](docs/index.md#architecture-decisions).
+
+Run the AIPoB checks from the repository root:
+
+```powershell
+./scripts/install-sidecar.ps1
+./scripts/check-sidecar.ps1
+./scripts/build-sidecar.ps1
+./scripts/check-manifest.ps1
+```
+
+Protocol, schema, Build Action, Scenario, or Transaction changes normally need
+matching TypeScript and Lua tests. Rebuild the tracked
+`sidecar/dist/server.cjs` after TypeScript changes. Update the
+[capability matrix](docs/aipob/status-and-roadmap.md) whenever behavior or
+coverage changes.
+
+See the [AIPoB development guide](docs/aipob/development.md) for the code map,
+cross-language workflow, packaging rules, and upstream synchronization policy.
+
 # Table of contents
-1. [Reporting bugs](#reporting-bugs)
-2. [Requesting features](#requesting-features)
-3. [Contributing code](#contributing-code)
-4. [Setting up a development installation](#setting-up-a-development-installation)
-5. [Setting up a development environment](#setting-up-a-development-environment)
-6. [Keeping your fork up to date](#keeping-your-fork-up-to-date)
-7. [Path of Building development tutorials](#path-of-building-development-tutorials)
-8. [Exporting GGPK data from Path of Exile](#exporting-ggpk-data-from-path-of-exile)
-9. [Using the inbuilt profiler](#Using-the-inbuilt-profiler)
+1. [AIPathOfBuilding changes](#aipathofbuilding-changes)
+2. [Reporting bugs](#reporting-bugs)
+3. [Requesting features](#requesting-features)
+4. [Contributing code](#contributing-code)
+5. [Setting up a development installation](#setting-up-a-development-installation)
+6. [Setting up a development environment](#setting-up-a-development-environment)
+7. [Keeping your fork up to date](#keeping-your-fork-up-to-date)
+8. [Path of Building development tutorials](#path-of-building-development-tutorials)
+9. [Exporting GGPK data from Path of Exile](#exporting-ggpk-data-from-path-of-exile)
+10. [Using the inbuilt profiler](#using-the-inbuilt-profiler)
 
 ## Reporting bugs
 

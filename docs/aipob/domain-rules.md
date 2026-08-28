@@ -1,0 +1,152 @@
+# Domain Rules
+
+These rules define what AIPoB may rank, preview, and apply in the current
+architecture. They do not attempt to restate the complete Path of Exile ruleset.
+PoB calculation remains authoritative.
+
+## Authority and reproducibility
+
+1. A metric is accepted only when produced by the checked-out PoB engine and
+   content data.
+2. A Candidate is evaluated from immutable Build XML plus typed Build Actions
+   and an explicit Scenario.
+3. A Candidate always names its base Build fingerprint.
+4. Candidate metrics originate in worker evaluation. Preview renders the
+   persisted verified Candidate; Apply uses fresh worker evaluation rather than
+   trusting model claims or cached prose.
+5. Game-mechanic explanations may link to PoE Wiki, but a calculation dispute
+   is resolved against PoB code and tests for the documented version.
+
+## Objective rules
+
+- An Objective must contain at least one goal.
+- Goal direction is `maximize` or `minimize`; goal weight must be positive.
+- Scenario weights are between zero and one and must sum to one.
+- Hard constraints use numeric comparison against a named metric.
+- Class, ascendancy, main skill, and arbitrary field Locks prevent Candidates
+  that touch those fields.
+- A missing Budget forces Unique, target-Rare, and Trade sources off.
+- A present Budget does not make a source available; its broker and typed
+  proposals must also exist.
+- Trade is forced off by the current controller even when requested.
+
+## Scenario matrix
+
+| Scenario | PoB enemy class | Adds | On-kill | Mapping modifiers |
+| --- | --- | --- | --- | --- |
+| Mapping | `None` | Allowed | Allowed | Retained when represented by current config inputs |
+| Standard Boss | `Boss` | Not assumed | Disallowed | Cleared |
+| Guardian / Pinnacle | `Pinnacle` | Not assumed | Disallowed | Cleared |
+| Uber Pinnacle | `Uber` | Not assumed | Disallowed | Cleared |
+
+Each row has a Sustainable and Peak profile. A separate Current diagnostic
+Scenario preserves the user's manual configuration but is never ranked proof.
+
+## Condition Evidence
+
+A condition source must be structurally valid and its trigger must be allowed by
+the Scenario. Sources requiring adds or kills are unavailable when the Scenario
+forbids them.
+
+For Sustainable eligibility, a source must:
+
+- not be marked peak-only;
+- have sustainable resources;
+- have known uptime; and
+- reach at least the Scenario threshold, currently 90%.
+
+A legal temporary source can be `proven_peak` in a Peak profile. Below-threshold
+sources are `intermittent`; manual assertions are `manual`; absent or unknown
+chains are `unknown` or `impossible`.
+
+Mutually exclusive eligible conditions are resolved deterministically by
+preference, uptime, confidence, then condition name. Rejected alternatives are
+marked `conflicting`. The resolver can create bounded alternate variants for
+conflict exploration.
+
+Current proof quality depends on exported catalog claims and registered
+mechanic adapters. It is not yet complete for every native PoE condition source.
+That limitation is tracked in [Status and roadmap](status-and-roadmap.md).
+
+## Domain Graph rules
+
+The only accepted edge relations are:
+
+`grants`, `requires`, `triggers`, `scales`, `consumes`, `conflicts`, `replaces`,
+`usesSlot`, and `availableIn`.
+
+Graph validation rejects duplicate node identifiers, missing edge endpoints,
+self-relations where forbidden, invalid relations, and structurally invalid
+data. Mechanic adapters may add versioned nodes, edges, condition claims, and
+candidate semantics.
+
+The coverage registry classifies gameplay field paths exported by PoB. A
+snapshot with an unclassified required field fails capture instead of silently
+claiming full coverage. Classification does not guarantee that search has a
+candidate generator for every field.
+
+## Candidate generation rules
+
+- The zero-action current Build is always available as a baseline.
+- Catalog entries must be marked available and contain schema-valid typed
+  actions.
+- A Candidate may contain multiple actions only when dependencies form an
+  acyclic graph.
+- Candidate cost is the declared estimate or the sum of action costs.
+- A Candidate must respect Objective Locks, Budget, graph availability, and
+  passive-point constraints before evaluation.
+- External source metadata cannot bypass the controller's source policy.
+- Raw model text, raw Lua, and unvalidated item text are not Build Actions.
+
+The current deterministic adapters infer proposals from content already
+exported by PoB. Complete link beam search, cross-domain packages, and several
+specialized actor or seasonal generators remain roadmap work.
+
+## Evaluation and ranking rules
+
+- Hard constraints must pass in every applicable Sustainable Scenario.
+- Ranking uses the Objective's Scenario weights and metric directions.
+- Peak metrics are informational and excluded from Sustainable constraint
+  satisfaction.
+- Only non-dominated Candidates remain on the Pareto frontier.
+- Selection is stable and returns at most Offence, Balanced, and Defence views.
+- A Candidate selected under one label still retains its verified action graph
+  and Scenario metrics.
+
+## Build Action rules
+
+Every action requires a non-empty ID, description, kind, payload, and
+reversibility declaration. Dependencies must reference actions in the same
+Candidate. Duplicate IDs, missing dependencies, or dependency cycles fail
+ordering.
+
+Lua normalizes public action kinds into supported build, configuration, skill,
+item, tree, party, and loadout operations. Each operation validates the target
+against the active PoB structures. Unsupported precondition expressions fail
+closed; a base-fingerprint precondition is supported.
+
+Passive-tree actions recheck point budgets, mastery availability, node
+connectivity, and ascendancy limits. Item, skill, party, and loadout actions
+similarly require the target set, slot, actor, or control to exist.
+
+## Transaction invariants
+
+An Apply Transaction must satisfy all of these conditions:
+
+1. User explicitly approved the selected Candidate.
+2. Candidate fingerprint matches the active captured Build.
+3. Candidate action graph is valid and acyclic.
+4. Preflight sandbox reproduces expected metrics.
+5. Exactly one Sustainable Scenario for each ranked Scenario is provided.
+6. Fresh verification still satisfies all hard constraints.
+7. Commit metrics match preflight metrics within implemented numeric tolerance.
+8. Any failure restores and verifies the original Build fingerprint.
+
+If rollback itself cannot be verified, the result is non-recoverable and the UI
+must report the failure instead of claiming success.
+
+## External knowledge policy
+
+Do not copy league-specific item tables or volatile numeric mechanics into this
+page. Use [Reference sources](../reference-sources.md) and add the relevant PoE
+version when a game rule is necessary to explain an adapter.
