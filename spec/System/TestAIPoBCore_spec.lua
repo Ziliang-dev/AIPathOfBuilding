@@ -28,6 +28,12 @@ describe("AIPathOfBuilding Lua core", function()
 		assert.are.equal(snapshot.fingerprint, Snapshot.Capture(build).fingerprint)
 	end)
 
+	it("canonicalizes equivalent config-set serialization", function()
+		local first = assert(Snapshot.SanitizeXML([[<PathOfBuilding><Config activeConfigSet="1"><ConfigSet id="1"><Placeholder name="enemyLevel" number="84"/><Input name="enemyIsBoss" string="Boss"/></ConfigSet></Config></PathOfBuilding>]]))
+		local second = assert(Snapshot.SanitizeXML([[<PathOfBuilding><Config activeConfigSet="1"><ConfigSet id="1" title="Default"><Input name="enemyIsBoss" string="Boss"/><Placeholder name="enemyLevel" number="84"/></ConfigSet></Config></PathOfBuilding>]]))
+		assert.are.equal(first, second)
+	end)
+
 	it("fails coverage on an unknown saved gameplay section", function()
 		local paths, err = Snapshot.GameplayFieldPaths("<PathOfBuilding><Build/><UnknownGameplay value='1'/></PathOfBuilding>")
 		assert.is_nil(paths)

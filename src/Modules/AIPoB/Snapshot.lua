@@ -48,6 +48,31 @@ local function fingerprint(xml)
 	return sha.sha256(xml)
 end
 
+local function canonicalizeConfig(configNode)
+	for _, configSet in ipairs(configNode) do
+		if type(configSet) == "table" and configSet.elem == "ConfigSet" then
+			configSet.attrib = configSet.attrib or { }
+			configSet.attrib.title = configSet.attrib.title or "Default"
+			local values = { }
+			local remainder = { }
+			for _, child in ipairs(configSet) do
+				if type(child) == "table" and (child.elem == "Input" or child.elem == "Placeholder") then
+					table.insert(values, child)
+				else
+					table.insert(remainder, child)
+				end
+			end
+			table.sort(values, function(left, right)
+				if left.elem ~= right.elem then return left.elem < right.elem end
+				return tostring((left.attrib or { }).name or "") < tostring((right.attrib or { }).name or "")
+			end)
+			for index = #configSet, 1, -1 do configSet[index] = nil end
+			for _, child in ipairs(values) do table.insert(configSet, child) end
+			for _, child in ipairs(remainder) do table.insert(configSet, child) end
+		end
+	end
+end
+
 function Snapshot.SanitizeXML(xml)
 	local document, err = common.xml.ParseXML(xml)
 	if err then return nil, tostring(err) end
@@ -55,7 +80,10 @@ function Snapshot.SanitizeXML(xml)
 	if not root or root.elem ~= "PathOfBuilding" then return nil, "PathOfBuilding root element missing" end
 	local sanitized = { elem = "PathOfBuilding", attrib = root.attrib or { } }
 	for _, node in ipairs(root) do
-		if type(node) == "table" and gameplayRoots[node.elem] then table.insert(sanitized, node) end
+		if type(node) == "table" and gameplayRoots[node.elem] then
+			if node.elem == "Config" then canonicalizeConfig(node) end
+			table.insert(sanitized, node)
+		end
 	end
 	local composed, composeErr = common.xml.ComposeXML(sanitized)
 	if not composed then return nil, tostring(composeErr) end
