@@ -73,6 +73,16 @@ function Read-RpcMessage {
     return ($line | ConvertFrom-Json)
 }
 
+function Get-RpcPropertyValue {
+    param(
+        [Parameter(Mandatory)]$Message,
+        [Parameter(Mandatory)][string]$Name
+    )
+    $property = $Message.PSObject.Properties[$Name]
+    if ($null -eq $property) { return $null }
+    return $property.Value
+}
+
 function Send-RpcRequest {
     param(
         [Parameter(Mandatory)][IO.StreamWriter]$Writer,
@@ -88,11 +98,12 @@ function Send-RpcRequest {
     $Writer.WriteLine(($request | ConvertTo-Json -Compress -Depth 12))
     while ($true) {
         $message = Read-RpcMessage -Reader $Reader
-        if ($message.id -eq $id) {
-            if ($null -ne $message.error) { throw "RPC $Method failed: $($message.error.message)" }
-            return $message.result
+        if ((Get-RpcPropertyValue -Message $message -Name 'id') -eq $id) {
+            $rpcError = Get-RpcPropertyValue -Message $message -Name 'error'
+            if ($null -ne $rpcError) { throw "RPC $Method failed: $($rpcError.message)" }
+            return (Get-RpcPropertyValue -Message $message -Name 'result')
         }
-        if ($null -ne $message.method) { [void]$script:notifications.Add($message) }
+        if ($null -ne (Get-RpcPropertyValue -Message $message -Name 'method')) { [void]$script:notifications.Add($message) }
     }
 }
 
@@ -102,16 +113,18 @@ function Wait-RpcNotification {
         [Parameter(Mandatory)][string]$Method
     )
     for ($index = 0; $index -lt $script:notifications.Count; $index++) {
-        if ($script:notifications[$index].method -eq $Method) {
+        if ((Get-RpcPropertyValue -Message $script:notifications[$index] -Name 'method') -eq $Method) {
             $message = $script:notifications[$index]
             $script:notifications.RemoveAt($index)
-            return $message.params
+            return (Get-RpcPropertyValue -Message $message -Name 'params')
         }
     }
     while ($true) {
         $message = Read-RpcMessage -Reader $Reader
-        if ($message.method -eq $Method) { return $message.params }
-        if ($null -ne $message.method) { [void]$script:notifications.Add($message) }
+        if ((Get-RpcPropertyValue -Message $message -Name 'method') -eq $Method) {
+            return (Get-RpcPropertyValue -Message $message -Name 'params')
+        }
+        if ($null -ne (Get-RpcPropertyValue -Message $message -Name 'method')) { [void]$script:notifications.Add($message) }
     }
 }
 
