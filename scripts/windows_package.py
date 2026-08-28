@@ -157,6 +157,20 @@ def create_zip(source: Path, destination: Path) -> None:
             archive.write(file_path, file_path.relative_to(source).as_posix())
 
 
+def remove_tree(path: Path, timeout: float = 15) -> None:
+    deadline = time.monotonic() + timeout
+    while True:
+        try:
+            shutil.rmtree(path)
+            return
+        except FileNotFoundError:
+            return
+        except OSError:
+            if time.monotonic() >= deadline:
+                raise
+            time.sleep(0.1)
+
+
 def package_windows(args: argparse.Namespace) -> None:
     from aipob import build_sidecar
 
@@ -451,7 +465,7 @@ class PackageRoot:
         if self.keep:
             print(f"Kept extracted package: {self.temporary}")
         else:
-            shutil.rmtree(self.temporary)
+            remove_tree(self.temporary)
 
 
 def verify_package(args: argparse.Namespace) -> None:

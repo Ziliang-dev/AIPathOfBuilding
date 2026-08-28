@@ -6,14 +6,13 @@ import argparse
 import json
 import os
 from pathlib import Path
-import shutil
 import socket
 import subprocess
 import tempfile
 import time
 from typing import Any, TextIO
 
-from windows_package import PackageRoot, POB_EXECUTABLE_NAMES, safe_package_path, verify_package_root
+from windows_package import PackageRoot, POB_EXECUTABLE_NAMES, remove_tree, safe_package_path, verify_package_root
 
 
 FIXTURE_WORKER = r"""
@@ -344,10 +343,11 @@ def e2e_windows(args: argparse.Namespace) -> None:
         finally:
             if rpc is not None:
                 rpc.close()
+                sidecar.await_owner_exit()
             stderr = sidecar.stop()
             if stderr.strip():
                 print(stderr, file=os.sys.stderr)
-            shutil.rmtree(data_directory)
+            remove_tree(data_directory)
 
 
 def add_e2e_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
