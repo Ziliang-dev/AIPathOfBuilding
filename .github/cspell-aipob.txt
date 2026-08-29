@@ -16,6 +16,7 @@ DUNICODE
 effectivehitpool
 esbuild
 HKCU
+HINSTANCE
 importlink
 indegree
 INSTDIR
@@ -31,6 +32,7 @@ napi
 NDJSON
 nonterminal
 oauthstate
+openrouter
 onkill
 pathofbuilding
 pathofbuildingcommunity
@@ -43,14 +45,18 @@ sellerid
 sellername
 sessiontoken
 SMPROGRAMS
+STARTUPINFOW
 tradeid
 tradequery
 traderesult
 unconsented
+unstub
 Uninst
 usbipd
 vitest
 wincred
+WINFUNCTYPE
 wmain
 wslconfig
 wslpath
+deepseek
