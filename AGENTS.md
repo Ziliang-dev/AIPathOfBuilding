@@ -84,11 +84,20 @@ external command exit code.
   every required GitHub Actions check associated with the exact pushed HEAD.
 - Repair failures and wait for the replacement checks. Never synchronize an
   artifact from a failed, cancelled, stale, or still-running workflow.
-- After the exact HEAD's `AIPoB Sidecar` workflow and aggregate release gate
-  pass, run `python3 scripts/aipob.py sync-ci-windows` once from WSL.
-- Confirm `artifacts/ci-latest/ci-sync.json` records the current HEAD and report
-  the Actions run ID and launch path. The command handles idempotence and
-  latest-only replacement; do not add a second downloader.
+- Download a new Windows portable only when the update can change application
+  behavior or shipped package contents. Examples include Lua or sidecar source,
+  runtime assets, dependencies, manifest generation, packaging, or installer
+  changes.
+- Do not download a portable for documentation-only, `AGENTS.md`, `.gitignore`,
+  spelling dictionary, test-only, or CI metadata changes that cannot alter the
+  shipped package. Report that synchronization was skipped and why.
+- For a qualifying update, after the exact HEAD's `AIPoB Sidecar` workflow and
+  aggregate release gate pass, run `python3 scripts/aipob.py sync-ci-windows`
+  once from WSL.
+- After synchronization, confirm `artifacts/ci-latest/ci-sync.json` records the
+  current HEAD and report the Actions run ID and launch path. The command
+  handles idempotence and latest-only replacement; do not add a second
+  downloader.
 
 ## Generated and release files
 
