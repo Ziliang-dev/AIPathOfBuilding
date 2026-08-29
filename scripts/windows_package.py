@@ -506,7 +506,9 @@ def verify_package_root(root: Path, *, skip_launch: bool = False) -> dict[str, o
         credential,
         native,
         root / "src" / "AIPoBWorker.lua",
+        root / "src" / "UpdateCheck.lua",
         root / "src" / "_SimpleGraphic.def.lua",
+        root / "src" / "Modules" / "AIPoB" / "UpdatePaths.lua",
         root / "manifest.cfg",
         root / "manifest.xml",
     ]

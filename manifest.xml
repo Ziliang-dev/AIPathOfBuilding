@@ -412,6 +412,7 @@
 	<File name="Modules/AIPoB/TradeBroker.lua" part="program" sha1="fe917188951700492d7f62ad634f1f65880c129c" />
 	<File name="Modules/AIPoB/Transaction.lua" part="program" sha1="a86d681b5f190a03a1d597fa6014a6e8bfb13db5" />
 	<File name="Modules/AIPoB/TransactionJournal.lua" part="program" sha1="bf9c92ae9c1f1498797cebe79cb759dc82a4395d" />
+	<File name="Modules/AIPoB/UpdatePaths.lua" part="program" sha1="f0220558a7dfc033875b6721892e9df7f61533dd" />
 	<File name="Modules/AIPoB/Util.lua" part="program" sha1="ae1f32d4c93630e629cdfc050cf87638081d46dd" />
 	<File name="Modules/Build.lua" part="program" sha1="fb6c8e5e099912c8d016d997adc892ec45992de3" />
 	<File name="Modules/BuildDisplayStats.lua" part="program" sha1="ffc4da3b13c3d50f3580b452622429f0bd7e70ab" />
@@ -449,7 +450,7 @@
 	<File name="Modules/ToastNotification.lua" part="program" sha1="87abe18f2c81a8df77e7e79248730e81ca5e03c5" />
 	<File name="Modules/Utils.lua" part="program" sha1="ff63549f844f9a81689d7ee9f6138ad12c782f72" />
 	<File name="UpdateApply.lua" part="program" sha1="d7e47a29feff219c1ec3c6e4a19eb85b47691c26" />
-	<File name="UpdateCheck.lua" part="program" sha1="2f3861b4e89838150f16e4e09eb6012b0800fa68" />
+	<File name="UpdateCheck.lua" part="program" sha1="5d8d51c0a12a7b29f744238c439277032ed934ef" />
 	<File name="abseil_dll.dll" part="runtime" runtime="win32" sha1="9bcb9ca812e69350cca49c7ccaa507371e52a50d" />
 	<File name="concrt140.dll" part="runtime" runtime="win32" sha1="1ce87fac4c22aae82a81ddb26952c074b744e78d" />
 	<File name="d3dcompiler_47.dll" part="runtime" runtime="win32" sha1="27a4eff95e7f4a359718fda7138a528147969b27" />

@@ -283,7 +283,10 @@ NSIS packaging pin Node `24.20.0` x64 / module ABI `137`, the matching
 runtime files, metadata, and checksums. Packaging transforms only the staged
 manifest to include the exact CI head branch and `platform="win32"`; package
 metadata records that branch and manifest hash, and verification rejects a
-manifest that would trigger the repository-only Dev Mode path. CI verifies silent NSIS installation,
+manifest that would trigger the repository-only Dev Mode path. The updater
+resolves the script, runtime, work, and package roots separately: program/tree
+files remain under `src`, default/sidecar files stay at the package root, and
+update staging stays under the work-root `Update` directory. CI verifies silent NSIS installation,
 apply/reject/failure paths, checkpoint restart, and a real packaged PoB worker
 process without pixel UI automation.
 

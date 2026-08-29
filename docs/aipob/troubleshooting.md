@@ -52,6 +52,7 @@ pnpm --version
 | Transaction journal remains after restart | Apply succeeded locally but sidecar audit was not acknowledged | Allow PlannerController to reconnect and reconcile it; preserve the journal and its backup until recovery finishes |
 | Manifest check fails | Tracked bundle or manifest configuration is stale | Rebuild the sidecar, run `python3 scripts/aipob.py check-manifest`, then regenerate `manifest.xml` only as part of the release workflow |
 | A verified CI portable shows **Dev Mode** | Its packaged `manifest.xml` lacks the exact update branch or `platform="win32"`, or the payload predates the package verifier | Reject that artifact and sync a newer successful run; do not edit the repository manifest to hide the warning |
+| A CI portable reports `Invalid local manifest` | The payload predates package-root manifest resolution, or its root `manifest.xml` is missing | Sync a successful artifact containing `Modules/AIPoB/UpdatePaths.lua`; verify the root manifest instead of copying it into `src` |
 
 ## Sidecar data and ready files
 
