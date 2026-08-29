@@ -450,7 +450,7 @@
 	<File name="Modules/ToastNotification.lua" part="program" sha1="87abe18f2c81a8df77e7e79248730e81ca5e03c5" />
 	<File name="Modules/Utils.lua" part="program" sha1="ff63549f844f9a81689d7ee9f6138ad12c782f72" />
 	<File name="UpdateApply.lua" part="program" sha1="d7e47a29feff219c1ec3c6e4a19eb85b47691c26" />
-	<File name="UpdateCheck.lua" part="program" sha1="5d8d51c0a12a7b29f744238c439277032ed934ef" />
+	<File name="UpdateCheck.lua" part="program" sha1="16d2f5a1706eba9e9c2457ca6ae0188c7af01457" />
 	<File name="abseil_dll.dll" part="runtime" runtime="win32" sha1="9bcb9ca812e69350cca49c7ccaa507371e52a50d" />
 	<File name="concrt140.dll" part="runtime" runtime="win32" sha1="1ce87fac4c22aae82a81ddb26952c074b744e78d" />
 	<File name="d3dcompiler_47.dll" part="runtime" runtime="win32" sha1="27a4eff95e7f4a359718fda7138a528147969b27" />

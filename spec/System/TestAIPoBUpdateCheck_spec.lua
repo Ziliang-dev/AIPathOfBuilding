@@ -2,6 +2,15 @@ describe("AIPoB portable updater paths", function()
 	local UpdatePaths = require("Modules.AIPoB.UpdatePaths")
 	local manifest = { { elem = "PoBVersion" } }
 
+	it("loads the helper from the absolute script path in the isolated update thread", function()
+		local source = assert(io.open("UpdateCheck.lua", "r"))
+		local text = source:read("*a")
+		source:close()
+
+		assert.is_truthy(text:find('dofile(updateScriptPath .. "/Modules/AIPoB/UpdatePaths.lua")', 1, true))
+		assert.is_falsy(text:find('require("Modules.AIPoB.UpdatePaths")', 1, true))
+	end)
+
 	it("finds the package-root manifest from the src script directory", function()
 		local attempts = { }
 		local paths, loaded = UpdatePaths.Resolve({

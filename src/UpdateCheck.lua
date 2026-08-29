@@ -10,7 +10,9 @@ local xml = require("xml")
 local sha1 = require("sha1")
 local curl = require("lcurl.safe")
 local lzip = require("lzip")
-local UpdatePaths = require("Modules.AIPoB.UpdatePaths")
+local updateScriptPath, updateScriptFallback = GetScriptPath()
+updateScriptPath = updateScriptPath or updateScriptFallback or "."
+local UpdatePaths = dofile(updateScriptPath .. "/Modules/AIPoB/UpdatePaths.lua")
 
 local globalRetryLimit = 10
 local function downloadFileText(source, file)
