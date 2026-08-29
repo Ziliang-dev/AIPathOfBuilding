@@ -130,8 +130,10 @@ check every changed command module before execution:
 ```bash
 python3 -m py_compile \
   scripts/aipob.py \
+  scripts/ci_sync.py \
   scripts/windows_package.py \
   scripts/windows_e2e.py
+python3 -m unittest discover -s tests -p "test_ci_sync.py"
 ```
 
 ## Release artifacts
@@ -162,6 +164,19 @@ python3 scripts/aipob.py package-windows \
 ```
 
 The packaging script refuses to overwrite existing output.
+
+For the current branch's latest successful portable, use the idempotent local
+synchronizer instead of manually selecting and downloading an Actions run:
+
+```bash
+python3 scripts/aipob.py sync-ci-windows
+```
+
+The command queries structured `gh run list` output, downloads the canonical
+portable by run ID, converts WSL paths before invoking Windows executables,
+performs the full package verifier, and replaces only the managed
+`artifacts/ci-latest` directory. A verified update blocked by an open Windows
+process is retained at `artifacts/ci-pending` for the next invocation.
 
 The portable ZIP is the canonical staging input for NSIS:
 

@@ -5,7 +5,7 @@ tree. Architecture pages describe connected behavior. Planned breadth stays
 here.
 
 Working-tree baseline verified 2026-08-29 atop AIPoB commit
-`82f2e384c0d0a0d1ce43b3e90c537e4a30e97aa1`, upstream PoB base
+`8b0b5fe015036398a18d8e5651d69faf6aab9d94`, upstream PoB base
 `ed354c2f8c42e148bc904c7508dbe851fb2cf952`, PoB release data `v2.67.2`, and
 PoE data versions `3.29` / `3.29 Ruthless`. Replace the AIPoB hash with the merge
 commit before publishing a release.
@@ -38,6 +38,7 @@ commit before publishing a release.
 | Search and Transaction | Worker isolation, Locks, Budget, hard constraints, Pareto selection, non-mutating Preview, fresh Apply verification, explicit approval, dependency ordering, native re-proof, rollback, and recovery journal are connected |
 | Golden corpus and release harness | Corpus schema v2 covers Standard and Ruthless XML Builds, actor/season projections, five required adapters, required graph nodes, four typed action kinds, baseline/four Sustainable Scenario metrics, field policy, and Candidate fingerprints |
 | Canonical Windows packaging | Portable and repository-owned NSIS paths consume one verified staging tree with Node `24.20.0` x64 / ABI `137`, `better-sqlite3`, WinCred helper, PoB runtime, exact sidecar bundle, metadata, and checksums |
+| Latest CI portable synchronization | The WSL Python CLI selects the current branch's latest successful Actions run, downloads and fully verifies its canonical portable once, then safely retains only the managed latest copy or one lock-blocked pending replacement |
 | Fault and process E2E definitions | Windows jobs cover apply, reject, injected transaction failure, checkpoint restart, silent NSIS install, and a real packaged PoB worker process; no pixel UI automation is used |
 
 ## Partial
@@ -61,6 +62,8 @@ Local WSL checks completed on 2026-08-29:
 - `python3 scripts/aipob.py check-sidecar`;
 - `python3 scripts/aipob.py check-manifest`;
 - Python bytecode compilation for all command modules;
+- `sync-ci-windows` unit tests and a real download/verification of successful
+  Actions run `33210198998`, followed by an idempotent no-download check;
 - YAML parse for all workflows; and
 - syntax parse for the changed AIPoB Lua modules and specs; and
 - two independent real PoB worker processes produced the same canonical

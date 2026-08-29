@@ -40,6 +40,27 @@ pnpm test
 pnpm build
 ```
 
+## Run the latest verified CI portable
+
+The portable artifact avoids local MSVC, NSIS, Windows Node, and native-module
+setup. Authenticate GitHub CLI once, then run from WSL at the repository root:
+
+```bash
+python3 scripts/aipob.py sync-ci-windows
+./artifacts/ci-latest/app/Path\ of\ Building.exe
+```
+
+`sync-ci-windows` selects the newest completed, successful `aipob.yml` run for
+the current Git branch. It downloads the canonical portable artifact, checks
+its hashes and metadata, launches its pinned Node/SQLite sidecar smoke test,
+and only then replaces `artifacts/ci-latest`. The marker
+`artifacts/ci-latest/ci-sync.json` prevents a repeated download of the same run.
+
+Only the managed latest copy is retained normally. If Windows has the current
+application open, the verified update stays in `artifacts/ci-pending`; close
+AIPoB and let the next check promote it. Other artifact directories are never
+removed.
+
 ## Use the Planner tab
 
 With a build open in PoB:

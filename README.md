@@ -55,6 +55,8 @@ matrix is [Status and roadmap](docs/aipob/status-and-roadmap.md).
 - Deterministic bundle/manifest ordering; full PoB portable and canonical NSIS
   packaging pinned to Node `24.20.0` x64 / ABI `137`; apply, reject, failure,
   restart, and real-PoB worker E2E jobs
+- Latest-successful-CI portable synchronization with full package verification,
+  idempotent run tracking, and safe latest/pending replacement
 
 ### Partially implemented
 
@@ -112,6 +114,21 @@ Without a configured and consented provider, the CLI uses deterministic
 fallback. Provider keys are never loaded from a project file or `.env`.
 
 Detailed setup and current UI behavior: [Getting started](docs/aipob/getting-started.md).
+
+## Run the latest verified CI portable
+
+Download the latest successful portable artifact for the current Git branch,
+verify the complete payload, and retain only the managed latest copy:
+
+```bash
+python3 scripts/aipob.py sync-ci-windows
+./artifacts/ci-latest/app/Path\ of\ Building.exe
+```
+
+Repeated checks do not download the same Actions run again. If the current
+portable is open and Windows locks it, the verified replacement remains at
+`artifacts/ci-pending` until the next check. The synchronizer never deletes
+other paths under `artifacts/`.
 
 ## Wiki
 
