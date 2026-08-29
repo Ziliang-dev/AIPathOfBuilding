@@ -20,8 +20,8 @@ def _exclude_file(file_patterns: set[str], path: pathlib.Path) -> bool:
 def _exclude_directory(directory_names: set[str], path: pathlib.Path) -> bool:
     """Whether to exclude a directory. Doesn't consider any files in directories."""
     return any(
-        len(path.parts) <= 1
-        or all(a == b for a, b in zip(directory.split("/"), path.parts))
+        len(path.parts) > 1
+        and all(a == b for a, b in zip(directory.split("/"), path.parts))
         for directory in directory_names
     )
 

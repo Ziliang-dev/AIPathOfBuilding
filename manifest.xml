@@ -6,17 +6,6 @@
 	<Source part="program" url="https://raw.githubusercontent.com/Ziliang-dev/AIPathOfBuilding/{branch}/src/" />
 	<Source part="tree" url="https://raw.githubusercontent.com/Ziliang-dev/AIPathOfBuilding/{branch}/src/" />
 	<Source part="sidecar" url="https://raw.githubusercontent.com/Ziliang-dev/AIPathOfBuilding/{branch}/" />
-	<File name="artifacts/ci-latest/app/changelog.txt" part="default" sha1="cb4064c729074463baff1984f097aef0eedf8339" />
-	<File name="artifacts/ci-latest/app/help.txt" part="default" sha1="e486cb63a78f5ca355430b67fa23e02fd30f5771" />
-	<File name="artifacts/ci-latest/app/LICENSE.md" part="default" sha1="c77635aa1ba0a2ffe8eb72f93b3376e3a3d2041a" />
-	<File name="artifacts/ci-latest/app/sidecar/node_modules/.pnpm/bindings@1.5.0/node_modules/bindings/LICENSE.md" part="default" sha1="e0767b6dd2f849f251059c5179507aa074ac1dbb" />
-	<File name="artifacts/ci-latest/app/sidecar/node_modules/.pnpm/bl@4.1.0/node_modules/bl/LICENSE.md" part="default" sha1="97671adb1d524333fdeb872453e36aeb943d2bb4" />
-	<File name="artifacts/ci-latest/app/sidecar/node_modules/.pnpm/esbuild@0.25.12/node_modules/esbuild/LICENSE.md" part="default" sha1="1d07aabf4fb9952130b770e40165afa2838a7524" />
-	<File name="artifacts/ci-latest/app/sidecar/node_modules/.pnpm/node-addon-api@8.9.2/node_modules/node-addon-api/LICENSE.md" part="default" sha1="e25286d108a3fe825cc78838f79b7667f3d14566" />
-	<File name="artifacts/ci-latest/app/sidecar/node_modules/.pnpm/openai@7.8.0_zod@4.4.3/node_modules/openai/src/internal/qs/LICENSE.md" part="default" sha1="b397638cb0577fb238579aafcc01395447736173" />
-	<File name="artifacts/ci-latest/app/sidecar/node_modules/.pnpm/prebuild-install@7.1.3/node_modules/prebuild-install/help.txt" part="default" sha1="b8ac559fb595e732ec198a5baa041e8fa895e7f8" />
-	<File name="artifacts/ci-latest/app/sidecar/node_modules/.pnpm/vite@8.2.2_@types+node@22.20.1_esbuild@0.25.12/node_modules/vite/LICENSE.md" part="default" sha1="3a8fe3e09ccc7abd07506f8451eb1e6f7e7ccf58" />
-	<File name="artifacts/ci-latest/app/sidecar/node_modules/.pnpm/vitest@4.1.11_@types+node@2_33414471669ea1e50dc4e6968c14be1d/node_modules/vitest/LICENSE.md" part="default" sha1="579bdbf88689a520e3af5785c0f3acb24c627c89" />
 	<File name="changelog.txt" part="default" sha1="cb4064c729074463baff1984f097aef0eedf8339" />
 	<File name="help.txt" part="default" sha1="e486cb63a78f5ca355430b67fa23e02fd30f5771" />
 	<File name="LICENSE.md" part="default" sha1="c77635aa1ba0a2ffe8eb72f93b3376e3a3d2041a" />
@@ -135,7 +124,7 @@
 	<File name="Assets/veiledicon.png" part="program" sha1="035479a7ee7847969ef50ff428e3bee897fba671" />
 	<File name="Assets/vestigialicon.png" part="program" sha1="ecb5dd4b9aed1cac0c1a677b18838ae9c62744d7" />
 	<File name="Assets/warlordicon.png" part="program" sha1="cca050c84884f5c0bb1380ece51d3c4b32be4900" />
-	<File name="Classes/AIPlannerTab.lua" part="program" sha1="5b107f9d0bd0e4b0bd81fad476f1966804dc9935" />
+	<File name="Classes/AIPlannerTab.lua" part="program" sha1="842b3e01bba42a2f77140f1829e10359ce59642d" />
 	<File name="Classes/BuildListControl.lua" part="program" sha1="f60f0d7f6aecbe851db896913cd1aa707c7fb304" />
 	<File name="Classes/ButtonControl.lua" part="program" sha1="dd46384fc87d495e7ef5a11803cfc70360ac8bf1" />
 	<File name="Classes/CalcBreakdownControl.lua" part="program" sha1="5526a0f111020dcdb390ef6ebfcd8d3f7cdc2eb4" />
@@ -404,10 +393,10 @@
 	<File name="Modules/AIPoB/Metrics.lua" part="program" sha1="b5232d46f44c1930d96cc58f9f20a0f84b9fef90" />
 	<File name="Modules/AIPoB/NativeEvidence.lua" part="program" sha1="47bfd417ab67d1c85743f4883b4eee11d2f537e6" />
 	<File name="Modules/AIPoB/NativeLinkProbe.lua" part="program" sha1="d528c84e3e485183b338e3b5713e79252c7f7fb0" />
-	<File name="Modules/AIPoB/PlannerController.lua" part="program" sha1="79e0998bac79382edc66e682466f525b686c7cf1" />
-	<File name="Modules/AIPoB/RpcClient.lua" part="program" sha1="a881ce9ca75e73e3653b28db2d617c26261bd990" />
+	<File name="Modules/AIPoB/PlannerController.lua" part="program" sha1="bc24e3cb9e3e2633a8371f961b48479f084359c0" />
+	<File name="Modules/AIPoB/RpcClient.lua" part="program" sha1="1a6765b7eb13e748f9d9e92c4fee5f0b88fc8da4" />
 	<File name="Modules/AIPoB/Scenario.lua" part="program" sha1="20f9fbd369dd8430776aa19013d60acb84510c48" />
-	<File name="Modules/AIPoB/SidecarLauncher.lua" part="program" sha1="94abb988d73ab33dbb52de05f888c89893f9028d" />
+	<File name="Modules/AIPoB/SidecarLauncher.lua" part="program" sha1="981483876ae4f54db2a0a69dc349808a69758c8a" />
 	<File name="Modules/AIPoB/Snapshot.lua" part="program" sha1="fdfa83aca6daa227cce16db340471b6f65ba8aa0" />
 	<File name="Modules/AIPoB/TradeBroker.lua" part="program" sha1="fe917188951700492d7f62ad634f1f65880c129c" />
 	<File name="Modules/AIPoB/Transaction.lua" part="program" sha1="a86d681b5f190a03a1d597fa6014a6e8bfb13db5" />
@@ -607,7 +596,7 @@
 	<File name="vcruntime140_1.dll" part="runtime" runtime="win32" sha1="a0330279d3d0d47f19ed984726e25260b547a228" />
 	<File name="zlib1.dll" part="runtime" runtime="win32" sha1="49f1ccf17328fca0a831555a35b8eacb1e845ae0" />
 	<File name="zstd.dll" part="runtime" runtime="win32" sha1="83f0e34e2b7e689a25255b98d74b2fee34e6d390" />
-	<File name="sidecar/dist/server.cjs" part="sidecar" sha1="9264ae6195de1f14ba2b160091dcb610df834fe3" />
+	<File name="sidecar/dist/server.cjs" part="sidecar" sha1="e4a15033ef79d642f20ab149a43afb9d7f70b9ee" />
 	<File name="TreeData/2_6/skill_sprite-3-32f639bbfc42783ca7ec218a787dd918.jpg" part="tree" sha1="dc7a2a0383847ac28eade8a31a57a8bfa7b298e4" />
 	<File name="TreeData/2_6/skill_sprite-active-3-3e73c4c4534433ecfc340c7287093bd5.png" part="tree" sha1="baa878007cfac73bee50958d25617b95c0e73a2d" />
 	<File name="TreeData/2_6/skill_sprite-active-3-7798fabab8a21829831293c20ac9c414.jpg" part="tree" sha1="526654400851f032d3d2f46980c0ecc077aa0c4c" />
