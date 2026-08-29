@@ -47,8 +47,9 @@ matrix is [Status and roadmap](docs/aipob/status-and-roadmap.md).
   catalog items and emits fingerprint-bound `importAndEquip` actions
 - OpenAI-compatible provider configuration with API keys stored only under the
   `AIPathOfBuilding/LLM/*` Windows Credential Manager namespace, explicit
-  revocable first-send consent, ephemeral Planner Chat, and workflow model
-  injection with deterministic fallback
+  one-shot connection probe for unsaved settings, revocable first-send data
+  consent, ephemeral Planner Chat, and workflow model injection with
+  deterministic fallback
 - Versioned Golden corpus and release gate covering both 3.29 rulesets,
   mechanic adapters, graph nodes, candidate actions, metrics, and all AIPoB Lua
   specs
@@ -108,10 +109,13 @@ python3 scripts/aipob.py check-manifest
 python3 scripts/aipob.py release-gate
 ```
 
-Launch the checked-out PoB development runtime, open a Build, and select
-**AI Build Planner**. The sidecar starts lazily when a confirmed search begins.
-Without a configured and consented provider, the CLI uses deterministic
-fallback. Provider keys are never loaded from a project file or `.env`.
+Launch the checked-out PoB development runtime, open a Build with an enabled
+active main skill, and select **AI Build Planner**. The sidecar starts lazily
+when LLM setup or a confirmed search needs it. **Test Connection** validates the
+current unsaved endpoint, model, key, Chat Completions, and forced tool calling
+before **Configure** is enabled. Without a configured and consented provider,
+the CLI uses deterministic fallback. Provider keys are never loaded from a
+project file or `.env`.
 
 Detailed setup and current UI behavior: [Getting started](docs/aipob/getting-started.md).
 
@@ -142,11 +146,14 @@ other paths under `artifacts/`.
 ## Windows packages
 
 Supply Node.js 24.20.0 x64. The portable packaging script validates the version,
-architecture, ABI, native SQLite binding, WinCred helper, manifest, and hashes:
+architecture, ABI, native SQLite binding, WinCred helper, manifest, and hashes.
+It writes a package-local `manifest.xml` with the exact update branch and
+`platform="win32"`; the repository manifest remains in upstream Dev Mode form:
 
 ```bash
 python3 scripts/aipob.py package-windows \
-  --node-exe /mnt/c/Tools/node-v24-win-x64/node.exe
+  --node-exe /mnt/c/Tools/node-v24-win-x64/node.exe \
+  --update-branch codex/aipob-v2-completion
 ```
 
 Default output:

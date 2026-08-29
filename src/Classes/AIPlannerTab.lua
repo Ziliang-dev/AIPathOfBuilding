@@ -87,6 +87,13 @@ local function safeText(value)
 	return text
 end
 
+local function comparableProviderEndpoint(value)
+	local text = tostring(value or ""):match("^%s*(.-)%s*$"):gsub("/+$", "")
+	local scheme, authority, path = text:match("^(https?)://([^/]+)(.*)$")
+	if not scheme then return text end
+	return scheme:lower().."://"..authority:lower()..path
+end
+
 local function formatScalar(value)
 	if type(value) == "number" then
 		local absolute = math.abs(value)
@@ -233,7 +240,14 @@ function AIPlannerTabClass:AIPlannerTab(build)
 	end)
 	self.controls.start.enabled = function()
 		local status = self.state and self.state.status or "idle"
-		return self.controller ~= nil and self.controls.confirmed.state and not self:IsBusy() and not unresolvedRunStatus[status]
+		return self.controller ~= nil and self:HasActiveMainSkill() and self.controls.confirmed.state
+			and not self:IsBusy() and not unresolvedRunStatus[status]
+	end
+	self.controls.start.tooltipText = function()
+		if not self:HasActiveMainSkill() then return "Import a build or add an active main skill before search." end
+		if not self.controls.confirmed.state then return "Confirm the structured objective before search." end
+		if self:IsBusy() then return "Wait for the current Planner operation to finish." end
+		return "Start the confirmed optimization."
 	end
 	self.controls.cancel = new("ButtonControl"):ButtonControl({"LEFT",self.controls.start,"RIGHT"}, {10, 0, 100, 22}, "Cancel", function()
 		self:Cancel()
@@ -244,15 +258,36 @@ function AIPlannerTabClass:AIPlannerTab(build)
 			and (status == "running" or unresolvedRunStatus[status] == true)
 	end
 	self.controls.llmSetup = new("ButtonControl"):ButtonControl({"TOPLEFT",self,"TOPLEFT"}, {0, 10, 92, 20}, "LLM Setup", function() self:OpenProviderPopup() end)
+	self.controls.llmSetup.tooltipText = "Configure and test an OpenAI-compatible provider. Opening this starts the sidecar."
 	self.controls.llmConsent = new("ButtonControl"):ButtonControl({"LEFT",self.controls.llmSetup,"RIGHT"}, {8, 0, 92, 20}, "Consent", function() self:ConfirmProviderConsent() end)
-	self.controls.llmConsent.enabled = function() return self.controller ~= nil and type(self.state.consentPreview) == "table" end
+	self.controls.llmConsent.enabled = function()
+		return self.controller ~= nil and self.state.sidecarStatus == "connected" and type(self.state.consentPreview) == "table"
+	end
+	self.controls.llmConsent.tooltipText = function()
+		if self.state.sidecarStatus ~= "connected" then return "Open LLM Setup and wait for the sidecar to connect." end
+		return type(self.state.consentPreview) == "table"
+			and "Grant normal provider access for the exact endpoint, model, policies, and data categories."
+			or "Configure the provider first; Test Connection does not grant normal data consent."
+	end
 	self.controls.llmDraft = new("ButtonControl"):ButtonControl({"LEFT",self.controls.llmConsent,"RIGHT"}, {8, 0, 92, 20}, "Draft Goal", function() self:OpenDraftPopup() end)
 	self.controls.llmDraft.enabled = function()
 		local status = self.state.providerStatus
-		return self.controller ~= nil and type(status) == "table" and status.consent == "granted" and not self:IsBusy()
+		return self.controller ~= nil and self.state.sidecarStatus == "connected"
+			and type(status) == "table" and status.consent == "granted" and not self:IsBusy()
+	end
+	self.controls.llmDraft.tooltipText = function()
+		local status = self.state.providerStatus
+		if self.state.sidecarStatus ~= "connected" then return "Open LLM Setup and wait for the sidecar to connect." end
+		if type(status) ~= "table" or not status.configured then return "Configure and test an LLM provider first." end
+		if status.consent ~= "granted" then return "Grant first-call consent before using Planner Chat." end
+		return "Draft a structured objective with ephemeral Planner Chat."
 	end
 	self.controls.applyDraft = new("ButtonControl"):ButtonControl({"LEFT",self.controls.llmDraft,"RIGHT"}, {8, 0, 92, 20}, "Use Draft", function() self:ApplyPlannerDraft() end)
 	self.controls.applyDraft.enabled = function() return type(self.state.objectiveDraft) == "table" and not self:IsBusy() end
+	self.controls.applyDraft.tooltipText = function()
+		return type(self.state.objectiveDraft) == "table" and "Apply the reviewed draft to Planner controls."
+			or "Create and review a Planner Chat draft first."
+	end
 	for _, name in ipairs({ "goalPreset", "goalText", "hardConstraints", "minEHP", "minWorstCaseMaxHit", "primaryScenario", "budget", "sourceUniques", "sourceTargetRares", "sourceTrade", "tradeRealm", "tradeLeague", "lockClass", "lockAscendancy", "lockMainSkill", "confirmed" }) do
 		local controlName = name
 		self.controls[name].enabled = function()
@@ -261,6 +296,13 @@ function AIPlannerTabClass:AIPlannerTab(build)
 				return not self:IsBusy() and tonumber(self.controls.budget.buf) ~= nil
 			end
 			return not self:IsBusy()
+		end
+	end
+	for _, name in ipairs({ "sourceUniques", "sourceTargetRares", "sourceTrade", "tradeRealm", "tradeLeague" }) do
+		self.controls[name].tooltipText = function()
+			return tonumber(self.controls.budget.buf) ~= nil
+				and "Budget-bound candidate source."
+				or "Set a valid Divine Budget to enable paid catalog and Trade sources."
 		end
 	end
 
@@ -347,6 +389,16 @@ function AIPlannerTabClass:ControllerCall(method, ...)
 	return true
 end
 
+function AIPlannerTabClass:HasActiveMainSkill()
+	local skillsTab = self.build and self.build.skillsTab
+	local groups = skillsTab and skillsTab.socketGroupList
+	local group = type(groups) == "table" and groups[tonumber(self.build.mainSocketGroup) or 1] or nil
+	if type(group) ~= "table" or group.enabled == false or group.slotEnabled == false then return false end
+	local skills = group.displaySkillList
+	local active = type(skills) == "table" and skills[tonumber(group.mainActiveSkill) or 1] or nil
+	return type(active) == "table" and type(active.activeEffect) == "table"
+end
+
 function AIPlannerTabClass:BuildObjective()
 	local preset = self.controls.goalPreset:GetSelValue() or presetList[1]
 	local primaryScenario = self.controls.primaryScenario:GetSelValueByKey("id")
@@ -404,6 +456,10 @@ function AIPlannerTabClass:Start()
 		self.runtimeError = "Confirm the structured objective before starting."
 		return
 	end
+	if not self:HasActiveMainSkill() then
+		self.runtimeError = "Import a build or add an active main skill before search."
+		return
+	end
 	if self.controls.budget.buf ~= "" and not tonumber(self.controls.budget.buf) then
 		self.runtimeError = "Budget must be a non-negative number or empty."
 		return
@@ -455,32 +511,184 @@ function AIPlannerTabClass:ConfirmApply(index)
 end
 
 function AIPlannerTabClass:OpenProviderPopup()
+	self:ControllerCall("EnsureConnected")
 	local controls = { }
 	local profile = type(self.state.providerStatus) == "table" and self.state.providerStatus.profile or { }
+	controls.inputRevision = 0
+	controls.statusText = "Waiting for sidecar"
+	controls.loading = false
+	local function invalidateTest()
+		if controls.loading then return end
+		controls.inputRevision = controls.inputRevision + 1
+		controls.testedRevision = nil
+		controls.statusText = "Fields changed; run Test Connection again"
+	end
 	controls.endpointLabel = new("LabelControl"):LabelControl(nil, {0, 14, 0, 16}, "^7OpenAI-compatible endpoint")
-	controls.endpoint = new("EditControl"):EditControl(nil, {0, 34, 500, 20}, profile.baseURL or "https://api.openai.com/v1", nil, nil, 2048)
+	controls.endpoint = new("EditControl"):EditControl(nil, {0, 34, 560, 20}, profile.baseURL or "https://api.openai.com/v1", nil, nil, 2048, invalidateTest)
 	controls.modelLabel = new("LabelControl"):LabelControl(nil, {0, 64, 0, 16}, "^7Model")
-	controls.model = new("EditControl"):EditControl(nil, {0, 84, 500, 20}, profile.model or "gpt-5.4", nil, nil, 256)
+	controls.model = new("EditControl"):EditControl(nil, {0, 84, 560, 20}, profile.model or "gpt-5.4", nil, nil, 256, invalidateTest)
 	controls.keyLabel = new("LabelControl"):LabelControl(nil, {0, 114, 0, 16}, "^7API key (stored only in Windows Credential Manager)")
-	controls.key = new("EditControl"):EditControl(nil, {0, 134, 500, 20}, "", "Required to configure", nil, 16384)
+	local hasStoredKey = type(self.state.providerStatus) == "table" and self.state.providerStatus.credentialConfigured == true
+	controls.key = new("EditControl"):EditControl(nil, {0, 134, 560, 20}, "", hasStoredKey and "Leave blank to use the saved key" or "Required for first configuration", nil, 16384, invalidateTest)
 	controls.key:SetProtected(true)
-	controls.save = new("ButtonControl"):ButtonControl(nil, {-98, 174, 90, 20}, "Configure", function()
-		if controls.endpoint.buf == "" or controls.model.buf == "" or controls.key.buf == "" then return end
-		local accepted = self:ControllerCall("ConfigureProvider", {
-			baseUrl = controls.endpoint.buf, model = controls.model.buf, apiKey = controls.key.buf,
-		})
-		controls.key:SetText("")
-		if accepted then main:ClosePopup() end
+	controls.disclosure = new("LabelControl"):LabelControl(nil, {0, 164, 0, 16}, "^8Test sends one fixed synthetic tool call; no Build or chat data. Provider may charge a small fee.")
+	controls.status = new("LabelControl"):LabelControl(nil, {0, 188, 0, 16}, "")
+	controls.status.label = function()
+		local sidecar = self.state and self.state.sidecarStatus or "stopped"
+		local sidecarLabel = ({ starting = "Starting", connecting = "Starting", reconnecting = "Starting", connected = "Connected", failed = "Failed", stopped = "Stopped" })[sidecar] or safeText(sidecar)
+		local detail = controls.statusText
+		if sidecar ~= "connected" and self.state and self.state.sidecarMessage then detail = self.state.sidecarMessage end
+		return "^7Sidecar: ^3"..sidecarLabel.."^7  "..safeText(detail)
+	end
+	local function connected()
+		return self.state and self.state.sidecarStatus == "connected"
+	end
+	local function connectionTestSupported()
+		local capabilities = self.state and self.state.sidecarCapabilities
+		return type(capabilities) == "table" and capabilities.providerConnectionTest == true
+	end
+	local function currentInput()
+		return { baseUrl = controls.endpoint.buf, model = controls.model.buf, apiKey = controls.key.buf }
+	end
+	local function fieldsPresent()
+		local status = self.state and self.state.providerStatus
+		local savedProfile = type(status) == "table" and status.profile or nil
+		local savedKeyUsable = type(savedProfile) == "table" and status.credentialConfigured == true
+			and comparableProviderEndpoint(savedProfile.baseURL) == comparableProviderEndpoint(controls.endpoint.buf)
+		return controls.endpoint.buf ~= "" and controls.model.buf ~= ""
+			and (controls.key.buf ~= "" or savedKeyUsable)
+	end
+	controls.retry = new("ButtonControl"):ButtonControl(nil, {-245, 224, 105, 20}, "Retry Sidecar", function()
+		controls.statusText = "Retrying sidecar"
+		self:ControllerCall("EnsureConnected")
 	end)
-	controls.clear = new("ButtonControl"):ButtonControl(nil, {8, 174, 90, 20}, "Clear", function()
-		controls.key:SetText("")
-		if self:ControllerCall("ClearProvider") then main:ClosePopup() end
+	controls.retry.shown = function() return self.state and self.state.sidecarStatus == "failed" end
+	controls.test = new("ButtonControl"):ButtonControl(nil, {-120, 224, 125, 20}, "Test Connection", function()
+		if not fieldsPresent() or controls.testing then return end
+		local attempt = currentInput()
+		attempt.revision = controls.inputRevision
+		controls.testing = true
+		controls.testedRevision = nil
+		controls.statusText = "Preparing test authorization"
+		local accepted = self:ControllerCall("PreviewProviderTest", attempt, function(preview, previewErr)
+			if previewErr then
+				controls.testing = false
+				controls.statusText = previewErr
+				return
+			end
+			if controls.inputRevision ~= attempt.revision then
+				controls.testing = false
+				controls.statusText = "Fields changed; run Test Connection again"
+				return
+			end
+			controls.testing = false
+			controls.statusText = "Review the one-time authorization"
+			local payload = type(preview.payloadPreview) == "table" and preview.payloadPreview or { }
+			main:OpenConfirmPopup(
+				"One-time LLM Connection Test",
+				"Endpoint: "..safeText(preview.endpoint).."\nModel: "..safeText(preview.model)
+					.."\nData: fixed synthetic connection_probe only\nRedacted bytes: "..safeText(payload.estimatedBytes)
+					.."\nPayload hash: "..safeText(payload.redactedHash)
+					.."\n\nRun this one-time provider request? It does not grant normal Build/chat consent.",
+				"Run Test",
+				function()
+					if controls.inputRevision ~= attempt.revision then
+						controls.statusText = "Fields changed; run Test Connection again"
+						return
+					end
+					controls.testing = true
+					controls.statusText = "Testing endpoint, key, model, and tool calling"
+					local queued = self:ControllerCall("TestProviderConnection", attempt, preview, function(result, testErr)
+						controls.testing = false
+						if testErr then
+							controls.statusText = testErr
+							return
+						end
+						if controls.inputRevision ~= attempt.revision then
+							controls.statusText = "Fields changed after test; run it again"
+							return
+						end
+						controls.testedRevision = attempt.revision
+						local usage = type(result.usage) == "table"
+							and "; tokens "..safeText(result.usage.inputTokens).."/"..safeText(result.usage.outputTokens) or ""
+						controls.statusText = "Passed in "..safeText(result.latencyMs).." ms; model "
+							..safeText(result.responseModel or result.requestedModel).."; tool calling verified"..usage..". Configure to save."
+					end)
+					if not queued then
+						controls.testing = false
+						controls.statusText = safeText(self.runtimeError)
+					end
+				end
+			)
+		end)
+		if not accepted then
+			controls.testing = false
+			controls.statusText = safeText(self.runtimeError)
+		end
 	end)
-	controls.cancel = new("ButtonControl"):ButtonControl(nil, {114, 174, 90, 20}, "Cancel", function()
+	controls.test.enabled = function() return connected() and connectionTestSupported() and fieldsPresent() and not controls.testing and not controls.configuring end
+	controls.test.tooltipText = function()
+		if not connected() then return "Wait for the sidecar to connect or retry after failure." end
+		if not connectionTestSupported() then return "The connected sidecar does not support provider connection tests." end
+		if controls.endpoint.buf == "" then return "Enter an OpenAI-compatible endpoint." end
+		if controls.model.buf == "" then return "Enter the provider model name." end
+		if not fieldsPresent() then return "Enter an API key; a saved key is reusable only for the unchanged endpoint." end
+		if controls.testing then return "Wait for the current connection test." end
+		return "Runs a real forced tool-call probe against the current unsaved fields."
+	end
+	controls.save = new("ButtonControl"):ButtonControl(nil, {15, 224, 100, 20}, "Configure", function()
+		if controls.testedRevision ~= controls.inputRevision or controls.configuring then return end
+		controls.configuring = true
+		controls.statusText = "Saving tested configuration"
+		local accepted = self:ControllerCall("ConfigureProvider", currentInput(), function(_, configureErr)
+			controls.configuring = false
+			if configureErr then
+				controls.statusText = configureErr
+				return
+			end
+			controls.loading = true
+			controls.key:SetText("")
+			controls.loading = false
+			self.providerPopupControls = nil
+			main:ClosePopup()
+		end)
+		if not accepted then
+			controls.configuring = false
+			controls.statusText = safeText(self.runtimeError)
+		end
+	end)
+	controls.save.enabled = function()
+		return connected() and connectionTestSupported() and controls.testedRevision == controls.inputRevision and not controls.testing and not controls.configuring
+	end
+	controls.save.tooltipText = function()
+		return controls.testedRevision == controls.inputRevision
+			and "Save the exact tested fields, then review normal provider data consent."
+			or "Run Test Connection successfully for these exact fields first."
+	end
+	controls.clear = new("ButtonControl"):ButtonControl(nil, {125, 224, 90, 20}, "Clear", function()
+		controls.statusText = "Clearing saved provider configuration"
+		self:ControllerCall("ClearProvider", function(_, clearErr)
+			if clearErr then
+				controls.statusText = clearErr
+				return
+			end
+			controls.loading = true
+			controls.key:SetText("")
+			controls.loading = false
+			self.providerPopupControls = nil
+			main:ClosePopup()
+		end)
+	end)
+	controls.clear.enabled = function() return connected() and not controls.testing and not controls.configuring end
+	controls.cancel = new("ButtonControl"):ButtonControl(nil, {225, 224, 90, 20}, "Cancel", function()
+		controls.loading = true
 		controls.key:SetText("")
+		controls.loading = false
+		self.providerPopupControls = nil
 		main:ClosePopup()
 	end)
-	main:OpenPopup(550, 205, "Planner LLM", controls, "save", "key", "cancel")
+	self.providerPopupControls = controls
+	main:OpenPopup(620, 265, "Planner LLM", controls, "test", "key", "cancel")
 end
 
 function AIPlannerTabClass:ConfirmProviderConsent()
@@ -558,6 +766,17 @@ function AIPlannerTabClass:OnFrame()
 		self.state = state
 	else
 		self.runtimeError = stateOk and "PlannerController.GetState() returned invalid state." or safeText(state)
+	end
+	local popup = self.providerPopupControls
+	local provider = type(self.state.providerStatus) == "table" and self.state.providerStatus or nil
+	if popup and not popup.profileLoaded and popup.inputRevision == 0 and provider and type(provider.profile) == "table" then
+		popup.loading = true
+		popup.endpoint:SetText(provider.profile.baseURL or popup.endpoint.buf)
+		popup.model:SetText(provider.profile.model or popup.model.buf)
+		popup.key.prompt = provider.credentialConfigured and "Leave blank to use the saved key" or "Required for first configuration"
+		popup.loading = false
+		popup.profileLoaded = true
+		popup.statusText = "Saved profile loaded; run Test Connection"
 	end
 end
 
@@ -677,7 +896,9 @@ function AIPlannerTabClass:Draw(viewPort, inputEvents)
 	DrawString(self.x + 12, self.y + 10, "LEFT", 22, "VAR", "^7AI Build Planner")
 	local availability
 	if self.controller then
-		availability = "^2Planner loaded. Sidecar starts on search; build changes require explicit Apply."
+		availability = self:HasActiveMainSkill()
+			and "^2Planner ready. Sidecar starts when LLM setup or search needs it; build changes require explicit Apply."
+			or "^1Import a build or add an active main skill before search. LLM setup remains available."
 	else
 		availability = "^1Planner unavailable:^7 "..safeText(self.controllerError)
 	end
@@ -702,7 +923,8 @@ function AIPlannerTabClass:Draw(viewPort, inputEvents)
 	if self.runtimeError then
 		message = self.runtimeError
 	end
-	DrawString(self.x + 12, self.y + 296, "LEFT", 15, "VAR", "^7Status: ^3"..status.."^7  "..wrapText(message, self.width - 170, 1))
+	local sidecar = safeText(self.state.sidecarStatus ~= nil and self.state.sidecarStatus or "stopped")
+	DrawString(self.x + 12, self.y + 296, "LEFT", 15, "VAR", "^7Run: ^3"..status.."^7  |  Sidecar: ^3"..sidecar.."^7  "..wrapText(message, self.width - 260, 1))
 	local progress = tonumber(self.state.progress) or 0
 	if progress > 1 then
 		progress = progress / 100

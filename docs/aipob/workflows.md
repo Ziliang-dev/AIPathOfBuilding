@@ -10,6 +10,8 @@ All build changes end at the same explicit approval boundary.
 Open an existing PoB build and select **AI Build Planner**. Choose a preset,
 describe the desired outcome, set structured survival floors if needed, select
 the primary Scenario, choose an optional Budget, and review the default Locks.
+The selected main socket group must contain an enabled active skill before
+search. Level 1 remains valid when that skill exists.
 
 Free-text constraint notes are drafting context only. Minimum EHP and minimum
 worst-case maximum hit are the structured hard constraints currently exposed by
@@ -90,6 +92,12 @@ information. These artifacts guide deterministic and model-assisted planning.
 The model can only use typed read-only tools; it has no mutation or commit tool.
 Every provider request is redacted and blocked until consent matches the current
 endpoint, model, categories, policy, and payload.
+
+Provider setup has a separate pre-configuration check. Opening **LLM Setup**
+starts the sidecar without starting search. A one-shot authorization permits one
+fixed synthetic forced-tool-call probe and nothing else. Success enables
+**Configure** for the exact unchanged fields; it does not grant normal provider
+data consent. Configure then enters the existing first-send consent workflow.
 
 ### Search and evaluate
 

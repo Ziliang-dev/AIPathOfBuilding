@@ -118,6 +118,11 @@ describe("AIPlannerTab", function()
 	it("never starts a run without per-run human confirmation", function()
 		newBuild()
 		local planner = build.plannerTab
+		build.mainSocketGroup = 1
+		build.skillsTab.socketGroupList = { {
+			enabled = true, slotEnabled = true, mainActiveSkill = 1,
+			displaySkillList = { { activeEffect = { } } },
+		} }
 		local received
 		planner.controller = {
 			Start = function(_, objective)
@@ -134,6 +139,133 @@ describe("AIPlannerTab", function()
 		planner:Start()
 		assert.is_table(received)
 		assert.is_false(planner.controls.confirmed.state)
+	end)
+
+	it("blocks an empty Build until it has an active main skill", function()
+		newBuild()
+		local planner = build.plannerTab
+		planner.controls.confirmed.state = true
+		planner.controller = { Start = function() error("must not start") end }
+
+		planner:Start()
+		assert.matches("active main skill", planner.runtimeError)
+		assert.is_false(planner.controls.start.enabled())
+
+		build.mainSocketGroup = 1
+		build.skillsTab.socketGroupList = { {
+			enabled = true, slotEnabled = true, mainActiveSkill = 1,
+			displaySkillList = { { activeEffect = { } } },
+		} }
+		assert.is_true(planner:HasActiveMainSkill())
+	end)
+
+	it("starts the sidecar from LLM Setup and gates Configure on an exact successful test", function()
+		newBuild()
+		local planner = build.plannerTab
+		local connects = 0
+		planner.controller = {
+			EnsureConnected = function() connects = connects + 1 return true end,
+		}
+		planner.state = {
+			status = "idle", candidates = { }, sidecarStatus = "connected",
+			sidecarCapabilities = { providerConnectionTest = true },
+			providerStatus = { configured = false, credentialConfigured = false, consent = "required" },
+		}
+
+		planner:OpenProviderPopup()
+		local controls = planner.providerPopupControls
+		assert.are.equal(1, connects)
+		controls.key:SetText("test-secret")
+		assert.is_false(controls.save.enabled())
+		controls.testedRevision = controls.inputRevision
+		assert.is_true(controls.save.enabled())
+		controls.model:SetText("changed-model")
+		assert.is_false(controls.save.enabled())
+		controls.loading = true
+		controls.key:SetText("")
+		controls.loading = false
+		planner.providerPopupControls = nil
+		main:ClosePopup()
+	end)
+
+	it("requires a new key when the provider endpoint changes", function()
+		newBuild()
+		local planner = build.plannerTab
+		planner.controller = { EnsureConnected = function() return true end }
+		planner.state = {
+			status = "idle", candidates = { }, sidecarStatus = "connected",
+			sidecarCapabilities = { providerConnectionTest = true },
+			providerStatus = {
+				configured = true, credentialConfigured = true, consent = "required",
+				profile = { baseURL = "https://provider.invalid/v1/", model = "saved-model" },
+			},
+		}
+
+		planner:OpenProviderPopup()
+		local controls = planner.providerPopupControls
+		assert.is_true(controls.test.enabled())
+		controls.endpoint:SetText("https://other.invalid/v1")
+		assert.is_false(controls.test.enabled())
+		controls.key:SetText("replacement-secret")
+		assert.is_true(controls.test.enabled())
+		controls.loading = true
+		controls.key:SetText("")
+		controls.loading = false
+		planner.providerPopupControls = nil
+		main:ClosePopup()
+	end)
+
+	it("keeps the protected key after test and Configure failures", function()
+		newBuild()
+		local planner = build.plannerTab
+		local shouldPass = false
+		planner.controller = {
+			EnsureConnected = function() return true end,
+			PreviewProviderTest = function(_, _, callback)
+				callback({
+					endpoint = "https://provider.invalid/v1", model = "test-model", consentKey = "bound",
+					payloadPreview = { estimatedBytes = 10, redactedHash = "sha256:"..string.rep("a", 64) },
+				})
+				return true
+			end,
+			TestProviderConnection = function(_, _, _, callback)
+				if shouldPass then
+					callback({ ok = true, latencyMs = 12, responseModel = "test-model", toolCallValidated = true })
+				else
+					callback(nil, "Connection test failed: HTTP 401")
+				end
+				return true
+			end,
+			ConfigureProvider = function(_, _, callback)
+				callback(nil, "LLM configuration failed")
+				return true
+			end,
+		}
+		planner.state = {
+			status = "idle", candidates = { }, sidecarStatus = "connected",
+			sidecarCapabilities = { providerConnectionTest = true },
+			providerStatus = { configured = false, credentialConfigured = false, consent = "required" },
+		}
+
+		planner:OpenProviderPopup()
+		local controls = planner.providerPopupControls
+		controls.endpoint:SetText("https://provider.invalid/v1")
+		controls.model:SetText("test-model")
+		controls.key:SetText("test-secret")
+		controls.test.onClick()
+		main.popups[1].controls.confirm.onClick()
+		assert.are.equal("test-secret", controls.key.buf)
+		assert.is_nil(controls.testedRevision)
+		assert.matches("HTTP 401", controls.statusText)
+
+		shouldPass = true
+		controls.test.onClick()
+		main.popups[1].controls.confirm.onClick()
+		assert.is_true(controls.save.enabled())
+		controls.save.onClick()
+		assert.are.equal("test-secret", controls.key.buf)
+		assert.matches("configuration failed", controls.statusText)
+		controls.cancel.onClick()
 	end)
 
 	it("blocks Start but permits Cancel while a run awaits approval", function()

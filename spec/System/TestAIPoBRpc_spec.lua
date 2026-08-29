@@ -53,7 +53,7 @@ describe("AIPathOfBuilding RPC", function()
 		assert.matches("127.0.0.1", err, nil, true)
 	end)
 
-	it("keeps sidecar launch lazy until Start", function()
+	it("keeps sidecar launch lazy until Start or provider setup", function()
 		local polls = 0
 		local launcher = { Poll = function() polls = polls + 1 return false end, Shutdown = function() end }
 		local fakeBuild = { SaveDB = function() return "<PathOfBuilding><Build/></PathOfBuilding>" end }
@@ -61,9 +61,88 @@ describe("AIPathOfBuilding RPC", function()
 		local controller = Controller.new(fakeBuild, { launcher = launcher, transaction = { Apply = function() return { ok = true } end } })
 		controller:OnFrame()
 		assert.are.equal(0, polls)
+		assert.is_true(controller:EnsureConnected())
+		assert.are.equal("idle", controller.state.status)
+		assert.are.equal("starting", controller.state.sidecarStatus)
+		controller:OnFrame()
+		assert.are.equal(1, polls)
+		assert.is_nil(controller.pendingObjective)
+
+		polls = 0
+		controller.launchRequested = nil
 		assert.is_true(controller:Start({ candidateSources = { currentBuild = true } }))
 		controller:OnFrame()
 		assert.are.equal(1, polls)
+	end)
+
+	it("keeps run state independent across sidecar failure, retry, and handshake", function()
+		local failingLauncher = {
+			state = "idle",
+			Poll = function(self) self.state = "failed" return nil, "launch failed" end,
+			Shutdown = function() end,
+		}
+		local Controller = require("Modules.AIPoB.PlannerController")
+		local controller = Controller.new({ SaveDB = function() return "<PathOfBuilding><Build/></PathOfBuilding>" end }, {
+			launcher = failingLauncher, transaction = { Apply = function() return { ok = true } end },
+		})
+		assert.is_true(controller:EnsureConnected())
+		controller:OnFrame()
+		assert.are.equal("idle", controller.state.status)
+		assert.are.equal("failed", controller.state.sidecarStatus)
+		assert.matches("launch failed", controller.state.sidecarMessage)
+
+		local rpc = {
+			state = "connected",
+			Register = function() end,
+			OnFrame = function() return true end,
+			Request = function(_, method, _, callback)
+				if method == "hello" then callback({ capabilities = { providerConnectionTest = true } })
+				elseif method == "provider.status" then callback({ configured = false, credentialConfigured = false, consent = "required" }) end
+				return 1
+			end,
+		}
+		controller.launcher = { state = "idle", Poll = function() return false end, Shutdown = function() end }
+		controller.rpc = rpc
+		controller.handlersRegistered = false
+		controller:_registerHandlers()
+		assert.is_true(controller:EnsureConnected())
+		controller:OnFrame()
+		assert.are.equal("idle", controller.state.status)
+		assert.are.equal("connected", controller.state.sidecarStatus)
+		assert.is_true(controller.state.sidecarCapabilities.providerConnectionTest)
+	end)
+
+	it("routes a one-time provider connection preview and test", function()
+		local requests = { }
+		local rpc = {
+			Register = function() end,
+			Request = function(_, method, params, callback)
+				table.insert(requests, { method = method, params = params })
+				if method == "provider.test.preview" then
+					callback({
+						endpoint = params.baseUrl, model = params.model, consentKey = "consent-key",
+						payloadPreview = { redactedHash = "sha256:"..string.rep("a", 64) },
+					})
+				elseif method == "provider.test" then
+					callback({ ok = true, latencyMs = 12, toolCallValidated = true })
+				end
+				return #requests
+			end,
+		}
+		local Controller = require("Modules.AIPoB.PlannerController")
+		local controller = Controller.new({ SaveDB = function() return "<PathOfBuilding><Build/></PathOfBuilding>" end }, {
+			rpc = rpc, transaction = { Apply = function() return { ok = true } end },
+		})
+		controller.helloComplete = true
+		controller.state.sidecarCapabilities = { providerConnectionTest = true }
+		local preview, result
+		assert.is_true(controller:PreviewProviderTest({ baseUrl = "https://provider.invalid/v1", model = "test", apiKey = "secret" }, function(value) preview = value end))
+		assert.is_true(controller:TestProviderConnection({ baseUrl = "https://provider.invalid/v1", model = "test", apiKey = "secret" }, preview, function(value) result = value end))
+		assert.is_true(result.ok)
+		assert.are.equal("provider.test.preview", requests[1].method)
+		assert.are.equal("provider.test", requests[2].method)
+		assert.are.equal("secret", requests[2].params.apiKey)
+		assert.are.equal("passed", controller.state.providerTestStatus)
 	end)
 
 	it("refuses a second run while the first awaits approval", function()

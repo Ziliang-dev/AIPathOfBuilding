@@ -66,7 +66,7 @@ jobs:
       - name: Validate command scripts
         run: |
           python3 -m py_compile scripts/aipob.py scripts/ci_sync.py scripts/windows_package.py scripts/windows_e2e.py
-          python3 -m unittest discover -s tests -p "test_ci_sync.py"
+          python3 -m unittest discover -s tests -p "test_*.py"
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
@@ -150,6 +150,7 @@ jobs:
           python scripts/aipob.py package-windows \
             --sidecar-bundle "${{ github.workspace }}/sidecar/dist/server.cjs" \
             --output "${{ runner.temp }}/AIPathOfBuilding-AIPoB-windows-x64" \
+            --update-branch "${{ github.head_ref || github.ref_name }}" \
             --skip-build
 
       - name: Verify portable package

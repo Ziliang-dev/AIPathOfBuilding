@@ -3,6 +3,12 @@ import { type CredentialStore } from "../credentials/types.js";
 import { credentialTarget } from "../credentials/wincredClient.js";
 import { ConsentManager } from "./consent.js";
 import {
+  CONNECTION_PROBE_PAYLOAD,
+  runProviderConnectionProbe,
+  type ChatCompletionTransportFactory,
+  type ProviderConnectionProbeResult,
+} from "./connectionProbe.js";
+import {
   ProviderConfigureInputSchema,
   ProviderProfileSchema,
   type ProviderConfigureInput,
@@ -11,10 +17,17 @@ import {
   type ProviderStatus,
   type ConsentDataCategory,
   providerProfileWithDefaults,
+  canonicalProviderBaseURL,
 } from "./types.js";
 
 export class ProviderConfigurationError extends Error {
   override readonly name = "ProviderConfigurationError";
+}
+
+function assertDurableConsentCategories(dataCategories?: readonly ConsentDataCategory[]): void {
+  if (dataCategories?.includes("connection_probe")) {
+    throw new ProviderConfigurationError("connection_probe cannot be persisted as provider data consent");
+  }
 }
 
 /**
@@ -27,6 +40,7 @@ export class ProviderProfileService {
   readonly #credentials: CredentialStore;
   readonly #consent: ConsentManager;
   readonly #now: () => Date;
+  readonly #probeTransportFactory: ChatCompletionTransportFactory | undefined;
   #configureChain: Promise<void> = Promise.resolve();
 
   constructor(options: {
@@ -34,11 +48,13 @@ export class ProviderProfileService {
     credentials: CredentialStore;
     consent: ConsentManager;
     now?: () => Date;
+    probeTransportFactory?: ChatCompletionTransportFactory;
   }) {
     this.#profiles = options.profiles;
     this.#credentials = options.credentials;
     this.#consent = options.consent;
     this.#now = options.now ?? (() => new Date());
+    this.#probeTransportFactory = options.probeTransportFactory;
   }
 
   async configure(input: ProviderConfigureInput): Promise<ProviderProfile> {
@@ -58,6 +74,24 @@ export class ProviderProfileService {
     const profile = providerProfileWithDefaults(parsed, this.#now());
     const oldProfile = await this.#profiles.get(profile.providerId);
     const target = credentialTarget(profile.providerId);
+    if (parsed.apiKey === undefined && !parsed.clearCredential) {
+      if (oldProfile === undefined) {
+        throw new ProviderConfigurationError("Provider credential is required for first configuration");
+      }
+      if (canonicalProviderBaseURL(oldProfile.baseURL) !== canonicalProviderBaseURL(profile.baseURL)) {
+        throw new ProviderConfigurationError("API key is required when changing the provider endpoint");
+      }
+      try {
+        if (!(await this.#credentials.has(target))) {
+          throw new ProviderConfigurationError("Provider credential is not configured");
+        }
+      } catch (error) {
+        if (error instanceof ProviderConfigurationError) throw error;
+        throw new ProviderConfigurationError(
+          `Provider credential lookup failed: ${error instanceof Error ? error.message : "unknown error"}`,
+        );
+      }
+    }
     const shouldChangeSecret = parsed.apiKey !== undefined || parsed.clearCredential;
     let oldSecret: string | undefined;
     if (shouldChangeSecret) {
@@ -124,12 +158,56 @@ export class ProviderProfileService {
   }
 
   async preview(providerId: string, payload?: unknown, dataCategories?: readonly ConsentDataCategory[]) {
+    assertDurableConsentCategories(dataCategories);
     const profile = await this.#profiles.get(providerId);
     if (profile === undefined) throw new ProviderConfigurationError("Provider is not configured");
     return this.#consent.preview(profile, payload, dataCategories);
   }
 
+  previewConnectionTest(input: { providerId: string; baseURL: string; model: string }) {
+    const profile = providerProfileWithDefaults({
+      providerId: input.providerId,
+      baseURL: input.baseURL,
+      model: input.model,
+      dataCategories: ["connection_probe"],
+      maxCalls: 1,
+      maxOutputTokens: 32,
+      timeoutMs: 30_000,
+    }, this.#now());
+    return this.#consent.preview(profile, CONNECTION_PROBE_PAYLOAD, ["connection_probe"]);
+  }
+
+  async testConnection(input: {
+    providerId: string;
+    baseURL: string;
+    model: string;
+    apiKey?: string;
+    consentKey: string;
+    payloadHash: string;
+  }, signal?: AbortSignal): Promise<ProviderConnectionProbeResult> {
+    const preview = this.previewConnectionTest(input);
+    if (preview.consentKey !== input.consentKey || preview.payloadPreview.redactedHash !== input.payloadHash) {
+      throw new ProviderConfigurationError("Connection test authorization is missing or stale");
+    }
+    const canonicalBaseURL = canonicalProviderBaseURL(input.baseURL);
+    let secret = input.apiKey;
+    if (secret === undefined) {
+      const stored = await this.#profiles.get(input.providerId);
+      if (stored === undefined || canonicalProviderBaseURL(stored.baseURL) !== canonicalBaseURL) {
+        throw new ProviderConfigurationError("API key is required when testing a new provider endpoint");
+      }
+      secret = await this.#credentials.get(stored.credentialTarget);
+      if (secret === undefined) throw new ProviderConfigurationError("Provider credential is not configured");
+    }
+    return runProviderConnectionProbe({
+      apiKey: secret,
+      baseURL: canonicalBaseURL,
+      model: input.model,
+    }, signal, this.#probeTransportFactory);
+  }
+
   async grantConsent(providerId: string, consentKey: string, dataCategories?: readonly ConsentDataCategory[]) {
+    assertDurableConsentCategories(dataCategories);
     const profile = await this.#profiles.get(providerId);
     if (profile === undefined) throw new ProviderConfigurationError("Provider is not configured");
     return this.#consent.grant(profile, consentKey, dataCategories);

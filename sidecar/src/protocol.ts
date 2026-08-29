@@ -30,6 +30,8 @@ export const RpcRequestSchema = z.object({
     "transaction.result",
     "provider.status",
     "provider.configure",
+    "provider.test.preview",
+    "provider.test",
     "provider.clear",
     "consent.preview",
     "consent.grant",
@@ -113,13 +115,24 @@ export const TransactionResultParamsSchema = z.object({ result: TransactionResul
 
 export const ProviderIdSchema = z.string().regex(/^[a-z0-9][a-z0-9._-]{0,63}$/);
 export const ProviderStatusParamsSchema = z.object({ providerId: ProviderIdSchema.optional() });
+const ProviderApiKeySchema = z.string().min(1).max(16_384).refine((value) => !/[\u0000-\u001f\u007f]/.test(value), {
+  message: "API key cannot contain control characters",
+});
 export const ProviderConfigureParamsSchema = z.object({
   providerId: ProviderIdSchema,
   baseUrl: z.url().max(2_048),
   model: z.string().min(1).max(256),
-  apiKey: z.string().min(1).max(16_384).refine((value) => !/[\u0000-\u001f\u007f]/.test(value), {
-    message: "API key cannot contain control characters",
-  }),
+  apiKey: ProviderApiKeySchema.optional(),
+});
+export const ProviderTestPreviewParamsSchema = z.object({
+  providerId: ProviderIdSchema,
+  baseUrl: z.url().max(2_048),
+  model: z.string().min(1).max(256),
+});
+export const ProviderTestParamsSchema = ProviderTestPreviewParamsSchema.extend({
+  apiKey: ProviderApiKeySchema.optional(),
+  consentKey: z.string().min(1).max(512),
+  payloadHash: z.string().regex(/^sha256:[0-9a-f]{64}$/),
 });
 export const ProviderClearParamsSchema = z.object({ providerId: ProviderIdSchema });
 export const ConsentPreviewParamsSchema = z.object({

@@ -8,6 +8,7 @@ export const CapabilitySchema = z.enum([
   "nativeEvidence",
   "tradeBroker",
   "providerConsent",
+  "providerConnectionTest",
   "objectiveDraft",
 ]);
 export type Capability = z.infer<typeof CapabilitySchema>;

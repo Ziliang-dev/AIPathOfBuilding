@@ -27,6 +27,8 @@ function createController(overrides: Partial<PlannerController> = {}): PlannerCo
     recordTransactionResult: async () => ({ recorded: true }),
     providerStatus: async () => ({ configured: false }),
     configureProvider: async () => ({ configured: true }),
+    previewProviderTest: async () => ({ preview: true }),
+    testProviderConnection: async () => ({ ok: true }),
     clearProvider: async () => ({ configured: false }),
     previewConsent: async () => ({ preview: true }),
     grantConsent: async () => ({ granted: true }),
@@ -303,6 +305,32 @@ describe("RpcServer", () => {
     expect(resumeRun).toHaveBeenCalledOnce();
     expect(previewCandidate).toHaveBeenCalledOnce();
     expect(recordTransactionResult).toHaveBeenCalledOnce();
+  });
+
+  it("routes connection-test preview and execution through additive RPC methods", async () => {
+    const previewProviderTest = vi.fn(async () => ({ consentKey: "bound" }));
+    const testProviderConnection = vi.fn(async () => ({ ok: true }));
+    const { address } = await startServer(createController({ previewProviderTest, testProviderConnection }));
+    const socket = await connect(address);
+    const payloadHash = `sha256:${"a".repeat(64)}`;
+
+    const responses = await sendAndCollect(socket, [
+      request(20, "provider.test.preview", {
+        providerId: "openai", baseUrl: "https://provider.invalid/v1", model: "test-model",
+      }),
+      request(21, "provider.test", {
+        providerId: "openai",
+        baseUrl: "https://provider.invalid/v1",
+        model: "test-model",
+        apiKey: "ephemeral-secret",
+        consentKey: "bound",
+        payloadHash,
+      }),
+    ], 2);
+
+    expect(responses.map((response) => asRecord(response).id).sort()).toEqual([20, 21]);
+    expect(previewProviderTest).toHaveBeenCalledOnce();
+    expect(testProviderConnection).toHaveBeenCalledOnce();
   });
 
   it("requires a request id", async () => {

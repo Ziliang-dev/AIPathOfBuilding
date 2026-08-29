@@ -18,6 +18,8 @@ local function initialState()
 	return {
 		status = "idle", message = "Ready", progress = 0, runId = nil,
 		candidates = { }, error = nil, preview = nil,
+		sidecarStatus = "stopped", sidecarMessage = "Sidecar not started",
+		providerTestStatus = "idle",
 	}
 end
 
@@ -96,6 +98,8 @@ function Controller.new(build, options)
 		end
 	else
 		self:_registerHandlers()
+		self.state.sidecarStatus = "connecting"
+		self.state.sidecarMessage = "Connecting to sidecar"
 	end
 	return self
 end
@@ -104,6 +108,16 @@ function Controller:_setError(message)
 	self.state.status = "error"
 	self.state.error = tostring(message)
 	self.state.message = self.state.error
+end
+
+function Controller:_setSidecarError(message)
+	self.state.sidecarStatus = "failed"
+	self.state.sidecarMessage = tostring(message or "Sidecar connection failed")
+	if self.state.runId then
+		self:_setError(self.state.sidecarMessage)
+	else
+		self.state.message = self.state.sidecarMessage
+	end
 end
 
 function Controller:_createRpc(endpoint)
@@ -115,6 +129,8 @@ function Controller:_createRpc(endpoint)
 			if not owner.shutdown and owner.launchRequested then owner:_scheduleReconnect(reason) end
 		end,
 	})
+	self.state.sidecarStatus = "connecting"
+	self.state.sidecarMessage = "Connecting to sidecar"
 	self:_registerHandlers()
 end
 
@@ -131,8 +147,14 @@ function Controller:_scheduleReconnect(reason)
 	self.reconnectRunId = self.state.runId
 	self.launcher = SidecarLauncher.new(self.options.launcherOptions)
 	self.launchRequested = true
-	self.state.status = "reconnecting"
-	self.state.message = self.pendingTransactionResult and "Reconciling transaction audit" or "Reconnecting to sidecar checkpoint"
+	self.state.sidecarStatus = "reconnecting"
+	self.state.sidecarMessage = "Reconnecting to sidecar"
+	if self.state.runId or self.pendingTransactionResult then
+		self.state.status = "reconnecting"
+		self.state.message = self.pendingTransactionResult and "Reconciling transaction audit" or "Reconnecting to sidecar checkpoint"
+	else
+		self.state.message = self.state.sidecarMessage
+	end
 	self.reconnecting = false
 end
 
@@ -283,21 +305,49 @@ end
 function Controller:_hello()
 	if self.helloComplete or self.helloPending or not self.rpc then return end
 	self.helloPending = true
-	self.state.status = "connecting"
-	self.state.message = "Connecting to AIPathOfBuilding sidecar"
+	if self.state.runId or self.pendingObjective or self.pendingTransactionResult then
+		self.state.status = "connecting"
+	end
+	self.state.sidecarStatus = "connecting"
+	self.state.sidecarMessage = "Negotiating sidecar capabilities"
+	self.state.message = self.state.sidecarMessage
 	self.rpc:Request("hello", {
 		clientName = "pob-lua", clientVersion = tostring(_G.version or "1"),
-		capabilities = { "nativeLinkProbe", "nativeEvidence", "tradeBroker", "providerConsent", "objectiveDraft" },
+		capabilities = { "nativeLinkProbe", "nativeEvidence", "tradeBroker", "providerConsent", "providerConnectionTest", "objectiveDraft" },
 	}, function(result, err)
 		self.helloPending = false
-		if err then self:_setError("Sidecar handshake failed: " .. errorText(err)) return end
+		if err then self:_setSidecarError("Sidecar handshake failed: " .. errorText(err)) return end
 		self.helloComplete = true
-		self.state.status = "idle"
+		self.state.sidecarStatus = "connected"
+		self.state.sidecarMessage = "Sidecar connected"
+		self.state.sidecarCapabilities = type(result) == "table" and result.capabilities or { }
+		if not self.state.runId and not self.pendingObjective and not self.pendingTransactionResult then
+			self.state.status = "idle"
+		end
 		self.state.message = "Sidecar connected"
 		self:RefreshProviderStatus()
 		if self.reconnectRunId then self:_resumeCheckpoint()
 		elseif self.pendingObjective then self:_captureAndStart() end
 	end, 10000)
+end
+
+function Controller:EnsureConnected()
+	if self.shutdown then return nil, "controller is shut down" end
+	if self.rpc and self.helloComplete then
+		self.state.sidecarStatus = "connected"
+		self.state.sidecarMessage = "Sidecar connected"
+		return true
+	end
+	if not self.rpc and (not self.launcher or self.launcher.state == "failed" or self.launcher.state == "closed") then
+		self.launcher = SidecarLauncher.new(self.options.launcherOptions)
+	end
+	self.launchRequested = true
+	self.state.error = nil
+	if self.state.status == "error" and not self.state.runId then self.state.status = "idle" end
+	self.state.sidecarStatus = self.rpc and "connecting" or "starting"
+	self.state.sidecarMessage = self.rpc and "Connecting to sidecar" or "Starting sidecar"
+	self.state.message = self.state.sidecarMessage
+	return true
 end
 
 function Controller:RefreshProviderStatus()
@@ -312,28 +362,96 @@ function Controller:RefreshProviderStatus()
 	return true
 end
 
-function Controller:ConfigureProvider(profile)
+function Controller:ConfigureProvider(profile, callback)
 	if not self.rpc or not self.helloComplete then return nil, "sidecar is not connected" end
 	if type(profile) ~= "table" then return nil, "provider profile is required" end
-	self.rpc:Request("provider.configure", {
-		providerId = "openai", baseUrl = profile.baseUrl, model = profile.model, apiKey = profile.apiKey,
-	}, function(result, err)
-		if err then self:_setError("LLM configuration failed: " .. errorText(err)) return end
+	local params = { providerId = "openai", baseUrl = profile.baseUrl, model = profile.model }
+	if type(profile.apiKey) == "string" and profile.apiKey ~= "" then params.apiKey = profile.apiKey end
+	self.rpc:Request("provider.configure", params, function(result, err)
+		if err then
+			self.state.providerError = "LLM configuration failed: " .. errorText(err)
+			self.state.message = self.state.providerError
+			if callback then callback(nil, self.state.providerError) end
+			return
+		end
 		self.state.providerStatus = result
+		self.state.providerError = nil
+		self.state.providerTestStatus = "idle"
 		self.state.message = "LLM configured; review and grant first-call consent"
 		self:PreviewProviderConsent()
+		if callback then callback(result) end
 	end, 30000)
 	return true
 end
 
-function Controller:ClearProvider()
+function Controller:PreviewProviderTest(profile, callback)
+	if not self.rpc or not self.helloComplete then return nil, "sidecar is not connected" end
+	if type(profile) ~= "table" then return nil, "provider profile is required" end
+	local capabilities = self.state.sidecarCapabilities
+	if type(capabilities) == "table" and capabilities.providerConnectionTest ~= true then
+		return nil, "sidecar does not support provider connection tests"
+	end
+	self.state.providerTestStatus = "previewing"
+	self.state.providerTestMessage = "Preparing one-time connection-test authorization"
+	self.rpc:Request("provider.test.preview", {
+		providerId = "openai", baseUrl = profile.baseUrl, model = profile.model,
+	}, function(result, err)
+		if err then
+			self.state.providerTestStatus = "failed"
+			self.state.providerTestMessage = "Connection test preview failed: " .. errorText(err)
+			if callback then callback(nil, self.state.providerTestMessage) end
+			return
+		end
+		self.state.providerTestStatus = "awaitingConsent"
+		self.state.providerTestMessage = "Review the one-time synthetic probe authorization"
+		if callback then callback(result) end
+	end, 10000)
+	return true
+end
+
+function Controller:TestProviderConnection(profile, preview, callback)
+	if not self.rpc or not self.helloComplete then return nil, "sidecar is not connected" end
+	if type(profile) ~= "table" or type(preview) ~= "table" then return nil, "connection test preview is required" end
+	local payload = preview.payloadPreview
+	if type(preview.consentKey) ~= "string" or type(payload) ~= "table" or type(payload.redactedHash) ~= "string" then
+		return nil, "connection test authorization is invalid"
+	end
+	local params = {
+		providerId = "openai", baseUrl = profile.baseUrl, model = profile.model,
+		consentKey = preview.consentKey, payloadHash = payload.redactedHash,
+	}
+	if type(profile.apiKey) == "string" and profile.apiKey ~= "" then params.apiKey = profile.apiKey end
+	self.state.providerTestStatus = "testing"
+	self.state.providerTestMessage = "Testing endpoint, authentication, model, and tool calling"
+	self.rpc:Request("provider.test", params, function(result, err)
+		if err then
+			self.state.providerTestStatus = "failed"
+			self.state.providerTestMessage = "Connection test failed: " .. errorText(err)
+			if callback then callback(nil, self.state.providerTestMessage) end
+			return
+		end
+		self.state.providerTestStatus = "passed"
+		self.state.providerTestResult = result
+		self.state.providerTestMessage = "Connection test passed"
+		if callback then callback(result) end
+	end, 45000)
+	return true
+end
+
+function Controller:ClearProvider(callback)
 	if not self.rpc or not self.helloComplete then return nil, "sidecar is not connected" end
 	self.rpc:Request("provider.clear", { providerId = "openai" }, function(result, err)
-		if err then self:_setError("LLM configuration clear failed: " .. errorText(err)) return end
+		if err then
+			self.state.providerError = "LLM configuration clear failed: " .. errorText(err)
+			self.state.message = self.state.providerError
+			if callback then callback(nil, self.state.providerError) end
+			return
+		end
 		self.state.providerStatus = result
 		self.state.consentPreview = nil
 		self.state.objectiveDraft = nil
 		self.state.message = "LLM credential and consent cleared"
+		if callback then callback(result) end
 	end, 10000)
 	return true
 end
@@ -423,7 +541,12 @@ function Controller:Start(objective)
 		return nil, "current optimization must be applied, rejected, or cancelled before starting another"
 	end
 	if self.state.status == "running" or self.state.status == "starting" or self.state.status == "capturing" then return nil, "optimization already running" end
+	local previousState = self.state
 	self.state = initialState()
+	self.state.sidecarStatus = previousState.sidecarStatus or (self.helloComplete and "connected" or "stopped")
+	self.state.sidecarMessage = previousState.sidecarMessage or (self.helloComplete and "Sidecar connected" or "Sidecar not started")
+	self.state.sidecarCapabilities = previousState.sidecarCapabilities
+	self.state.providerStatus = previousState.providerStatus
 	self.activeObjective = objective
 	self.pendingObjective = objective
 	self.launchRequested = true
@@ -619,7 +742,7 @@ function Controller:OnFrame()
 		if endpoint then
 			self:_createRpc(endpoint)
 		elseif endpoint == nil then
-			self:_setError(err)
+			self:_setSidecarError(err)
 			return
 		end
 	end
@@ -645,6 +768,8 @@ function Controller:Shutdown()
 	if self.launcher then self.launcher:Shutdown() end
 	self.state.status = "shutdown"
 	self.state.message = "Planner stopped"
+	self.state.sidecarStatus = "stopped"
+	self.state.sidecarMessage = "Sidecar stopped"
 end
 
 function Controller:GetState()

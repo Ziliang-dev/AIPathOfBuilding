@@ -22,6 +22,7 @@ import zipfile
 ROOT = Path(__file__).resolve().parent.parent
 SIDECAR = ROOT / "sidecar"
 POB_EXECUTABLE_NAMES = ("Path of Building.exe", "Path{space}of{space}Building.exe", "PathOfBuilding.exe")
+UPDATE_BRANCH_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]{0,254}$")
 
 
 def fail(message: str) -> "NoReturn":
@@ -55,6 +56,45 @@ def manifest_sha1(path: Path) -> str:
     if b"\0" not in data:
         data = data.replace(b"\r\n", b"\n").replace(b"\r", b"\n").replace(b"\n", b"\r\n")
     return hashlib.sha1(data).hexdigest()
+
+
+def validate_update_branch(value: str) -> str:
+    branch = value.strip()
+    if (
+        UPDATE_BRANCH_PATTERN.fullmatch(branch) is None
+        or branch.endswith("/")
+        or "//" in branch
+        or ".." in branch.split("/")
+    ):
+        fail(f"Invalid package update branch: {value!r}")
+    return branch
+
+
+def write_runtime_manifest(source: Path, destination: Path, update_branch: str) -> None:
+    branch = validate_update_branch(update_branch)
+    tree = ET.parse(required_file(source, "release manifest"))
+    root = tree.getroot()
+    versions = root.findall("Version")
+    if root.tag != "PoBVersion" or len(versions) != 1:
+        fail("Release manifest must contain exactly one PoBVersion/Version element.")
+    versions[0].set("branch", branch)
+    versions[0].set("platform", "win32")
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    tree.write(destination, encoding="UTF-8", xml_declaration=True)
+
+
+def validate_runtime_manifest(path: Path, metadata: dict[str, object]) -> None:
+    manifest = ET.parse(path).getroot()
+    versions = manifest.findall("Version")
+    update = metadata.get("update")
+    if (
+        len(versions) != 1
+        or not isinstance(update, dict)
+        or versions[0].get("branch") != update.get("branch")
+        or versions[0].get("platform") != "win32"
+        or update.get("platform") != "win32"
+    ):
+        fail("Packaged manifest must identify its exact update branch and win32 platform.")
 
 
 def safe_member(name: str) -> PurePosixPath:
@@ -257,6 +297,12 @@ def package_windows(args: argparse.Namespace) -> None:
         fail("Unable to read sidecar schema/protocol versions.")
     schema_version = int(schema_match.group(1))
     protocol_version = int(protocol_match.group(1))
+    update_branch = validate_update_branch(
+        args.update_branch
+        or os.environ.get("GITHUB_HEAD_REF")
+        or os.environ.get("GITHUB_REF_NAME")
+        or "dev"
+    )
 
     release_manifest_path = required_file(ROOT / "manifest.xml", "release manifest")
     release_manifest = ET.parse(release_manifest_path).getroot()
@@ -317,10 +363,11 @@ def package_windows(args: argparse.Namespace) -> None:
         "const Database=require('better-sqlite3');const db=new Database(':memory:');db.prepare('select 1').get();db.close();",
     ], cwd=package_sidecar)
 
-    for name in ("README.md", "README-AIPOB.md", "manifest.xml"):
+    for name in ("README.md", "README-AIPOB.md"):
         source = ROOT / name
         if source.is_file():
             copy_file(source, output / name)
+    write_runtime_manifest(release_manifest_path, output / "manifest.xml", update_branch)
     copy_file(manifest_config, output / "manifest.cfg")
 
     sqlite_metadata = json.loads(sqlite_package.read_text(encoding="utf-8"))
@@ -330,6 +377,7 @@ def package_windows(args: argparse.Namespace) -> None:
         "packageKind": "windows-portable",
         "platform": "win32",
         "arch": "x64",
+        "update": {"branch": update_branch, "platform": "win32"},
         "node": {
             "version": node_info["version"],
             "major": 24,
@@ -360,7 +408,8 @@ def package_windows(args: argparse.Namespace) -> None:
         "inputs": {
             "runtime": runtime_input,
             "manifestConfig": {"path": "manifest.cfg", "sha256": sha256(manifest_config)},
-            "manifestXml": {"path": "manifest.xml", "sha256": sha256(release_manifest_path)},
+            "sourceManifestXml": {"path": "repository/manifest.xml", "sha256": sha256(release_manifest_path)},
+            "manifestXml": {"path": "manifest.xml", "sha256": sha256(output / "manifest.xml")},
             "lockfile": {"path": "sidecar/pnpm-lock.yaml", "sha256": sha256(required_file(SIDECAR / "pnpm-lock.yaml", "sidecar lockfile"))},
         },
         "manifestSelectedFiles": sorted({relative for _, relative in selected}),
@@ -479,6 +528,7 @@ def verify_package_root(root: Path, *, skip_launch: bool = False) -> dict[str, o
     for path, expected, message in checks:
         if sha256(path) != expected:
             fail(message)
+    validate_runtime_manifest(root / "manifest.xml", metadata)
     manifest = ET.parse(root / "manifest.xml").getroot()
     entries = [entry for entry in manifest.findall("File") if entry.get("part") == "sidecar" and entry.get("name") == "sidecar/dist/server.cjs"]
     if len(entries) != 1 or entries[0].get("sha1") != manifest_sha1(bundle):
@@ -625,6 +675,7 @@ def add_package_parsers(subparsers: argparse._SubParsersAction[argparse.Argument
     package.add_argument("--sidecar-bundle")
     package.add_argument("--runtime-archive")
     package.add_argument("--manifest-config")
+    package.add_argument("--update-branch")
     package.add_argument("--credential-helper")
     package.add_argument("--skip-build", action="store_true")
     package.set_defaults(handler=package_windows)

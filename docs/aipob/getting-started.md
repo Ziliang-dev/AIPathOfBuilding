@@ -66,31 +66,44 @@ removed.
 With a build open in PoB:
 
 1. Open **AI Build Planner**.
-2. Choose a goal preset: Balanced, Maximum Offence, Maximum Defence, or Smooth
+2. Import a Build or add a socket group with an enabled active main skill. An
+   empty Build cannot start search; character level 1 alone is allowed.
+3. Choose a goal preset: Balanced, Maximum Offence, Maximum Defence, or Smooth
    Mapping.
-3. Add goal details, or use **Planner Chat** to create a draft. Review every
+4. Add goal details, or use **Planner Chat** to create a draft. Review every
    draft before using it. Free-text constraint notes are not enforced until
    they are converted into structured fields.
-4. Optionally set minimum EHP and minimum worst-case maximum hit. These are hard
+5. Optionally set minimum EHP and minimum worst-case maximum hit. These are hard
    constraints across all four sustainable scenarios.
-5. Choose the primary scenario. It receives the largest default ranking weight.
-6. Set a Divine budget only if paid-source candidates should be eligible. The
+6. Choose the primary scenario. It receives the largest default ranking weight.
+7. Set a Divine budget only if paid-source candidates should be eligible. The
    current build can still be searched without a budget.
-7. To search authenticated PoE Trade, enable **PoE Trade** and provide an exact
+8. To search authenticated PoE Trade, enable **PoE Trade** and provide an exact
    league name. Trade requires a Budget.
-8. Choose locks. Class, ascendancy, and main skill are locked by default.
-9. Check **Confirm this objective before search**, then select **Start**.
+9. Choose locks. Class, ascendancy, and main skill are locked by default.
+10. Check **Confirm this objective before search**, then select **Start**.
 
-The sidecar starts lazily on the first search. The current CLI reports
-provider status to the Planner. Without a configured, consented provider, the
-run uses the deterministic domain schedule.
+The Planner displays separate `Run` and `Sidecar` states. The sidecar starts
+lazily when LLM setup or the first search needs it. Without a configured,
+consented provider, the run uses the deterministic domain schedule.
 
 ## Configure Planner Chat
 
-Open provider setup in the Planner, then enter an OpenAI-compatible endpoint,
-model name, and API key. The key is stored only in Windows Credential Manager
-under `AIPathOfBuilding/LLM/openai`; the provider profile and consent record do
-not contain the key.
+Open **LLM Setup**. The window starts and handshakes the sidecar without starting
+an optimization. Enter an OpenAI-compatible endpoint, model name, and API key,
+then select **Test Connection**. Review the one-time authorization: it sends one
+fixed synthetic forced-tool-call probe, no Build or chat data, and may incur a
+very small provider charge. A successful result reports latency, response model,
+tool-call validation, and optional token usage; only then is **Configure**
+enabled. Editing any field invalidates the result.
+
+The test does not save the profile or key and does not replace normal provider
+consent. Failed tests leave both the unsaved protected key and existing saved
+configuration unchanged. After a successful **Configure**, the key is stored
+only in Windows Credential Manager under `AIPathOfBuilding/LLM/openai`; the
+provider profile and consent record do not contain it. A saved key can be reused
+with a blank field only while the endpoint is unchanged. Enter the key again
+when changing endpoint.
 
 Before the first provider call, inspect the consent preview. It binds the exact
 endpoint, model, data categories, privacy/redaction policy, and redacted payload
@@ -157,6 +170,12 @@ The package includes the full PoB runtime, sidecar bundle, `better-sqlite3` and
 its matching native binding, Node runtime, and WinCred helper. A Node or native
 ABI change requires a new installer or portable package; the PoB auto-updater
 cannot safely replace those installer-owned components.
+
+Packaging leaves the repository `manifest.xml` unchanged and writes only the
+staged copy with `platform="win32"` and the selected update branch. Metadata
+records that branch and the staged manifest hash. Verification rejects missing
+or mismatched attributes; a verified portable must not show the repository
+**Dev Mode** warning.
 
 Build and verify the canonical NSIS installer from the portable ZIP:
 

@@ -9,7 +9,7 @@ and release gates belong in [Status and roadmap](status-and-roadmap.md).
 Path of Building process
   AIPlannerTab.lua
        |
-       | capture, run control, provider consent, Trade broker,
+       | capture, run control, provider probe/consent, Trade broker,
        | preview, approval, transaction result
        | bidirectional JSON-RPC 2.0 over authenticated loopback NDJSON
        v
@@ -35,8 +35,12 @@ active UI build.
 [`AIPlannerTab.lua`](../../src/Classes/AIPlannerTab.lua) builds the structured
 objective, requires explicit confirmation, displays progress and three candidate
 slots, requests previews, and opens the final Apply confirmation. It also owns
-the visible OpenAI-compatible provider setup, first-send consent confirmation,
-ephemeral Planner Chat, and exact Trade realm/league controls.
+the visible OpenAI-compatible provider setup, one-shot synthetic connection-test
+confirmation, first-send data consent, ephemeral Planner Chat, and exact Trade
+realm/league controls. Run and sidecar lifecycle states are independent. Opening
+LLM setup starts and handshakes the sidecar without starting an optimization.
+Search remains blocked until the selected socket group has an enabled active
+main skill.
 
 ### Planner controller
 
@@ -100,6 +104,8 @@ Request methods:
 - `transaction.result`
 - `provider.status`
 - `provider.configure`
+- `provider.test.preview`
+- `provider.test`
 - `provider.clear`
 - `consent.preview`
 - `consent.grant`
@@ -196,6 +202,16 @@ and redacted payload preview. Without it, the deterministic schedule remains
 active. Planner Chat returns a strict Objective Draft; the UI requires review
 and another Objective confirmation before search.
 
+The additive `providerConnectionTest` capability exposes a one-shot connection
+probe. `provider.test.preview` binds the exact endpoint, model, policy versions,
+`connection_probe` category, and fixed redacted payload hash. After explicit UI
+confirmation, `provider.test` makes one real, bounded Chat Completions request
+with a forced synthetic tool call. It returns only validation status, latency,
+requested/response model, and optional token usage. It does not persist the
+unsaved profile, key, response, consent, or payload, and it does not authorize
+Build or chat data. Changing any field invalidates the UI result. A saved key may
+be reused only when the canonical endpoint is unchanged.
+
 ### Persistence
 
 Two SQLite responsibilities have different failure policies:
@@ -218,6 +234,9 @@ Provider profiles and consent decisions contain no secret. The API key is held
 only by Windows Credential Manager under `AIPathOfBuilding/LLM/<providerId>`.
 The native helper accepts JSON lines over stdin/stdout, never command-line
 secrets, and rejects every non-LLM credential target. PoE OAuth remains in PoB.
+Connection-probe authorization is memory-only and consumed by one matching test
+attempt; provider errors use the same redaction boundary and raw responses are
+not logged or stored.
 
 ## Security and trust boundaries
 
@@ -231,6 +250,8 @@ secrets, and rejects every non-LLM credential target. PoE OAuth remains in PoB.
   limit state remain outside the sidecar contract.
 - Provider payloads are redacted before the adapter and require descriptor-bound
   consent before each provider becomes callable.
+- A connection probe is synthetic, descriptor-bound, one-shot, and never grants
+  durable provider consent or permission to send Build/chat data.
 - Snapshot XML sent for search is sanitized; rollback XML is requested only by
   the local Transaction path.
 
@@ -243,6 +264,7 @@ secrets, and rejects every non-LLM credential target. PoE OAuth remains in PoB.
 | Worker startup, crash, timeout, or invalid result | Evaluation/run fails; active build remains unchanged |
 | Trade unavailable, timed out, or rate-limited | Warning is recorded; deterministic local search continues |
 | Provider missing, unconsented, revoked, or unavailable | Deterministic schedule remains active; revocation aborts matching provider calls |
+| Connection probe rejected, timed out, or incompatible | Unsaved fields and protected key remain available for retry; saved profile, credential, and durable consent remain unchanged |
 | Preview requested | Sidecar returns the persisted Candidate action/metric diff without mutating the active build |
 | Apply preflight or action failure | Transaction restores captured XML and reports rollback evidence |
 | Lost sidecar acknowledgement after apply | Lua transaction journal retains rollback XML for reconciliation |
@@ -258,7 +280,10 @@ metrics, and four Sustainable Scenario expectations.
 Windows artifacts use one canonical staging tree. Portable and repository-owned
 NSIS packaging pin Node `24.20.0` x64 / module ABI `137`, the matching
 `better-sqlite3` binding, the WinCred helper, the exact sidecar bundle, PoB
-runtime files, metadata, and checksums. CI verifies silent NSIS installation,
+runtime files, metadata, and checksums. Packaging transforms only the staged
+manifest to include the exact CI head branch and `platform="win32"`; package
+metadata records that branch and manifest hash, and verification rejects a
+manifest that would trigger the repository-only Dev Mode path. CI verifies silent NSIS installation,
 apply/reject/failure paths, checkpoint restart, and a real packaged PoB worker
 process without pixel UI automation.
 

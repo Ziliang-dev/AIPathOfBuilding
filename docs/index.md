@@ -70,6 +70,7 @@ minimum context is:
 - [ADR 0001: Keep Path of Building authoritative behind a hybrid graph architecture](adr/0001-aipob-hybrid-graph-architecture.md)
 - [ADR 0002: Require a human-gated transaction for every Build change](adr/0002-aipob-human-gated-transactions.md)
 - [ADR 0003: Bind brokers, native proof, and provider consent to protocol v2](adr/0003-aipob-protocol-v2-broker-consent-boundary.md)
+- [ADR 0004: Authorize provider connection probes without granting data consent](adr/0004-provider-connection-probe.md)
 
 ## Upstream Path of Building developer references
 

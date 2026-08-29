@@ -8,6 +8,7 @@ import {
   MemoryProviderProfileStore,
   ProviderModelAdapterFactory,
   ProviderProfileService,
+  CONNECTION_PROBE_TOOL_NAME,
 } from "../src/provider/index.js";
 import { MemoryPlannerStore } from "../src/storage/index.js";
 import { InMemoryWorkerPool } from "../src/worker/index.js";
@@ -25,6 +26,71 @@ const objective = {
 };
 
 describe("DefaultPlannerController", () => {
+  it("negotiates and consumes a one-shot connection-test authorization", async () => {
+    const providerService = new ProviderProfileService({
+      profiles: new MemoryProviderProfileStore(),
+      credentials: new MemoryCredentialStore(),
+      consent: new ConsentManager(new MemoryConsentRecordStore()),
+      probeTransportFactory: () => ({
+        create: async () => ({
+          model: "resolved-model",
+          choices: [{ message: { tool_calls: [{
+            id: "probe", type: "function",
+            function: { name: CONNECTION_PROBE_TOOL_NAME, arguments: '{"ok":true}' },
+          }] } }],
+        }),
+      }),
+    });
+    const planner = new DefaultPlannerController({
+      store: new MemoryPlannerStore(),
+      checkpointer: new MemorySaver(),
+      providerService,
+    });
+    await expect(planner.hello({
+      clientName: "test",
+      clientVersion: "1",
+      capabilities: ["providerConnectionTest"],
+    })).resolves.toMatchObject({ capabilities: { providerConnectionTest: true } });
+    const preview = await planner.previewProviderTest({
+      providerId: "openai", baseUrl: "https://provider.invalid/v1", model: "test-model",
+    }) as { consentKey: string; payloadPreview: { redactedHash: string } };
+    const context = {
+      requestId: "probe",
+      signal: new AbortController().signal,
+      notify: () => undefined,
+    };
+    const params = {
+      providerId: "openai",
+      baseUrl: "https://provider.invalid/v1",
+      model: "test-model",
+      apiKey: "ephemeral-secret",
+      consentKey: preview.consentKey,
+      payloadHash: preview.payloadPreview.redactedHash,
+    };
+    await expect(planner.testProviderConnection(params, context)).resolves.toMatchObject({
+      ok: true, responseModel: "resolved-model", toolCallValidated: true,
+    });
+    await expect(planner.testProviderConnection(params, context)).rejects.toThrow(/missing or stale/);
+
+    for (const stale of [
+      { baseUrl: "https://other.invalid/v1" },
+      { model: "other-model" },
+      { payloadHash: `sha256:${"b".repeat(64)}` },
+    ]) {
+      const boundPreview = await planner.previewProviderTest({
+        providerId: "openai", baseUrl: "https://provider.invalid/v1", model: "test-model",
+      }) as { consentKey: string; payloadPreview: { redactedHash: string } };
+      await expect(planner.testProviderConnection({
+        ...params,
+        consentKey: boundPreview.consentKey,
+        payloadHash: boundPreview.payloadPreview.redactedHash,
+        ...stale,
+      }, context)).rejects.toThrow(/missing or stale/);
+    }
+    await expect(providerService.status("openai")).resolves.toMatchObject({ configured: false });
+    await planner.close();
+  });
+
   it("fails closed on Trade and can cancel while worker startup is pending", async () => {
     const store = new MemoryPlannerStore();
     store.saveSnapshot({

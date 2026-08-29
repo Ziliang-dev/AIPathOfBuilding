@@ -83,7 +83,7 @@ function fallback(
   };
 }
 
-function createDefaultTransport(config: ProviderConfig): ChatCompletionTransport {
+export function createOpenAICompatibleTransport(config: ProviderConfig): ChatCompletionTransport {
   const client = new OpenAI({
     apiKey: config.apiKey,
     baseURL: config.baseURL,
@@ -148,7 +148,7 @@ export class OpenAICompatibleAdapter implements ModelAdapter<HighLevelToolName> 
 
   constructor(config: z.input<typeof ProviderConfigSchema>, options: OpenAICompatibleAdapterOptions = {}) {
     this.#config = ProviderConfigSchema.parse(config);
-    this.#transport = options.transport ?? createDefaultTransport(this.#config);
+    this.#transport = options.transport ?? createOpenAICompatibleTransport(this.#config);
   }
 
   get callsUsed(): number {

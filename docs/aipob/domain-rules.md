@@ -137,6 +137,17 @@ roadmap work.
 - Before the first provider call, consent must bind the exact endpoint, model,
   data categories, privacy policy, redaction policy, and redacted payload
   preview. Profile or policy changes require new consent.
+- `connection_probe` is a non-default category used only by a fixed, minimal,
+  forced-tool-call request. Its preview binds the exact endpoint, model, policy
+  versions, and payload hash. Authorization is memory-only, consumed once, and
+  never grants durable consent or permission to send Build/chat data.
+- A connection test may use an unsaved key without persisting it. An existing
+  WinCred key may be reused only when the canonical endpoint is unchanged; a new
+  endpoint requires a newly entered key. Failure must not change the saved
+  profile, credential, or durable consent.
+- Connection-test results expose only success, latency, requested/response
+  model, forced-tool-call validation, and optional token usage. Keys and raw
+  provider responses must not enter RPC results, logs, SQLite, or status files.
 - Revocation prevents new provider calls and aborts matching active provider
   work. Deterministic fallback remains valid.
 - Planner Chat text is ephemeral. Its output must pass the strict Objective Draft

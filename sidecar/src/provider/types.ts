@@ -11,6 +11,7 @@ export const ConsentDataCategorySchema = z.enum([
   "metrics",
   "tool_outputs",
   "chat_messages",
+  "connection_probe",
 ]);
 export type ConsentDataCategory = z.infer<typeof ConsentDataCategorySchema>;
 

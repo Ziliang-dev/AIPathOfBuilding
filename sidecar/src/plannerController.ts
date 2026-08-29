@@ -49,6 +49,8 @@ import {
   ObjectiveDraftParamsSchema,
   ProviderClearParamsSchema,
   ProviderConfigureParamsSchema,
+  ProviderTestParamsSchema,
+  ProviderTestPreviewParamsSchema,
   ProviderStatusParamsSchema,
   RunCancelParamsSchema,
   RunResumeParamsSchema,
@@ -143,6 +145,12 @@ export class DefaultPlannerController implements PlannerController {
     payloadHash: string;
     dataCategories: readonly ConsentDataCategory[];
   }>();
+  readonly #pendingProviderTests = new Map<string, {
+    baseURL: string;
+    model: string;
+    consentKey: string;
+    payloadHash: string;
+  }>();
   readonly #active = new Map<string, ActiveRun>();
   readonly #pending = new Map<string, AbortController>();
   readonly #cancelled = new Set<string>();
@@ -181,6 +189,8 @@ export class DefaultPlannerController implements PlannerController {
         nativeEvidence: true,
         tradeBroker: hello.capabilities.includes("tradeBroker"),
         providerConsent: this.#providerService !== undefined,
+        providerConnectionTest: this.#providerService !== undefined
+          && hello.capabilities.includes("providerConnectionTest"),
         objectiveDraft: this.#modelAdapterFactory !== undefined,
         trade: hello.capabilities.includes("tradeBroker"),
         providerConfigured: providerStatus?.configured === true && providerStatus.credentialConfigured,
@@ -211,10 +221,54 @@ export class DefaultPlannerController implements PlannerController {
       providerId: parsed.providerId,
       baseURL: parsed.baseUrl,
       model: parsed.model,
-      apiKey: parsed.apiKey,
+      ...(parsed.apiKey === undefined ? {} : { apiKey: parsed.apiKey }),
     });
     this.#pendingConsent.delete(parsed.providerId);
-    return { providerId: profile.providerId, configured: true, credentialConfigured: true, consent: "required" };
+    this.#pendingProviderTests.delete(parsed.providerId);
+    return { providerId: profile.providerId, ...(await this.#providerService.status(profile.providerId)) };
+  }
+
+  async previewProviderTest(params: RpcParams): Promise<unknown> {
+    if (this.#providerService === undefined) throw providerUnavailable();
+    const parsed = ProviderTestPreviewParamsSchema.parse(params);
+    const preview = this.#providerService.previewConnectionTest({
+      providerId: parsed.providerId,
+      baseURL: parsed.baseUrl,
+      model: parsed.model,
+    });
+    this.#pendingProviderTests.set(parsed.providerId, {
+      baseURL: preview.endpoint,
+      model: preview.model,
+      consentKey: preview.consentKey,
+      payloadHash: preview.payloadPreview.redactedHash,
+    });
+    return preview;
+  }
+
+  async testProviderConnection(params: RpcParams, context: PlannerControllerContext): Promise<unknown> {
+    if (this.#providerService === undefined) throw providerUnavailable();
+    const parsed = ProviderTestParamsSchema.parse(params);
+    const pending = this.#pendingProviderTests.get(parsed.providerId);
+    this.#pendingProviderTests.delete(parsed.providerId);
+    if (pending === undefined
+      || pending.baseURL !== this.#providerService.previewConnectionTest({
+        providerId: parsed.providerId,
+        baseURL: parsed.baseUrl,
+        model: parsed.model,
+      }).endpoint
+      || pending.model !== parsed.model
+      || pending.consentKey !== parsed.consentKey
+      || pending.payloadHash !== parsed.payloadHash) {
+      throw new JsonRpcError(JsonRpcErrorCode.Conflict, "Connection test authorization is missing or stale");
+    }
+    return this.#providerService.testConnection({
+      providerId: parsed.providerId,
+      baseURL: parsed.baseUrl,
+      model: parsed.model,
+      ...(parsed.apiKey === undefined ? {} : { apiKey: parsed.apiKey }),
+      consentKey: parsed.consentKey,
+      payloadHash: parsed.payloadHash,
+    }, context.signal);
   }
 
   async clearProvider(params: RpcParams): Promise<unknown> {
@@ -225,6 +279,7 @@ export class DefaultPlannerController implements PlannerController {
     await this.#providerService.profiles.delete(providerId);
     await this.#providerService.revokeConsent(providerId);
     this.#pendingConsent.delete(providerId);
+    this.#pendingProviderTests.delete(providerId);
     return { providerId, configured: false, credentialConfigured: false, consent: "revoked" };
   }
 
@@ -273,6 +328,7 @@ export class DefaultPlannerController implements PlannerController {
       if (active.providerId === providerId) active.providerController.abort(new Error("Provider consent revoked"));
     }
     this.#pendingConsent.delete(providerId);
+    this.#pendingProviderTests.delete(providerId);
     return { providerId, consent: "revoked" };
   }
 

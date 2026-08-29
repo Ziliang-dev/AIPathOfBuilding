@@ -9,6 +9,8 @@ import {
   ObjectiveDraftParamsSchema,
   ProviderClearParamsSchema,
   ProviderConfigureParamsSchema,
+  ProviderTestParamsSchema,
+  ProviderTestPreviewParamsSchema,
   ProviderStatusParamsSchema,
   RpcRequestSchema,
   RunCancelParamsSchema,
@@ -81,6 +83,8 @@ const SUPPORTED_METHODS = new Set([
   "transaction.result",
   "provider.status",
   "provider.configure",
+  "provider.test.preview",
+  "provider.test",
   "provider.clear",
   "consent.preview",
   "consent.grant",
@@ -277,6 +281,10 @@ export class RpcRouter {
         return this.bind(this.controller.providerStatus, parseParams(ProviderStatusParamsSchema));
       case "provider.configure":
         return this.bind(this.controller.configureProvider, parseParams(ProviderConfigureParamsSchema));
+      case "provider.test.preview":
+        return this.bind(this.controller.previewProviderTest, parseParams(ProviderTestPreviewParamsSchema));
+      case "provider.test":
+        return this.bind(this.controller.testProviderConnection, parseParams(ProviderTestParamsSchema));
       case "provider.clear":
         return this.bind(this.controller.clearProvider, parseParams(ProviderClearParamsSchema));
       case "consent.preview":

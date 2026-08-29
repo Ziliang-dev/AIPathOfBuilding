@@ -10,6 +10,8 @@ import {
   ObjectiveDraftParamsSchema,
   ProviderClearParamsSchema,
   ProviderConfigureParamsSchema,
+  ProviderTestParamsSchema,
+  ProviderTestPreviewParamsSchema,
   ProviderStatusParamsSchema,
   RunCancelParamsSchema,
   RunAwaitingApprovalNotificationSchema,
@@ -35,6 +37,8 @@ export type CandidatePreviewParams = z.infer<typeof CandidatePreviewParamsSchema
 export type TransactionResultParams = z.infer<typeof TransactionResultParamsSchema>;
 export type ProviderStatusParams = z.infer<typeof ProviderStatusParamsSchema>;
 export type ProviderConfigureParams = z.infer<typeof ProviderConfigureParamsSchema>;
+export type ProviderTestPreviewParams = z.infer<typeof ProviderTestPreviewParamsSchema>;
+export type ProviderTestParams = z.infer<typeof ProviderTestParamsSchema>;
 export type ProviderClearParams = z.infer<typeof ProviderClearParamsSchema>;
 export type ConsentPreviewParams = z.infer<typeof ConsentPreviewParamsSchema>;
 export type ConsentGrantParams = z.infer<typeof ConsentGrantParamsSchema>;
@@ -79,6 +83,8 @@ export interface PlannerController {
   recordTransactionResult(params: TransactionResultParams, context: PlannerControllerContext): Promise<unknown> | unknown;
   providerStatus(params: ProviderStatusParams, context: PlannerControllerContext): Promise<unknown> | unknown;
   configureProvider(params: ProviderConfigureParams, context: PlannerControllerContext): Promise<unknown> | unknown;
+  previewProviderTest(params: ProviderTestPreviewParams, context: PlannerControllerContext): Promise<unknown> | unknown;
+  testProviderConnection(params: ProviderTestParams, context: PlannerControllerContext): Promise<unknown> | unknown;
   clearProvider(params: ProviderClearParams, context: PlannerControllerContext): Promise<unknown> | unknown;
   previewConsent(params: ConsentPreviewParams, context: PlannerControllerContext): Promise<unknown> | unknown;
   grantConsent(params: ConsentGrantParams, context: PlannerControllerContext): Promise<unknown> | unknown;

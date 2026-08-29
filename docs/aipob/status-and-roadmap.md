@@ -33,11 +33,12 @@ commit before publishing a release.
 | Dynamic Trade/catalog broker | Search issues bounded typed constraints; the PoB process owns query JSON, OAuth, rate limiting, currency conversion, Budget enforcement, and seller data; the sidecar receives sanitized items and creates fingerprint-bound `importAndEquip` actions |
 | Trade degradation | Timeout, upstream failure, rate limit, or unavailable broker becomes a warning; deterministic local search continues without mutating the active Build |
 | Credential Manager | The OpenAI-compatible API key is stored only under `AIPathOfBuilding/LLM/<providerId>` through the WinCred helper; non-LLM targets are rejected; PoE OAuth is untouched |
+| Provider connection test | `providerConnectionTest` negotiates additive preview/test RPC; LLM Setup starts the sidecar, one-shot consent binds a fixed synthetic forced-tool-call probe, unsaved fields remain non-durable, and Configure is gated on an exact successful result |
 | Provider consent | First-send preview binds endpoint, model, categories, privacy/redaction policy, and redacted payload hash; consent is persisted, revocable, and checked before provider calls |
 | Planner Chat and model injection | Ephemeral Chat produces a strict Objective Draft, unresolved metrics block use, UI review resets confirmation, and the consent-gated adapter is injected into PlanSearch/RefineSearch/Explain with deterministic fallback |
 | Search and Transaction | Worker isolation, Locks, Budget, hard constraints, Pareto selection, non-mutating Preview, fresh Apply verification, explicit approval, dependency ordering, native re-proof, rollback, and recovery journal are connected |
 | Golden corpus and release harness | Corpus schema v2 covers Standard and Ruthless XML Builds, actor/season projections, five required adapters, required graph nodes, four typed action kinds, baseline/four Sustainable Scenario metrics, field policy, and Candidate fingerprints |
-| Canonical Windows packaging | Portable and repository-owned NSIS paths consume one verified staging tree with Node `24.20.0` x64 / ABI `137`, `better-sqlite3`, WinCred helper, PoB runtime, exact sidecar bundle, metadata, and checksums |
+| Canonical Windows packaging | Portable and repository-owned NSIS paths consume one verified staging tree with Node `24.20.0` x64 / ABI `137`, `better-sqlite3`, WinCred helper, PoB runtime, exact sidecar bundle, metadata, checksums, and a package-local exact-branch `win32` manifest that cannot be mistaken for repository Dev Mode |
 | Latest CI portable synchronization | The WSL Python CLI selects the current branch's latest successful Actions run, downloads and fully verifies its canonical portable once, then safely retains only the managed latest copy or one lock-blocked pending replacement |
 | Fault and process E2E definitions | Windows jobs cover apply, reject, injected transaction failure, checkpoint restart, silent NSIS install, and a real packaged PoB worker process; no pixel UI automation is used |
 
@@ -92,8 +93,9 @@ A release must not be published if any gate is skipped or fails.
    evaluated Candidate and ranked Sustainable Scenario.
 4. Trade stays main-process authenticated, rate-limited, Budget-bound, typed,
    and privacy-preserving; failure remains degradable.
-5. Provider keys use only the LLM WinCred namespace; first-send consent and
-   redaction run before any provider call; fallback works without a provider.
+5. Provider keys use only the LLM WinCred namespace; the fixed connection probe
+   is one-shot and non-durable; first-send consent and redaction run before any
+   Build/chat provider call; fallback works without a provider.
 6. All four Sustainable Scenarios reproduce metrics before and after an
    accepted Transaction, and native proof survives commit re-probe.
 7. Cancellation, worker failure, transaction failure, rollback, restart,
