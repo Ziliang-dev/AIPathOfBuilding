@@ -141,21 +141,84 @@ def remove_managed_directory(directory: Path) -> None:
         remove_tree(directory)
 
 
+def promote_contents(pending: Path, destination: Path, old: Path, root_error: OSError) -> bool:
+    moved_old: list[str] = []
+    moved_new: list[str] = []
+    rollback_errors: list[OSError] = []
+    try:
+        old.mkdir()
+        for entry in sorted(destination.iterdir(), key=lambda path: path.name):
+            entry.rename(old / entry.name)
+            moved_old.append(entry.name)
+        for entry in sorted(pending.iterdir(), key=lambda path: path.name):
+            entry.rename(destination / entry.name)
+            moved_new.append(entry.name)
+    except OSError as error:
+        for name in reversed(moved_new):
+            try:
+                (destination / name).rename(pending / name)
+            except OSError as rollback_error:
+                rollback_errors.append(rollback_error)
+        for name in reversed(moved_old):
+            try:
+                (old / name).rename(destination / name)
+            except OSError as rollback_error:
+                rollback_errors.append(rollback_error)
+        try:
+            old.rmdir()
+        except OSError as rollback_error:
+            if old.exists():
+                rollback_errors.append(rollback_error)
+        if rollback_errors:
+            fail(
+                "CI artifact in-place replacement failed and rollback failed: "
+                f"{root_error}; {error}; "
+                + "; ".join(str(rollback_error) for rollback_error in rollback_errors)
+            )
+        print(
+            "warning: verified CI artifact pending; latest directory and one of its contents "
+            f"are locked: {root_error}; {error}"
+        )
+        return False
+
+    try:
+        pending.rmdir()
+    except OSError as error:
+        print(f"warning: latest CI artifact installed but empty pending cleanup failed: {error}")
+    try:
+        remove_managed_directory(old)
+    except OSError as error:
+        print(f"warning: latest CI artifact installed but old directory cleanup is pending: {error}")
+    return True
+
+
 def promote(pending: Path, destination: Path, old: Path) -> bool:
     if not pending.is_dir():
         return False
     try:
         remove_managed_directory(old)
-        if destination.exists():
-            destination.rename(old)
+    except OSError as error:
+        print(f"warning: old CI artifact cleanup remains pending: {error}")
+        return False
+    if not destination.exists():
+        try:
+            pending.rename(destination)
+        except OSError as error:
+            print(f"warning: verified CI artifact pending; replacement failed: {error}")
+            return False
+        return True
+    try:
+        destination.rename(old)
+    except OSError as error:
+        return promote_contents(pending, destination, old, error)
+    try:
         pending.rename(destination)
     except OSError as error:
-        if not destination.exists() and old.exists():
-            try:
-                old.rename(destination)
-            except OSError as restore_error:
-                fail(f"CI artifact replacement failed and rollback failed: {error}; {restore_error}")
-        print(f"warning: verified CI artifact pending; close AIPoB before replacement: {error}")
+        try:
+            old.rename(destination)
+        except OSError as restore_error:
+            fail(f"CI artifact replacement failed and rollback failed: {error}; {restore_error}")
+        print(f"warning: verified CI artifact pending; replacement failed: {error}")
         return False
     try:
         remove_managed_directory(old)

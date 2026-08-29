@@ -129,10 +129,12 @@ python3 scripts/aipob.py sync-ci-windows
 ./artifacts/ci-latest/app/Path\ of\ Building.exe
 ```
 
-Repeated checks do not download the same Actions run again. If the current
-portable is open and Windows locks it, the verified replacement remains at
-`artifacts/ci-pending` until the next check. The synchronizer never deletes
-other paths under `artifacts/`.
+Repeated checks do not download the same Actions run again. A workspace watcher
+that holds only the `ci-latest` directory no longer blocks promotion: the
+synchronizer transactionally exchanges its verified contents and rolls back on
+failure. If AIPoB holds an actual package file open, the replacement remains at
+`artifacts/ci-pending` until the next check. Other paths under `artifacts/` are
+never deleted.
 
 ## Wiki
 

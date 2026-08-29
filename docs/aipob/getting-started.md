@@ -56,9 +56,11 @@ its hashes and metadata, launches its pinned Node/SQLite sidecar smoke test,
 and only then replaces `artifacts/ci-latest`. The marker
 `artifacts/ci-latest/ci-sync.json` prevents a repeated download of the same run.
 
-Only the managed latest copy is retained normally. If Windows has the current
-application open, the verified update stays in `artifacts/ci-pending`; close
-AIPoB and let the next check promote it. Other artifact directories are never
+Only the managed latest copy is retained normally. A File Explorer, editor, or
+workspace watcher handle on the `ci-latest` directory is handled by a
+transactional content exchange with rollback. If Windows has an actual package
+file open, the verified update stays in `artifacts/ci-pending`; close its owner
+and let the next check promote it. Other artifact directories are never
 removed.
 
 ## Use the Planner tab

@@ -141,6 +141,67 @@ class CiSyncTests(unittest.TestCase):
 
             self.assertEqual(download.call_count, 1)
 
+    def test_promote_replaces_contents_when_latest_directory_is_held_open(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            parent = Path(temporary)
+            destination = parent / "ci-latest"
+            pending = parent / "ci-pending"
+            old = parent / "ci-latest-old"
+            write_artifact(destination).write_bytes(b"old")
+            write_artifact(pending).write_bytes(b"new")
+            (destination / ci_sync.MARKER_NAME).write_text("old", encoding="utf-8")
+            (pending / ci_sync.MARKER_NAME).write_text("new", encoding="utf-8")
+            path_type = type(destination)
+            original_rename = path_type.rename
+
+            def hold_latest(path: Path, target: Path) -> Path:
+                if path == destination and Path(target) == old:
+                    raise PermissionError("latest directory held open")
+                return original_rename(path, target)
+
+            with patch.object(path_type, "rename", new=hold_latest):
+                self.assertTrue(ci_sync.promote(pending, destination, old))
+
+            self.assertEqual(
+                (destination / f"{ci_sync.DEFAULT_ARTIFACT}.zip").read_bytes(),
+                b"new",
+            )
+            self.assertFalse(pending.exists())
+            self.assertFalse(old.exists())
+
+    def test_promote_rolls_back_when_latest_content_is_locked(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            parent = Path(temporary)
+            destination = parent / "ci-latest"
+            pending = parent / "ci-pending"
+            old = parent / "ci-latest-old"
+            write_artifact(destination).write_bytes(b"old")
+            write_artifact(pending).write_bytes(b"new")
+            (destination / ci_sync.MARKER_NAME).write_text("old", encoding="utf-8")
+            (pending / ci_sync.MARKER_NAME).write_text("new", encoding="utf-8")
+            path_type = type(destination)
+            original_rename = path_type.rename
+
+            def hold_latest_content(path: Path, target: Path) -> Path:
+                if path == destination and Path(target) == old:
+                    raise PermissionError("latest directory held open")
+                if path == destination / ci_sync.MARKER_NAME:
+                    raise PermissionError("latest content held open")
+                return original_rename(path, target)
+
+            with patch.object(path_type, "rename", new=hold_latest_content):
+                self.assertFalse(ci_sync.promote(pending, destination, old))
+
+            self.assertEqual(
+                (destination / f"{ci_sync.DEFAULT_ARTIFACT}.zip").read_bytes(),
+                b"old",
+            )
+            self.assertEqual(
+                (pending / f"{ci_sync.DEFAULT_ARTIFACT}.zip").read_bytes(),
+                b"new",
+            )
+            self.assertFalse(old.exists())
+
 
 if __name__ == "__main__":
     unittest.main()

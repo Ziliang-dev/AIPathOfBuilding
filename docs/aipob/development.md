@@ -175,8 +175,10 @@ python3 scripts/aipob.py sync-ci-windows
 The command queries structured `gh run list` output, downloads the canonical
 portable by run ID, converts WSL paths before invoking Windows executables,
 performs the full package verifier, and replaces only the managed
-`artifacts/ci-latest` directory. A verified update blocked by an open Windows
-process is retained at `artifacts/ci-pending` for the next invocation.
+`artifacts/ci-latest` directory. If a workspace watcher holds that directory,
+the synchronizer exchanges its contents transactionally and rolls back on any
+child failure. A verified update blocked by an actual open package file is
+retained at `artifacts/ci-pending` for the next invocation.
 
 The portable ZIP is the canonical staging input for NSIS:
 

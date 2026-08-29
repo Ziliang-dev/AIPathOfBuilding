@@ -63,8 +63,10 @@ Local WSL checks completed on 2026-08-29:
 - `python3 scripts/aipob.py check-sidecar`;
 - `python3 scripts/aipob.py check-manifest`;
 - Python bytecode compilation for all command modules;
-- `sync-ci-windows` unit tests and a real download/verification of successful
-  Actions run `33210198998`, followed by an idempotent no-download check;
+- `sync-ci-windows` unit tests cover Windows-CLI symlinks, directory-watcher
+  promotion, locked-content rollback, and idempotence; successful Actions run
+  `33257674043` was downloaded, fully verified, and promoted while the managed
+  directory had a live watcher handle;
 - YAML parse for all workflows; and
 - syntax parse for the changed AIPoB Lua modules and specs; and
 - two independent real PoB worker processes produced the same canonical
@@ -73,12 +75,12 @@ Local WSL checks completed on 2026-08-29:
 GitHub Actions supplied Docker/Busted, MSVC, NSIS, Python, and exact Node
 `24.20.0` without requiring local installation. Final CI evidence:
 
-- [AIPoB release gate run](https://github.com/Ziliang-dev/AIPathOfBuilding/actions/runs/33209313332): Node `24.20.0`, Golden corpus/Busted, canonical bundle,
+- [AIPoB release gate run](https://github.com/Ziliang-dev/AIPathOfBuilding/actions/runs/33257674043): Node `24.20.0`, Golden corpus/Busted, canonical bundle,
   WinCred/MSVC, portable package verification, Apply/Reject/Fail/Restart E2E,
   real packaged PoB-process E2E, NSIS build/silent-install verification, and
   aggregate release gate all passed;
-- [upstream Lua/runtime tests](https://github.com/Ziliang-dev/AIPathOfBuilding/actions/runs/33209313335) passed; and
-- [spell check](https://github.com/Ziliang-dev/AIPathOfBuilding/actions/runs/33209313348) passed.
+- [upstream Lua/runtime tests](https://github.com/Ziliang-dev/AIPathOfBuilding/actions/runs/33257674039) passed; and
+- [spell check](https://github.com/Ziliang-dev/AIPathOfBuilding/actions/runs/33257674040) passed.
 
 `python3 scripts/aipob.py release-gate` and `.github/workflows/aipob.yml` define those gates.
 A release must not be published if any gate is skipped or fails.
