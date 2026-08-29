@@ -174,17 +174,19 @@ describe("AIPlannerTab", function()
 
 		planner:OpenProviderPopup()
 		local controls = planner.providerPopupControls
+		local popupState = planner.providerPopupState
 		assert.are.equal(1, connects)
 		controls.key:SetText("test-secret")
 		assert.is_false(controls.save.enabled())
-		controls.testedRevision = controls.inputRevision
+		popupState.testedRevision = popupState.inputRevision
 		assert.is_true(controls.save.enabled())
 		controls.model:SetText("changed-model")
 		assert.is_false(controls.save.enabled())
-		controls.loading = true
+		popupState.loading = true
 		controls.key:SetText("")
-		controls.loading = false
+		popupState.loading = false
 		planner.providerPopupControls = nil
+		planner.providerPopupState = nil
 		main:ClosePopup()
 	end)
 
@@ -203,15 +205,17 @@ describe("AIPlannerTab", function()
 
 		planner:OpenProviderPopup()
 		local controls = planner.providerPopupControls
+		local popupState = planner.providerPopupState
 		assert.is_true(controls.test.enabled())
 		controls.endpoint:SetText("https://other.invalid/v1")
 		assert.is_false(controls.test.enabled())
 		controls.key:SetText("replacement-secret")
 		assert.is_true(controls.test.enabled())
-		controls.loading = true
+		popupState.loading = true
 		controls.key:SetText("")
-		controls.loading = false
+		popupState.loading = false
 		planner.providerPopupControls = nil
+		planner.providerPopupState = nil
 		main:ClosePopup()
 	end)
 
@@ -249,14 +253,15 @@ describe("AIPlannerTab", function()
 
 		planner:OpenProviderPopup()
 		local controls = planner.providerPopupControls
+		local popupState = planner.providerPopupState
 		controls.endpoint:SetText("https://provider.invalid/v1")
 		controls.model:SetText("test-model")
 		controls.key:SetText("test-secret")
 		controls.test.onClick()
 		main.popups[1].controls.confirm.onClick()
 		assert.are.equal("test-secret", controls.key.buf)
-		assert.is_nil(controls.testedRevision)
-		assert.matches("HTTP 401", controls.statusText)
+		assert.is_nil(popupState.testedRevision)
+		assert.matches("HTTP 401", popupState.statusText)
 
 		shouldPass = true
 		controls.test.onClick()
@@ -264,7 +269,7 @@ describe("AIPlannerTab", function()
 		assert.is_true(controls.save.enabled())
 		controls.save.onClick()
 		assert.are.equal("test-secret", controls.key.buf)
-		assert.matches("configuration failed", controls.statusText)
+		assert.matches("configuration failed", popupState.statusText)
 		controls.cancel.onClick()
 	end)
 

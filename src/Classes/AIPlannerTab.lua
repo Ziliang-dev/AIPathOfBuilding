@@ -513,15 +513,13 @@ end
 function AIPlannerTabClass:OpenProviderPopup()
 	self:ControllerCall("EnsureConnected")
 	local controls = { }
+	local popupState = { inputRevision = 0, statusText = "Waiting for sidecar", loading = false }
 	local profile = type(self.state.providerStatus) == "table" and self.state.providerStatus.profile or { }
-	controls.inputRevision = 0
-	controls.statusText = "Waiting for sidecar"
-	controls.loading = false
 	local function invalidateTest()
-		if controls.loading then return end
-		controls.inputRevision = controls.inputRevision + 1
-		controls.testedRevision = nil
-		controls.statusText = "Fields changed; run Test Connection again"
+		if popupState.loading then return end
+		popupState.inputRevision = popupState.inputRevision + 1
+		popupState.testedRevision = nil
+		popupState.statusText = "Fields changed; run Test Connection again"
 	end
 	controls.endpointLabel = new("LabelControl"):LabelControl(nil, {0, 14, 0, 16}, "^7OpenAI-compatible endpoint")
 	controls.endpoint = new("EditControl"):EditControl(nil, {0, 34, 560, 20}, profile.baseURL or "https://api.openai.com/v1", nil, nil, 2048, invalidateTest)
@@ -536,7 +534,7 @@ function AIPlannerTabClass:OpenProviderPopup()
 	controls.status.label = function()
 		local sidecar = self.state and self.state.sidecarStatus or "stopped"
 		local sidecarLabel = ({ starting = "Starting", connecting = "Starting", reconnecting = "Starting", connected = "Connected", failed = "Failed", stopped = "Stopped" })[sidecar] or safeText(sidecar)
-		local detail = controls.statusText
+		local detail = popupState.statusText
 		if sidecar ~= "connected" and self.state and self.state.sidecarMessage then detail = self.state.sidecarMessage end
 		return "^7Sidecar: ^3"..sidecarLabel.."^7  "..safeText(detail)
 	end
@@ -559,30 +557,30 @@ function AIPlannerTabClass:OpenProviderPopup()
 			and (controls.key.buf ~= "" or savedKeyUsable)
 	end
 	controls.retry = new("ButtonControl"):ButtonControl(nil, {-245, 224, 105, 20}, "Retry Sidecar", function()
-		controls.statusText = "Retrying sidecar"
+		popupState.statusText = "Retrying sidecar"
 		self:ControllerCall("EnsureConnected")
 	end)
 	controls.retry.shown = function() return self.state and self.state.sidecarStatus == "failed" end
 	controls.test = new("ButtonControl"):ButtonControl(nil, {-120, 224, 125, 20}, "Test Connection", function()
-		if not fieldsPresent() or controls.testing then return end
+		if not fieldsPresent() or popupState.testing then return end
 		local attempt = currentInput()
-		attempt.revision = controls.inputRevision
-		controls.testing = true
-		controls.testedRevision = nil
-		controls.statusText = "Preparing test authorization"
+		attempt.revision = popupState.inputRevision
+		popupState.testing = true
+		popupState.testedRevision = nil
+		popupState.statusText = "Preparing test authorization"
 		local accepted = self:ControllerCall("PreviewProviderTest", attempt, function(preview, previewErr)
 			if previewErr then
-				controls.testing = false
-				controls.statusText = previewErr
+				popupState.testing = false
+				popupState.statusText = previewErr
 				return
 			end
-			if controls.inputRevision ~= attempt.revision then
-				controls.testing = false
-				controls.statusText = "Fields changed; run Test Connection again"
+			if popupState.inputRevision ~= attempt.revision then
+				popupState.testing = false
+				popupState.statusText = "Fields changed; run Test Connection again"
 				return
 			end
-			controls.testing = false
-			controls.statusText = "Review the one-time authorization"
+			popupState.testing = false
+			popupState.statusText = "Review the one-time authorization"
 			local payload = type(preview.payloadPreview) == "table" and preview.payloadPreview or { }
 			main:OpenConfirmPopup(
 				"One-time LLM Connection Test",
@@ -592,102 +590,106 @@ function AIPlannerTabClass:OpenProviderPopup()
 					.."\n\nRun this one-time provider request? It does not grant normal Build/chat consent.",
 				"Run Test",
 				function()
-					if controls.inputRevision ~= attempt.revision then
-						controls.statusText = "Fields changed; run Test Connection again"
+					if popupState.inputRevision ~= attempt.revision then
+						popupState.statusText = "Fields changed; run Test Connection again"
 						return
 					end
-					controls.testing = true
-					controls.statusText = "Testing endpoint, key, model, and tool calling"
+					popupState.testing = true
+					popupState.statusText = "Testing endpoint, key, model, and tool calling"
 					local queued = self:ControllerCall("TestProviderConnection", attempt, preview, function(result, testErr)
-						controls.testing = false
+						popupState.testing = false
 						if testErr then
-							controls.statusText = testErr
+							popupState.statusText = testErr
 							return
 						end
-						if controls.inputRevision ~= attempt.revision then
-							controls.statusText = "Fields changed after test; run it again"
+						if popupState.inputRevision ~= attempt.revision then
+							popupState.statusText = "Fields changed after test; run it again"
 							return
 						end
-						controls.testedRevision = attempt.revision
+						popupState.testedRevision = attempt.revision
 						local usage = type(result.usage) == "table"
 							and "; tokens "..safeText(result.usage.inputTokens).."/"..safeText(result.usage.outputTokens) or ""
-						controls.statusText = "Passed in "..safeText(result.latencyMs).." ms; model "
+						popupState.statusText = "Passed in "..safeText(result.latencyMs).." ms; model "
 							..safeText(result.responseModel or result.requestedModel).."; tool calling verified"..usage..". Configure to save."
 					end)
 					if not queued then
-						controls.testing = false
-						controls.statusText = safeText(self.runtimeError)
+						popupState.testing = false
+						popupState.statusText = safeText(self.runtimeError)
 					end
 				end
 			)
 		end)
 		if not accepted then
-			controls.testing = false
-			controls.statusText = safeText(self.runtimeError)
+			popupState.testing = false
+			popupState.statusText = safeText(self.runtimeError)
 		end
 	end)
-	controls.test.enabled = function() return connected() and connectionTestSupported() and fieldsPresent() and not controls.testing and not controls.configuring end
+	controls.test.enabled = function() return connected() and connectionTestSupported() and fieldsPresent() and not popupState.testing and not popupState.configuring end
 	controls.test.tooltipText = function()
 		if not connected() then return "Wait for the sidecar to connect or retry after failure." end
 		if not connectionTestSupported() then return "The connected sidecar does not support provider connection tests." end
 		if controls.endpoint.buf == "" then return "Enter an OpenAI-compatible endpoint." end
 		if controls.model.buf == "" then return "Enter the provider model name." end
 		if not fieldsPresent() then return "Enter an API key; a saved key is reusable only for the unchanged endpoint." end
-		if controls.testing then return "Wait for the current connection test." end
+		if popupState.testing then return "Wait for the current connection test." end
 		return "Runs a real forced tool-call probe against the current unsaved fields."
 	end
 	controls.save = new("ButtonControl"):ButtonControl(nil, {15, 224, 100, 20}, "Configure", function()
-		if controls.testedRevision ~= controls.inputRevision or controls.configuring then return end
-		controls.configuring = true
-		controls.statusText = "Saving tested configuration"
+		if popupState.testedRevision ~= popupState.inputRevision or popupState.configuring then return end
+		popupState.configuring = true
+		popupState.statusText = "Saving tested configuration"
 		local accepted = self:ControllerCall("ConfigureProvider", currentInput(), function(_, configureErr)
-			controls.configuring = false
+			popupState.configuring = false
 			if configureErr then
-				controls.statusText = configureErr
+				popupState.statusText = configureErr
 				return
 			end
-			controls.loading = true
+			popupState.loading = true
 			controls.key:SetText("")
-			controls.loading = false
+			popupState.loading = false
 			self.providerPopupControls = nil
+			self.providerPopupState = nil
 			main:ClosePopup()
 		end)
 		if not accepted then
-			controls.configuring = false
-			controls.statusText = safeText(self.runtimeError)
+			popupState.configuring = false
+			popupState.statusText = safeText(self.runtimeError)
 		end
 	end)
 	controls.save.enabled = function()
-		return connected() and connectionTestSupported() and controls.testedRevision == controls.inputRevision and not controls.testing and not controls.configuring
+		return connected() and connectionTestSupported() and popupState.testedRevision == popupState.inputRevision and not popupState.testing and not popupState.configuring
 	end
 	controls.save.tooltipText = function()
-		return controls.testedRevision == controls.inputRevision
+		return popupState.testedRevision == popupState.inputRevision
 			and "Save the exact tested fields, then review normal provider data consent."
 			or "Run Test Connection successfully for these exact fields first."
 	end
 	controls.clear = new("ButtonControl"):ButtonControl(nil, {125, 224, 90, 20}, "Clear", function()
-		controls.statusText = "Clearing saved provider configuration"
+		popupState.statusText = "Clearing saved provider configuration"
 		self:ControllerCall("ClearProvider", function(_, clearErr)
 			if clearErr then
-				controls.statusText = clearErr
+				popupState.statusText = clearErr
 				return
 			end
-			controls.loading = true
+			popupState.loading = true
 			controls.key:SetText("")
-			controls.loading = false
+			popupState.loading = false
 			self.providerPopupControls = nil
+			self.providerPopupState = nil
 			main:ClosePopup()
 		end)
 	end)
-	controls.clear.enabled = function() return connected() and not controls.testing and not controls.configuring end
+	controls.clear.enabled = function() return connected() and not popupState.testing and not popupState.configuring end
 	controls.cancel = new("ButtonControl"):ButtonControl(nil, {225, 224, 90, 20}, "Cancel", function()
-		controls.loading = true
+		popupState.loading = true
 		controls.key:SetText("")
-		controls.loading = false
+		popupState.loading = false
 		self.providerPopupControls = nil
+		self.providerPopupState = nil
 		main:ClosePopup()
 	end)
 	self.providerPopupControls = controls
+	self.providerPopupState = popupState
 	main:OpenPopup(620, 265, "Planner LLM", controls, "test", "key", "cancel")
 end
 
@@ -768,15 +770,16 @@ function AIPlannerTabClass:OnFrame()
 		self.runtimeError = stateOk and "PlannerController.GetState() returned invalid state." or safeText(state)
 	end
 	local popup = self.providerPopupControls
+	local popupState = self.providerPopupState
 	local provider = type(self.state.providerStatus) == "table" and self.state.providerStatus or nil
-	if popup and not popup.profileLoaded and popup.inputRevision == 0 and provider and type(provider.profile) == "table" then
-		popup.loading = true
+	if popup and popupState and not popupState.profileLoaded and popupState.inputRevision == 0 and provider and type(provider.profile) == "table" then
+		popupState.loading = true
 		popup.endpoint:SetText(provider.profile.baseURL or popup.endpoint.buf)
 		popup.model:SetText(provider.profile.model or popup.model.buf)
 		popup.key.prompt = provider.credentialConfigured and "Leave blank to use the saved key" or "Required for first configuration"
-		popup.loading = false
-		popup.profileLoaded = true
-		popup.statusText = "Saved profile loaded; run Test Connection"
+		popupState.loading = false
+		popupState.profileLoaded = true
+		popupState.statusText = "Saved profile loaded; run Test Connection"
 	end
 end
 

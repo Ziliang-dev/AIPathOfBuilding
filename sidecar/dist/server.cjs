@@ -34467,7 +34467,7 @@ var init_singletons = __esm({
   }
 });
 
-// node_modules/.pnpm/@langchain+langgraph-checkp_990d0b8f43c35f32d34b3e24b42b2b67/node_modules/@langchain/langgraph-checkpoint/dist/id.js
+// node_modules/.pnpm/@langchain+langgraph-checkpoint@1.1.5_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3__/node_modules/@langchain/langgraph-checkpoint/dist/id.js
 function uuid62(clockseq) {
   let msecs = Date.now();
   if (msecs <= lastMsecs) {
@@ -34490,20 +34490,20 @@ function uuid5(name, namespace) {
 }
 var lastMsecs, lastNsecs;
 var init_id2 = __esm({
-  "node_modules/.pnpm/@langchain+langgraph-checkp_990d0b8f43c35f32d34b3e24b42b2b67/node_modules/@langchain/langgraph-checkpoint/dist/id.js"() {
+  "node_modules/.pnpm/@langchain+langgraph-checkpoint@1.1.5_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3__/node_modules/@langchain/langgraph-checkpoint/dist/id.js"() {
     init_uuid();
     lastMsecs = 0;
     lastNsecs = 0;
   }
 });
 
-// node_modules/.pnpm/@langchain+langgraph-checkp_990d0b8f43c35f32d34b3e24b42b2b67/node_modules/@langchain/langgraph-checkpoint/dist/serde/types.js
+// node_modules/.pnpm/@langchain+langgraph-checkpoint@1.1.5_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3__/node_modules/@langchain/langgraph-checkpoint/dist/serde/types.js
 function isDeltaSnapshot(value) {
   return value != null && typeof value === "object" && value.lg_name === "DeltaSnapshot";
 }
 var TASKS2, ERROR3, SCHEDULED, INTERRUPT2, RESUME2, DeltaSnapshot;
 var init_types = __esm({
-  "node_modules/.pnpm/@langchain+langgraph-checkp_990d0b8f43c35f32d34b3e24b42b2b67/node_modules/@langchain/langgraph-checkpoint/dist/serde/types.js"() {
+  "node_modules/.pnpm/@langchain+langgraph-checkpoint@1.1.5_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3__/node_modules/@langchain/langgraph-checkpoint/dist/serde/types.js"() {
     TASKS2 = "__pregel_tasks";
     ERROR3 = "__error__";
     SCHEDULED = "__scheduled__";
@@ -34520,7 +34520,7 @@ var init_types = __esm({
   }
 });
 
-// node_modules/.pnpm/@langchain+langgraph-checkp_990d0b8f43c35f32d34b3e24b42b2b67/node_modules/@langchain/langgraph-checkpoint/dist/serde/utils/fast-safe-stringify/index.js
+// node_modules/.pnpm/@langchain+langgraph-checkpoint@1.1.5_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3__/node_modules/@langchain/langgraph-checkpoint/dist/serde/utils/fast-safe-stringify/index.js
 function defaultOptions2() {
   return {
     depthLimit: Number.MAX_SAFE_INTEGER,
@@ -34615,7 +34615,7 @@ function replaceGetterValues2(replacer) {
 }
 var LIMIT_REPLACE_NODE2, CIRCULAR_REPLACE_NODE2, arr2, replacerStack2;
 var init_fast_safe_stringify2 = __esm({
-  "node_modules/.pnpm/@langchain+langgraph-checkp_990d0b8f43c35f32d34b3e24b42b2b67/node_modules/@langchain/langgraph-checkpoint/dist/serde/utils/fast-safe-stringify/index.js"() {
+  "node_modules/.pnpm/@langchain+langgraph-checkpoint@1.1.5_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3__/node_modules/@langchain/langgraph-checkpoint/dist/serde/utils/fast-safe-stringify/index.js"() {
     LIMIT_REPLACE_NODE2 = "[...]";
     CIRCULAR_REPLACE_NODE2 = "[Circular]";
     arr2 = [];
@@ -58181,7 +58181,7 @@ var init_load = __esm({
   }
 });
 
-// node_modules/.pnpm/@langchain+langgraph-checkp_990d0b8f43c35f32d34b3e24b42b2b67/node_modules/@langchain/langgraph-checkpoint/dist/serde/jsonplus.js
+// node_modules/.pnpm/@langchain+langgraph-checkpoint@1.1.5_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3__/node_modules/@langchain/langgraph-checkpoint/dist/serde/jsonplus.js
 function isLangChainSerializedObject(value) {
   return value !== null && value.lc === 1 && value.type === "constructor" && Array.isArray(value.id);
 }
@@ -58278,7 +58278,7 @@ function _default3(obj) {
 }
 var JsonPlusSerializer;
 var init_jsonplus = __esm({
-  "node_modules/.pnpm/@langchain+langgraph-checkp_990d0b8f43c35f32d34b3e24b42b2b67/node_modules/@langchain/langgraph-checkpoint/dist/serde/jsonplus.js"() {
+  "node_modules/.pnpm/@langchain+langgraph-checkpoint@1.1.5_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3__/node_modules/@langchain/langgraph-checkpoint/dist/serde/jsonplus.js"() {
     init_types();
     init_fast_safe_stringify2();
     init_load();
@@ -58304,7 +58304,7 @@ var init_jsonplus = __esm({
   }
 });
 
-// node_modules/.pnpm/@langchain+langgraph-checkp_990d0b8f43c35f32d34b3e24b42b2b67/node_modules/@langchain/langgraph-checkpoint/dist/base.js
+// node_modules/.pnpm/@langchain+langgraph-checkpoint@1.1.5_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3__/node_modules/@langchain/langgraph-checkpoint/dist/base.js
 function deepCopy(obj) {
   if (typeof obj !== "object" || obj === null) return obj;
   const newObj = Array.isArray(obj) ? [] : {};
@@ -58346,7 +58346,7 @@ function getCheckpointId(config2) {
 }
 var BaseCheckpointSaver, WRITES_IDX_MAP, EXCLUDED_METADATA_KEYS;
 var init_base12 = __esm({
-  "node_modules/.pnpm/@langchain+langgraph-checkp_990d0b8f43c35f32d34b3e24b42b2b67/node_modules/@langchain/langgraph-checkpoint/dist/base.js"() {
+  "node_modules/.pnpm/@langchain+langgraph-checkpoint@1.1.5_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3__/node_modules/@langchain/langgraph-checkpoint/dist/base.js"() {
     init_id2();
     init_types();
     init_jsonplus();
@@ -58463,7 +58463,7 @@ var init_base12 = __esm({
   }
 });
 
-// node_modules/.pnpm/@langchain+langgraph-checkp_990d0b8f43c35f32d34b3e24b42b2b67/node_modules/@langchain/langgraph-checkpoint/dist/memory.js
+// node_modules/.pnpm/@langchain+langgraph-checkpoint@1.1.5_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3__/node_modules/@langchain/langgraph-checkpoint/dist/memory.js
 function assertSafeStorageKey(field, value, options = {}) {
   const { allowEmpty = false } = options;
   if (typeof value !== "string") {
@@ -58490,7 +58490,7 @@ function _parseKey(key) {
 }
 var POLLUTION_KEYS, MemorySaver;
 var init_memory2 = __esm({
-  "node_modules/.pnpm/@langchain+langgraph-checkp_990d0b8f43c35f32d34b3e24b42b2b67/node_modules/@langchain/langgraph-checkpoint/dist/memory.js"() {
+  "node_modules/.pnpm/@langchain+langgraph-checkpoint@1.1.5_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3__/node_modules/@langchain/langgraph-checkpoint/dist/memory.js"() {
     init_types();
     init_base12();
     POLLUTION_KEYS = /* @__PURE__ */ new Set([
@@ -58769,7 +58769,7 @@ var init_memory2 = __esm({
   }
 });
 
-// node_modules/.pnpm/@langchain+langgraph-checkp_990d0b8f43c35f32d34b3e24b42b2b67/node_modules/@langchain/langgraph-checkpoint/dist/store/base.js
+// node_modules/.pnpm/@langchain+langgraph-checkpoint@1.1.5_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3__/node_modules/@langchain/langgraph-checkpoint/dist/store/base.js
 function validateNamespace(namespace) {
   if (namespace.length === 0) throw new InvalidNamespaceError("Namespace cannot be empty.");
   for (const label of namespace) {
@@ -58781,7 +58781,7 @@ function validateNamespace(namespace) {
 }
 var InvalidNamespaceError, BaseStore2;
 var init_base13 = __esm({
-  "node_modules/.pnpm/@langchain+langgraph-checkp_990d0b8f43c35f32d34b3e24b42b2b67/node_modules/@langchain/langgraph-checkpoint/dist/store/base.js"() {
+  "node_modules/.pnpm/@langchain+langgraph-checkpoint@1.1.5_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3__/node_modules/@langchain/langgraph-checkpoint/dist/store/base.js"() {
     InvalidNamespaceError = class extends Error {
       constructor(message) {
         super(message);
@@ -58931,10 +58931,10 @@ var init_base13 = __esm({
   }
 });
 
-// node_modules/.pnpm/@langchain+langgraph-checkp_990d0b8f43c35f32d34b3e24b42b2b67/node_modules/@langchain/langgraph-checkpoint/dist/store/batch.js
+// node_modules/.pnpm/@langchain+langgraph-checkpoint@1.1.5_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3__/node_modules/@langchain/langgraph-checkpoint/dist/store/batch.js
 var extractStore, AsyncBatchedStore;
 var init_batch = __esm({
-  "node_modules/.pnpm/@langchain+langgraph-checkp_990d0b8f43c35f32d34b3e24b42b2b67/node_modules/@langchain/langgraph-checkpoint/dist/store/batch.js"() {
+  "node_modules/.pnpm/@langchain+langgraph-checkpoint@1.1.5_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3__/node_modules/@langchain/langgraph-checkpoint/dist/store/batch.js"() {
     init_base13();
     extractStore = (input) => {
       if ("lg_name" in input && input.lg_name === "AsyncBatchedStore") return input.store;
@@ -59047,24 +59047,24 @@ var init_batch = __esm({
   }
 });
 
-// node_modules/.pnpm/@langchain+langgraph-checkp_990d0b8f43c35f32d34b3e24b42b2b67/node_modules/@langchain/langgraph-checkpoint/dist/store/utils.js
+// node_modules/.pnpm/@langchain+langgraph-checkpoint@1.1.5_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3__/node_modules/@langchain/langgraph-checkpoint/dist/store/utils.js
 var init_utils8 = __esm({
-  "node_modules/.pnpm/@langchain+langgraph-checkp_990d0b8f43c35f32d34b3e24b42b2b67/node_modules/@langchain/langgraph-checkpoint/dist/store/utils.js"() {
+  "node_modules/.pnpm/@langchain+langgraph-checkpoint@1.1.5_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3__/node_modules/@langchain/langgraph-checkpoint/dist/store/utils.js"() {
   }
 });
 
-// node_modules/.pnpm/@langchain+langgraph-checkp_990d0b8f43c35f32d34b3e24b42b2b67/node_modules/@langchain/langgraph-checkpoint/dist/store/memory.js
+// node_modules/.pnpm/@langchain+langgraph-checkpoint@1.1.5_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3__/node_modules/@langchain/langgraph-checkpoint/dist/store/memory.js
 var init_memory3 = __esm({
-  "node_modules/.pnpm/@langchain+langgraph-checkp_990d0b8f43c35f32d34b3e24b42b2b67/node_modules/@langchain/langgraph-checkpoint/dist/store/memory.js"() {
+  "node_modules/.pnpm/@langchain+langgraph-checkpoint@1.1.5_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3__/node_modules/@langchain/langgraph-checkpoint/dist/store/memory.js"() {
     init_base13();
     init_utils8();
   }
 });
 
-// node_modules/.pnpm/@langchain+langgraph-checkp_990d0b8f43c35f32d34b3e24b42b2b67/node_modules/@langchain/langgraph-checkpoint/dist/cache/base.js
+// node_modules/.pnpm/@langchain+langgraph-checkpoint@1.1.5_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3__/node_modules/@langchain/langgraph-checkpoint/dist/cache/base.js
 var BaseCache2;
 var init_base14 = __esm({
-  "node_modules/.pnpm/@langchain+langgraph-checkp_990d0b8f43c35f32d34b3e24b42b2b67/node_modules/@langchain/langgraph-checkpoint/dist/cache/base.js"() {
+  "node_modules/.pnpm/@langchain+langgraph-checkpoint@1.1.5_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3__/node_modules/@langchain/langgraph-checkpoint/dist/cache/base.js"() {
     init_jsonplus();
     BaseCache2 = class {
       serde = new JsonPlusSerializer();
@@ -59080,24 +59080,24 @@ var init_base14 = __esm({
   }
 });
 
-// node_modules/.pnpm/@langchain+langgraph-checkp_990d0b8f43c35f32d34b3e24b42b2b67/node_modules/@langchain/langgraph-checkpoint/dist/cache/memory.js
+// node_modules/.pnpm/@langchain+langgraph-checkpoint@1.1.5_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3__/node_modules/@langchain/langgraph-checkpoint/dist/cache/memory.js
 var init_memory4 = __esm({
-  "node_modules/.pnpm/@langchain+langgraph-checkp_990d0b8f43c35f32d34b3e24b42b2b67/node_modules/@langchain/langgraph-checkpoint/dist/cache/memory.js"() {
+  "node_modules/.pnpm/@langchain+langgraph-checkpoint@1.1.5_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3__/node_modules/@langchain/langgraph-checkpoint/dist/cache/memory.js"() {
     init_base14();
   }
 });
 
-// node_modules/.pnpm/@langchain+langgraph-checkp_990d0b8f43c35f32d34b3e24b42b2b67/node_modules/@langchain/langgraph-checkpoint/dist/cache/index.js
+// node_modules/.pnpm/@langchain+langgraph-checkpoint@1.1.5_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3__/node_modules/@langchain/langgraph-checkpoint/dist/cache/index.js
 var init_cache = __esm({
-  "node_modules/.pnpm/@langchain+langgraph-checkp_990d0b8f43c35f32d34b3e24b42b2b67/node_modules/@langchain/langgraph-checkpoint/dist/cache/index.js"() {
+  "node_modules/.pnpm/@langchain+langgraph-checkpoint@1.1.5_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3__/node_modules/@langchain/langgraph-checkpoint/dist/cache/index.js"() {
     init_base14();
     init_memory4();
   }
 });
 
-// node_modules/.pnpm/@langchain+langgraph-checkp_990d0b8f43c35f32d34b3e24b42b2b67/node_modules/@langchain/langgraph-checkpoint/dist/index.js
+// node_modules/.pnpm/@langchain+langgraph-checkpoint@1.1.5_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3__/node_modules/@langchain/langgraph-checkpoint/dist/index.js
 var init_dist3 = __esm({
-  "node_modules/.pnpm/@langchain+langgraph-checkp_990d0b8f43c35f32d34b3e24b42b2b67/node_modules/@langchain/langgraph-checkpoint/dist/index.js"() {
+  "node_modules/.pnpm/@langchain+langgraph-checkpoint@1.1.5_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3__/node_modules/@langchain/langgraph-checkpoint/dist/index.js"() {
     init_id2();
     init_types();
     init_base12();
@@ -59137,6 +59137,7 @@ var init_schemas3 = __esm({
       "nativeEvidence",
       "tradeBroker",
       "providerConsent",
+      "providerConnectionTest",
       "objectiveDraft"
     ]);
     ScenarioIdSchema = external_exports.enum([
@@ -59582,7 +59583,7 @@ var require_x509_transport_state = __commonJS({
   }
 });
 
-// node_modules/.pnpm/@langchain+langgraph-checkp_4b6b2aa88032c0512e7eb90ce8771611/node_modules/@langchain/langgraph-checkpoint-sqlite/dist/index.js
+// node_modules/.pnpm/@langchain+langgraph-checkpoint-sqlite@1.0.4_@langchain+core@1.2.9_openai@7.8.0_zod@4.4_4b6b2aa88032c0512e7eb90ce8771611/node_modules/@langchain/langgraph-checkpoint-sqlite/dist/index.js
 var dist_exports = {};
 __export(dist_exports, {
   SqliteSaver: () => SqliteSaver
@@ -59633,7 +59634,7 @@ function prepareSql(db, checkpointId) {
 }
 var import_better_sqlite32, SqliteSaver;
 var init_dist4 = __esm({
-  "node_modules/.pnpm/@langchain+langgraph-checkp_4b6b2aa88032c0512e7eb90ce8771611/node_modules/@langchain/langgraph-checkpoint-sqlite/dist/index.js"() {
+  "node_modules/.pnpm/@langchain+langgraph-checkpoint-sqlite@1.0.4_@langchain+core@1.2.9_openai@7.8.0_zod@4.4_4b6b2aa88032c0512e7eb90ce8771611/node_modules/@langchain/langgraph-checkpoint-sqlite/dist/index.js"() {
     import_better_sqlite32 = __toESM(require("better-sqlite3"), 1);
     init_dist3();
     SqliteSaver = class SqliteSaver2 extends BaseCheckpointSaver {
@@ -60145,14 +60146,14 @@ function numberOption(values, option) {
 // src/plannerController.ts
 var import_node_crypto4 = require("node:crypto");
 
-// node_modules/.pnpm/@langchain+langgraph@1.4.13_ac0cca7744de425b30aa94ab8460eac9/node_modules/@langchain/langgraph/dist/node.js
+// node_modules/.pnpm/@langchain+langgraph@1.4.13_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3___zod@4.4.3/node_modules/@langchain/langgraph/dist/node.js
 init_singletons();
 var import_node_async_hooks = require("node:async_hooks");
 function initializeAsyncLocalStorageSingleton() {
   AsyncLocalStorageProviderSingleton2.initializeGlobalInstance(new import_node_async_hooks.AsyncLocalStorage());
 }
 
-// node_modules/.pnpm/@langchain+langgraph@1.4.13_ac0cca7744de425b30aa94ab8460eac9/node_modules/@langchain/langgraph/dist/pregel/utils/timeout.js
+// node_modules/.pnpm/@langchain+langgraph@1.4.13_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3___zod@4.4.3/node_modules/@langchain/langgraph/dist/pregel/utils/timeout.js
 function _coerceTimeoutMs(value, field) {
   if (value === void 0 || value === null) return;
   if (typeof value !== "number" || Number.isNaN(value) || value <= 0) throw new Error(`${field} must be greater than 0`);
@@ -60173,7 +60174,7 @@ function coerceTimeoutPolicy(value) {
   };
 }
 
-// node_modules/.pnpm/@langchain+langgraph@1.4.13_ac0cca7744de425b30aa94ab8460eac9/node_modules/@langchain/langgraph/dist/constants.js
+// node_modules/.pnpm/@langchain+langgraph@1.4.13_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3___zod@4.4.3/node_modules/@langchain/langgraph/dist/constants.js
 var START = "__start__";
 var END = "__end__";
 var INPUT = "__input__";
@@ -60419,7 +60420,7 @@ function _deserializeCommandSendObjectGraph(x, seen = /* @__PURE__ */ new Map())
   return x;
 }
 
-// node_modules/.pnpm/@langchain+langgraph@1.4.13_ac0cca7744de425b30aa94ab8460eac9/node_modules/@langchain/langgraph/dist/errors.js
+// node_modules/.pnpm/@langchain+langgraph@1.4.13_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3___zod@4.4.3/node_modules/@langchain/langgraph/dist/errors.js
 var BaseLangGraphError = class extends Error {
   lc_error_code;
   constructor(message, fields) {
@@ -60619,7 +60620,7 @@ var StateGraphInputError = class extends BaseLangGraphError {
   }
 };
 
-// node_modules/.pnpm/@langchain+langgraph@1.4.13_ac0cca7744de425b30aa94ab8460eac9/node_modules/@langchain/langgraph/dist/channels/base.js
+// node_modules/.pnpm/@langchain+langgraph@1.4.13_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3___zod@4.4.3/node_modules/@langchain/langgraph/dist/channels/base.js
 init_dist3();
 var STRUCTURED_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function isDeltaChannel(channel) {
@@ -60777,7 +60778,7 @@ async function channelsFromCheckpoint(specs, checkpoint, options) {
   return channels;
 }
 
-// node_modules/.pnpm/@langchain+langgraph@1.4.13_ac0cca7744de425b30aa94ab8460eac9/node_modules/@langchain/langgraph/dist/channels/binop.js
+// node_modules/.pnpm/@langchain+langgraph@1.4.13_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3___zod@4.4.3/node_modules/@langchain/langgraph/dist/channels/binop.js
 var isBinaryOperatorAggregate = (value) => {
   return value != null && value.lc_graph_name === "BinaryOperatorAggregate";
 };
@@ -60840,7 +60841,7 @@ var BinaryOperatorAggregate = class BinaryOperatorAggregate2 extends BaseChannel
   }
 };
 
-// node_modules/.pnpm/@langchain+langgraph@1.4.13_ac0cca7744de425b30aa94ab8460eac9/node_modules/@langchain/langgraph/dist/channels/last_value.js
+// node_modules/.pnpm/@langchain+langgraph@1.4.13_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3___zod@4.4.3/node_modules/@langchain/langgraph/dist/channels/last_value.js
 var LastValue = class LastValue2 extends BaseChannel {
   lc_graph_name = "LastValue";
   value = [];
@@ -60919,7 +60920,7 @@ var LastValueAfterFinish = class LastValueAfterFinish2 extends BaseChannel {
   }
 };
 
-// node_modules/.pnpm/@langchain+langgraph@1.4.13_ac0cca7744de425b30aa94ab8460eac9/node_modules/@langchain/langgraph/dist/graph/annotation.js
+// node_modules/.pnpm/@langchain+langgraph@1.4.13_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3___zod@4.4.3/node_modules/@langchain/langgraph/dist/graph/annotation.js
 var AnnotationRoot = class {
   lc_graph_name = "AnnotationRoot";
   spec;
@@ -60941,7 +60942,7 @@ function getChannel(reducer) {
   return new LastValue();
 }
 
-// node_modules/.pnpm/@langchain+langgraph@1.4.13_ac0cca7744de425b30aa94ab8460eac9/node_modules/@langchain/langgraph/dist/pregel/utils/config.js
+// node_modules/.pnpm/@langchain+langgraph@1.4.13_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3___zod@4.4.3/node_modules/@langchain/langgraph/dist/pregel/utils/config.js
 init_singletons();
 init_manager();
 var COPIABLE_KEYS = [
@@ -61095,7 +61096,7 @@ function getParentCheckpointNamespace(namespace) {
   return parts.slice(0, -1).join("|");
 }
 
-// node_modules/.pnpm/@langchain+langgraph@1.4.13_ac0cca7744de425b30aa94ab8460eac9/node_modules/@langchain/langgraph/dist/pregel/runtime.js
+// node_modules/.pnpm/@langchain+langgraph@1.4.13_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3___zod@4.4.3/node_modules/@langchain/langgraph/dist/pregel/runtime.js
 var RunControl = class {
   #drainReason = void 0;
   /**
@@ -61118,7 +61119,7 @@ var RunControl = class {
   }
 };
 
-// node_modules/.pnpm/@langchain+langgraph@1.4.13_ac0cca7744de425b30aa94ab8460eac9/node_modules/@langchain/langgraph/dist/stream/convert.js
+// node_modules/.pnpm/@langchain+langgraph@1.4.13_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3___zod@4.4.3/node_modules/@langchain/langgraph/dist/stream/convert.js
 var STREAM_EVENTS_V3_MODES = [
   "values",
   "updates",
@@ -61296,7 +61297,7 @@ function convertUpdatesPayload(payload) {
   };
 }
 
-// node_modules/.pnpm/@langchain+langgraph@1.4.13_ac0cca7744de425b30aa94ab8460eac9/node_modules/@langchain/langgraph/dist/stream/stream-channel.js
+// node_modules/.pnpm/@langchain+langgraph@1.4.13_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3___zod@4.4.3/node_modules/@langchain/langgraph/dist/stream/stream-channel.js
 var STREAM_CHANNEL_BRAND = Symbol.for("langgraph.stream_channel");
 var StreamChannel = class StreamChannel2 {
   /** @internal Brand used by {@link StreamChannel.isInstance}. */
@@ -61460,7 +61461,7 @@ function isStreamChannel(value) {
   return StreamChannel.isInstance(value);
 }
 
-// node_modules/.pnpm/@langchain+langgraph@1.4.13_ac0cca7744de425b30aa94ab8460eac9/node_modules/@langchain/langgraph/dist/stream/mux.js
+// node_modules/.pnpm/@langchain+langgraph@1.4.13_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3___zod@4.4.3/node_modules/@langchain/langgraph/dist/stream/mux.js
 var EXTENSION_CHANNEL_PREFIX = "custom:";
 function extensionChannelMethod(channelName) {
   return `${EXTENSION_CHANNEL_PREFIX}${channelName}`;
@@ -61757,7 +61758,7 @@ function hasPrefix(ns3, prefix) {
   return true;
 }
 
-// node_modules/.pnpm/@langchain+langgraph@1.4.13_ac0cca7744de425b30aa94ab8460eac9/node_modules/@langchain/langgraph/dist/stream/transformers/lifecycle.js
+// node_modules/.pnpm/@langchain+langgraph@1.4.13_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3___zod@4.4.3/node_modules/@langchain/langgraph/dist/stream/transformers/lifecycle.js
 function filterLifecycleEntries(log, path4, startAt = 0) {
   return { [Symbol.asyncIterator]() {
     const base = log.iterate(startAt);
@@ -62085,7 +62086,7 @@ function createLifecycleTransformer(options = {}) {
   };
 }
 
-// node_modules/.pnpm/@langchain+langgraph@1.4.13_ac0cca7744de425b30aa94ab8460eac9/node_modules/@langchain/langgraph/dist/stream/transformers/messages.js
+// node_modules/.pnpm/@langchain+langgraph@1.4.13_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3___zod@4.4.3/node_modules/@langchain/langgraph/dist/stream/transformers/messages.js
 init_stream2();
 function getMessageStreamKey(data) {
   const record3 = data;
@@ -62169,7 +62170,7 @@ function createMessagesTransformer(path4, nodeFilter) {
   };
 }
 
-// node_modules/.pnpm/@langchain+langgraph@1.4.13_ac0cca7744de425b30aa94ab8460eac9/node_modules/@langchain/langgraph/dist/stream/transformers/subgraphs.js
+// node_modules/.pnpm/@langchain+langgraph@1.4.13_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3___zod@4.4.3/node_modules/@langchain/langgraph/dist/stream/transformers/subgraphs.js
 function filterSubgraphHandles(log, path4, startAt = 0) {
   const targetDepth = path4.length + 1;
   return { [Symbol.asyncIterator]() {
@@ -62219,7 +62220,7 @@ function createSubgraphDiscoveryTransformer(mux, options) {
   };
 }
 
-// node_modules/.pnpm/@langchain+langgraph@1.4.13_ac0cca7744de425b30aa94ab8460eac9/node_modules/@langchain/langgraph/dist/stream/transformers/values.js
+// node_modules/.pnpm/@langchain+langgraph@1.4.13_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3___zod@4.4.3/node_modules/@langchain/langgraph/dist/stream/transformers/values.js
 function createValuesTransformer(path4) {
   const valuesLog = StreamChannel.local();
   return {
@@ -62240,12 +62241,12 @@ function createValuesTransformer(path4) {
   };
 }
 
-// node_modules/.pnpm/@langchain+langgraph@1.4.13_ac0cca7744de425b30aa94ab8460eac9/node_modules/@langchain/langgraph/dist/stream/types.js
+// node_modules/.pnpm/@langchain+langgraph@1.4.13_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3___zod@4.4.3/node_modules/@langchain/langgraph/dist/stream/types.js
 function isNativeTransformer(t) {
   return "__native" in t && t.__native === true;
 }
 
-// node_modules/.pnpm/@langchain+langgraph@1.4.13_ac0cca7744de425b30aa94ab8460eac9/node_modules/@langchain/langgraph/dist/stream/run-stream.js
+// node_modules/.pnpm/@langchain+langgraph@1.4.13_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3___zod@4.4.3/node_modules/@langchain/langgraph/dist/stream/run-stream.js
 var SET_VALUES_LOG = Symbol("setValuesLog");
 var SET_MESSAGES_ITERABLE = Symbol("setMessagesIterable");
 var SET_LIFECYCLE_ITERABLE = Symbol("setLifecycleIterable");
@@ -62600,10 +62601,10 @@ function createGraphRunStream(source, transformers = [], optionsOrAbortControlle
   return root;
 }
 
-// node_modules/.pnpm/@langchain+langgraph@1.4.13_ac0cca7744de425b30aa94ab8460eac9/node_modules/@langchain/langgraph/dist/stream/index.js
+// node_modules/.pnpm/@langchain+langgraph@1.4.13_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3___zod@4.4.3/node_modules/@langchain/langgraph/dist/stream/index.js
 init_stream2();
 
-// node_modules/.pnpm/@langchain+langgraph@1.4.13_ac0cca7744de425b30aa94ab8460eac9/node_modules/@langchain/langgraph/dist/hash.js
+// node_modules/.pnpm/@langchain+langgraph@1.4.13_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3___zod@4.4.3/node_modules/@langchain/langgraph/dist/hash.js
 var n2 = (n3) => BigInt(n3);
 var view = (data, offset = 0) => new DataView(data.buffer, data.byteOffset + offset, data.byteLength - offset);
 var PRIME32_12 = n2("0x9E3779B1");
@@ -62863,7 +62864,7 @@ function isXXH3(value) {
   return /^[0-9a-f]{32}$/.test(value);
 }
 
-// node_modules/.pnpm/@langchain+langgraph@1.4.13_ac0cca7744de425b30aa94ab8460eac9/node_modules/@langchain/langgraph/dist/interrupt.js
+// node_modules/.pnpm/@langchain+langgraph@1.4.13_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3___zod@4.4.3/node_modules/@langchain/langgraph/dist/interrupt.js
 init_singletons();
 function interrupt(value) {
   const config2 = AsyncLocalStorageProviderSingleton2.getRunnableConfig();
@@ -62892,7 +62893,7 @@ function interrupt(value) {
   }]);
 }
 
-// node_modules/.pnpm/@langchain+langgraph@1.4.13_ac0cca7744de425b30aa94ab8460eac9/node_modules/@langchain/langgraph/dist/utils.js
+// node_modules/.pnpm/@langchain+langgraph@1.4.13_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3___zod@4.4.3/node_modules/@langchain/langgraph/dist/utils.js
 init_singletons();
 init_runnables();
 var RunnableCallable = class extends Runnable {
@@ -62969,7 +62970,7 @@ function isGeneratorFunction(val) {
   }).constructor;
 }
 
-// node_modules/.pnpm/@langchain+langgraph@1.4.13_ac0cca7744de425b30aa94ab8460eac9/node_modules/@langchain/langgraph/dist/pregel/write.js
+// node_modules/.pnpm/@langchain+langgraph@1.4.13_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3___zod@4.4.3/node_modules/@langchain/langgraph/dist/pregel/write.js
 init_runnables();
 function _isSkipWrite(x) {
   return typeof x === "object" && x?.[Symbol.for("LG_SKIP_WRITE")] !== void 0;
@@ -63053,7 +63054,7 @@ function _isChannelWriteTupleEntry(x) {
   return x !== void 0 && !_isChannelWriteEntry(x) && Runnable.isRunnable(x.mapper);
 }
 
-// node_modules/.pnpm/@langchain+langgraph@1.4.13_ac0cca7744de425b30aa94ab8460eac9/node_modules/@langchain/langgraph/dist/pregel/read.js
+// node_modules/.pnpm/@langchain+langgraph@1.4.13_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3___zod@4.4.3/node_modules/@langchain/langgraph/dist/pregel/read.js
 init_runnables();
 var ChannelRead = class ChannelRead2 extends RunnableCallable {
   lc_graph_name = "ChannelRead";
@@ -63209,7 +63210,7 @@ var PregelNode = class PregelNode2 extends RunnableBinding {
   }
 };
 
-// node_modules/.pnpm/@langchain+langgraph@1.4.13_ac0cca7744de425b30aa94ab8460eac9/node_modules/@langchain/langgraph/dist/pregel/utils/subgraph.js
+// node_modules/.pnpm/@langchain+langgraph@1.4.13_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3___zod@4.4.3/node_modules/@langchain/langgraph/dist/pregel/utils/subgraph.js
 function isRunnableSequence(x) {
   return "steps" in x && Array.isArray(x.steps);
 }
@@ -63222,7 +63223,7 @@ function findSubgraphPregel(candidate) {
   else if (isRunnableSequence(candidate2)) candidates.push(...candidate2.steps);
 }
 
-// node_modules/.pnpm/@langchain+langgraph@1.4.13_ac0cca7744de425b30aa94ab8460eac9/node_modules/@langchain/langgraph/dist/pregel/io.js
+// node_modules/.pnpm/@langchain+langgraph@1.4.13_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3___zod@4.4.3/node_modules/@langchain/langgraph/dist/pregel/io.js
 function readChannel(channels, chan, catchErrors = true, returnException = false) {
   try {
     return channels[chan].get();
@@ -63331,7 +63332,7 @@ function* mapOutputUpdates(outputChannels, tasks, cached2) {
   yield flattened;
 }
 
-// node_modules/.pnpm/@langchain+langgraph@1.4.13_ac0cca7744de425b30aa94ab8460eac9/node_modules/@langchain/langgraph/dist/pregel/utils/index.js
+// node_modules/.pnpm/@langchain+langgraph@1.4.13_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3___zod@4.4.3/node_modules/@langchain/langgraph/dist/pregel/utils/index.js
 function getNullChannelVersion(currentVersions) {
   const startVersion = typeof currentVersions[START];
   if (startVersion === "number") return 0;
@@ -63402,7 +63403,7 @@ function combineAbortSignals(...x) {
   };
 }
 
-// node_modules/.pnpm/@langchain+langgraph@1.4.13_ac0cca7744de425b30aa94ab8460eac9/node_modules/@langchain/langgraph/dist/pregel/types.js
+// node_modules/.pnpm/@langchain+langgraph@1.4.13_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3___zod@4.4.3/node_modules/@langchain/langgraph/dist/pregel/types.js
 var Call = class {
   func;
   name;
@@ -63426,7 +63427,7 @@ function isCall(value) {
   return typeof value === "object" && value !== null && "__lg_type" in value && value.__lg_type === "call";
 }
 
-// node_modules/.pnpm/@langchain+langgraph@1.4.13_ac0cca7744de425b30aa94ab8460eac9/node_modules/@langchain/langgraph/dist/pregel/call.js
+// node_modules/.pnpm/@langchain+langgraph@1.4.13_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3___zod@4.4.3/node_modules/@langchain/langgraph/dist/pregel/call.js
 init_singletons();
 init_runnables();
 function getRunnableForFunc(name, func) {
@@ -63455,7 +63456,7 @@ function getRunnableForEntrypoint(name, func) {
   });
 }
 
-// node_modules/.pnpm/@langchain+langgraph@1.4.13_ac0cca7744de425b30aa94ab8460eac9/node_modules/@langchain/langgraph/dist/pregel/algo.js
+// node_modules/.pnpm/@langchain+langgraph@1.4.13_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3___zod@4.4.3/node_modules/@langchain/langgraph/dist/pregel/algo.js
 init_dist3();
 init_runnables();
 var increment = (current) => {
@@ -64193,7 +64194,7 @@ function _scratchpad({ pendingWrites, taskId, currentTaskInput, resumeMap, names
   return scratchpad;
 }
 
-// node_modules/.pnpm/@langchain+langgraph@1.4.13_ac0cca7744de425b30aa94ab8460eac9/node_modules/@langchain/langgraph/dist/pregel/debug.js
+// node_modules/.pnpm/@langchain+langgraph@1.4.13_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3___zod@4.4.3/node_modules/@langchain/langgraph/dist/pregel/debug.js
 init_dist3();
 var COLORS_MAP = {
   blue: {
@@ -64366,7 +64367,7 @@ function printStepWrites(step, writes, whitelist) {
   ].join(""));
 }
 
-// node_modules/.pnpm/@langchain+langgraph@1.4.13_ac0cca7744de425b30aa94ab8460eac9/node_modules/@langchain/langgraph/dist/pregel/stream.js
+// node_modules/.pnpm/@langchain+langgraph@1.4.13_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3___zod@4.4.3/node_modules/@langchain/langgraph/dist/pregel/stream.js
 init_stream();
 init_base2();
 var IterableReadableStreamWithAbortSignal = class extends IterableReadableStream {
@@ -64648,7 +64649,7 @@ function createDuplexStream(...streams) {
   });
 }
 
-// node_modules/.pnpm/@langchain+langgraph@1.4.13_ac0cca7744de425b30aa94ab8460eac9/node_modules/@langchain/langgraph/dist/pregel/replay.js
+// node_modules/.pnpm/@langchain+langgraph@1.4.13_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3___zod@4.4.3/node_modules/@langchain/langgraph/dist/pregel/replay.js
 var ReplayState = class {
   /** Parent checkpoint ID used as the `before` cursor for subgraph lookups. */
   checkpointId;
@@ -64698,7 +64699,7 @@ var ReplayState = class {
   }
 };
 
-// node_modules/.pnpm/@langchain+langgraph@1.4.13_ac0cca7744de425b30aa94ab8460eac9/node_modules/@langchain/langgraph/dist/pregel/loop.js
+// node_modules/.pnpm/@langchain+langgraph@1.4.13_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3___zod@4.4.3/node_modules/@langchain/langgraph/dist/pregel/loop.js
 init_dist3();
 init_uuid();
 init_messages2();
@@ -65604,7 +65605,7 @@ var PregelLoop = class PregelLoop2 {
   }
 };
 
-// node_modules/.pnpm/@langchain+langgraph@1.4.13_ac0cca7744de425b30aa94ab8460eac9/node_modules/@langchain/langgraph/dist/pregel/messages.js
+// node_modules/.pnpm/@langchain+langgraph@1.4.13_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3___zod@4.4.3/node_modules/@langchain/langgraph/dist/pregel/messages.js
 init_messages2();
 init_base2();
 function isChatGenerationChunk2(x) {
@@ -65706,7 +65707,7 @@ var StreamMessagesHandler = class extends BaseCallbackHandler {
   }
 };
 
-// node_modules/.pnpm/@langchain+langgraph@1.4.13_ac0cca7744de425b30aa94ab8460eac9/node_modules/@langchain/langgraph/dist/pregel/messages-v2.js
+// node_modules/.pnpm/@langchain+langgraph@1.4.13_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3___zod@4.4.3/node_modules/@langchain/langgraph/dist/pregel/messages-v2.js
 init_messages2();
 init_base2();
 function getResponseMetadata(message) {
@@ -65933,7 +65934,7 @@ var StreamProtocolMessagesHandler = class extends BaseCallbackHandler {
   }
 };
 
-// node_modules/.pnpm/@langchain+langgraph@1.4.13_ac0cca7744de425b30aa94ab8460eac9/node_modules/@langchain/langgraph/dist/pregel/timeout.js
+// node_modules/.pnpm/@langchain+langgraph@1.4.13_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3___zod@4.4.3/node_modules/@langchain/langgraph/dist/pregel/timeout.js
 init_base2();
 var TimedAttemptScope = class {
   active = true;
@@ -66105,7 +66106,7 @@ async function runAttemptWithTimeout(task2, config2, policy, invoke) {
   });
 }
 
-// node_modules/.pnpm/@langchain+langgraph@1.4.13_ac0cca7744de425b30aa94ab8460eac9/node_modules/@langchain/langgraph/dist/pregel/retry.js
+// node_modules/.pnpm/@langchain+langgraph@1.4.13_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3___zod@4.4.3/node_modules/@langchain/langgraph/dist/pregel/retry.js
 var DEFAULT_STATUS_NO_RETRY = [
   400,
   401,
@@ -66195,7 +66196,7 @@ async function _runWithRetry(pregelTask, retryPolicy, configurable, signal) {
   };
 }
 
-// node_modules/.pnpm/@langchain+langgraph@1.4.13_ac0cca7744de425b30aa94ab8460eac9/node_modules/@langchain/langgraph/dist/pregel/runner.js
+// node_modules/.pnpm/@langchain+langgraph@1.4.13_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3___zod@4.4.3/node_modules/@langchain/langgraph/dist/pregel/runner.js
 var PROMISE_ADDED_SYMBOL = Symbol.for("promiseAdded");
 function createPromiseBarrier() {
   const barrier = {
@@ -66452,7 +66453,7 @@ async function call(runner, task2, func, name, input, options = {}) {
   }
 }
 
-// node_modules/.pnpm/@langchain+langgraph@1.4.13_ac0cca7744de425b30aa94ab8460eac9/node_modules/@langchain/langgraph/dist/pregel/validate.js
+// node_modules/.pnpm/@langchain+langgraph@1.4.13_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3___zod@4.4.3/node_modules/@langchain/langgraph/dist/pregel/validate.js
 var GraphValidationError = class extends Error {
   constructor(message) {
     super(message);
@@ -66490,7 +66491,7 @@ function validateKeys(keys, channels) {
   } else if (!(keys in channels)) throw new Error(`Key ${String(keys)} not found in channels`);
 }
 
-// node_modules/.pnpm/@langchain+langgraph@1.4.13_ac0cca7744de425b30aa94ab8460eac9/node_modules/@langchain/langgraph/dist/channels/topic.js
+// node_modules/.pnpm/@langchain+langgraph@1.4.13_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3___zod@4.4.3/node_modules/@langchain/langgraph/dist/channels/topic.js
 function isUniqueTopicCheckpoint(checkpoint) {
   return Array.isArray(checkpoint) && checkpoint.length === 2 && Array.isArray(checkpoint[0]) && Array.isArray(checkpoint[1]);
 }
@@ -66565,7 +66566,7 @@ var Topic = class Topic2 extends BaseChannel {
   }
 };
 
-// node_modules/.pnpm/@langchain+langgraph@1.4.13_ac0cca7744de425b30aa94ab8460eac9/node_modules/@langchain/langgraph/dist/pregel/index.js
+// node_modules/.pnpm/@langchain+langgraph@1.4.13_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3___zod@4.4.3/node_modules/@langchain/langgraph/dist/pregel/index.js
 init_dist3();
 init_runnables();
 init_manager();
@@ -67756,7 +67757,7 @@ function _getTracingMetadataDefaults(config2) {
   return Object.keys(metadata).length > 0 ? metadata : void 0;
 }
 
-// node_modules/.pnpm/@langchain+langgraph@1.4.13_ac0cca7744de425b30aa94ab8460eac9/node_modules/@langchain/langgraph/dist/channels/ephemeral_value.js
+// node_modules/.pnpm/@langchain+langgraph@1.4.13_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3___zod@4.4.3/node_modules/@langchain/langgraph/dist/channels/ephemeral_value.js
 var EphemeralValue = class EphemeralValue2 extends BaseChannel {
   lc_graph_name = "EphemeralValue";
   guard;
@@ -67793,7 +67794,7 @@ var EphemeralValue = class EphemeralValue2 extends BaseChannel {
   }
 };
 
-// node_modules/.pnpm/@langchain+langgraph@1.4.13_ac0cca7744de425b30aa94ab8460eac9/node_modules/@langchain/langgraph/dist/graph/graph.js
+// node_modules/.pnpm/@langchain+langgraph@1.4.13_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3___zod@4.4.3/node_modules/@langchain/langgraph/dist/graph/graph.js
 init_runnables();
 init_graph();
 init_v43();
@@ -68229,7 +68230,7 @@ function addImplicitTerminalEndEdges(nodes, discovered, addEdge) {
   }
 }
 
-// node_modules/.pnpm/@langchain+langgraph@1.4.13_ac0cca7744de425b30aa94ab8460eac9/node_modules/@langchain/langgraph/dist/state/types.js
+// node_modules/.pnpm/@langchain+langgraph@1.4.13_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3___zod@4.4.3/node_modules/@langchain/langgraph/dist/state/types.js
 function isStandardSchema2(schema) {
   return typeof schema === "object" && schema !== null && "~standard" in schema && typeof schema["~standard"] === "object" && schema["~standard"] !== null && "validate" in schema["~standard"];
 }
@@ -68237,7 +68238,7 @@ function isStandardJSONSchema(schema) {
   return typeof schema === "object" && schema !== null && "~standard" in schema && typeof schema["~standard"] === "object" && schema["~standard"] !== null && "jsonSchema" in schema["~standard"];
 }
 
-// node_modules/.pnpm/@langchain+langgraph@1.4.13_ac0cca7744de425b30aa94ab8460eac9/node_modules/@langchain/langgraph/dist/state/adapter.js
+// node_modules/.pnpm/@langchain+langgraph@1.4.13_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3___zod@4.4.3/node_modules/@langchain/langgraph/dist/state/adapter.js
 function getJsonSchemaFromSchema(schema) {
   if (isStandardJSONSchema(schema)) try {
     return schema["~standard"].jsonSchema.input({ target: "draft-07" });
@@ -68261,7 +68262,7 @@ function getSchemaDefaultGetter(schema) {
   }
 }
 
-// node_modules/.pnpm/@langchain+langgraph@1.4.13_ac0cca7744de425b30aa94ab8460eac9/node_modules/@langchain/langgraph/dist/channels/delta.js
+// node_modules/.pnpm/@langchain+langgraph@1.4.13_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3___zod@4.4.3/node_modules/@langchain/langgraph/dist/channels/delta.js
 init_dist3();
 var isDeltaChannel2 = (value) => {
   return value != null && value.lc_graph_name === "DeltaChannel";
@@ -68356,7 +68357,7 @@ var DeltaChannel = class DeltaChannel2 extends BaseChannel {
   }
 };
 
-// node_modules/.pnpm/@langchain+langgraph@1.4.13_ac0cca7744de425b30aa94ab8460eac9/node_modules/@langchain/langgraph/dist/channels/untracked_value.js
+// node_modules/.pnpm/@langchain+langgraph@1.4.13_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3___zod@4.4.3/node_modules/@langchain/langgraph/dist/channels/untracked_value.js
 var MISSING = Symbol.for("langgraph.channel.missing");
 var UntrackedValueChannel = class UntrackedValueChannel2 extends BaseChannel {
   lc_graph_name = "UntrackedValue";
@@ -68420,7 +68421,7 @@ var UntrackedValueChannel = class UntrackedValueChannel2 extends BaseChannel {
   }
 };
 
-// node_modules/.pnpm/@langchain+langgraph@1.4.13_ac0cca7744de425b30aa94ab8460eac9/node_modules/@langchain/langgraph/dist/state/values/reduced.js
+// node_modules/.pnpm/@langchain+langgraph@1.4.13_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3___zod@4.4.3/node_modules/@langchain/langgraph/dist/state/values/reduced.js
 var REDUCED_VALUE_SYMBOL = Symbol.for("langgraph.state.reduced_value");
 var ReducedValue = class {
   /**
@@ -68459,7 +68460,7 @@ var ReducedValue = class {
   }
 };
 
-// node_modules/.pnpm/@langchain+langgraph@1.4.13_ac0cca7744de425b30aa94ab8460eac9/node_modules/@langchain/langgraph/dist/state/values/untracked.js
+// node_modules/.pnpm/@langchain+langgraph@1.4.13_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3___zod@4.4.3/node_modules/@langchain/langgraph/dist/state/values/untracked.js
 var UNTRACKED_VALUE_SYMBOL = Symbol.for("langgraph.state.untracked_value");
 var UntrackedValue = class {
   /**
@@ -68497,7 +68498,7 @@ var UntrackedValue = class {
   }
 };
 
-// node_modules/.pnpm/@langchain+langgraph@1.4.13_ac0cca7744de425b30aa94ab8460eac9/node_modules/@langchain/langgraph/dist/state/values/delta.js
+// node_modules/.pnpm/@langchain+langgraph@1.4.13_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3___zod@4.4.3/node_modules/@langchain/langgraph/dist/state/values/delta.js
 var DELTA_VALUE_SYMBOL = Symbol.for("langgraph.state.delta_value");
 var DeltaValue = class {
   /**
@@ -68540,7 +68541,7 @@ var DeltaValue = class {
   }
 };
 
-// node_modules/.pnpm/@langchain+langgraph@1.4.13_ac0cca7744de425b30aa94ab8460eac9/node_modules/@langchain/langgraph/dist/channels/named_barrier_value.js
+// node_modules/.pnpm/@langchain+langgraph@1.4.13_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3___zod@4.4.3/node_modules/@langchain/langgraph/dist/channels/named_barrier_value.js
 var areSetsEqual = (a, b) => a.size === b.size && [...a].every((value) => b.has(value));
 var NamedBarrierValue = class NamedBarrierValue2 extends BaseChannel {
   lc_graph_name = "NamedBarrierValue";
@@ -68637,7 +68638,7 @@ var NamedBarrierValueAfterFinish = class NamedBarrierValueAfterFinish2 extends B
   }
 };
 
-// node_modules/.pnpm/@langchain+langgraph@1.4.13_ac0cca7744de425b30aa94ab8460eac9/node_modules/@langchain/langgraph/dist/state/schema.js
+// node_modules/.pnpm/@langchain+langgraph@1.4.13_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3___zod@4.4.3/node_modules/@langchain/langgraph/dist/state/schema.js
 var STATE_SCHEMA_SYMBOL = Symbol.for("langgraph.state.state_schema");
 var StateSchema = class {
   /**
@@ -68782,7 +68783,7 @@ var StateSchema = class {
   }
 };
 
-// node_modules/.pnpm/@langchain+langgraph@1.4.13_ac0cca7744de425b30aa94ab8460eac9/node_modules/@langchain/langgraph/dist/graph/messages_reducer.js
+// node_modules/.pnpm/@langchain+langgraph@1.4.13_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3___zod@4.4.3/node_modules/@langchain/langgraph/dist/graph/messages_reducer.js
 init_uuid();
 init_messages2();
 function messagesStateReducer(left, right) {
@@ -68854,7 +68855,7 @@ function messagesDeltaReducer(state2, writes) {
   return result.filter((m) => m !== null);
 }
 
-// node_modules/.pnpm/@langchain+langgraph@1.4.13_ac0cca7744de425b30aa94ab8460eac9/node_modules/@langchain/langgraph/dist/state/prebuilt/messages.js
+// node_modules/.pnpm/@langchain+langgraph@1.4.13_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3___zod@4.4.3/node_modules/@langchain/langgraph/dist/state/prebuilt/messages.js
 init_v43();
 var messagesValueSchema = external_exports.custom().default(() => []);
 var messagesInputSchema = external_exports.custom();
@@ -68875,7 +68876,7 @@ var MessagesDeltaValue = new DeltaValue(messagesValueSchema, {
   }
 });
 
-// node_modules/.pnpm/@langchain+langgraph@1.4.13_ac0cca7744de425b30aa94ab8460eac9/node_modules/@langchain/langgraph/dist/graph/zod/meta.js
+// node_modules/.pnpm/@langchain+langgraph@1.4.13_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3___zod@4.4.3/node_modules/@langchain/langgraph/dist/graph/zod/meta.js
 init_types4();
 var SchemaMetaRegistry = class {
   /**
@@ -69005,7 +69006,7 @@ function withLangGraph(schema, meta3) {
   }
 }
 
-// node_modules/.pnpm/@langchain+langgraph@1.4.13_ac0cca7744de425b30aa94ab8460eac9/node_modules/@langchain/langgraph/dist/graph/types.js
+// node_modules/.pnpm/@langchain+langgraph@1.4.13_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3___zod@4.4.3/node_modules/@langchain/langgraph/dist/graph/types.js
 init_types4();
 function isStateDefinitionInit(value) {
   if (value == null) return false;
@@ -69027,7 +69028,7 @@ function isStateGraphInit(value) {
   return true;
 }
 
-// node_modules/.pnpm/@langchain+langgraph@1.4.13_ac0cca7744de425b30aa94ab8460eac9/node_modules/@langchain/langgraph/dist/graph/state.js
+// node_modules/.pnpm/@langchain+langgraph@1.4.13_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3___zod@4.4.3/node_modules/@langchain/langgraph/dist/graph/state.js
 init_runnables();
 init_types4();
 var ROOT2 = "__root__";
@@ -69657,10 +69658,10 @@ function _getControlBranch() {
   }) });
 }
 
-// node_modules/.pnpm/@langchain+langgraph@1.4.13_ac0cca7744de425b30aa94ab8460eac9/node_modules/@langchain/langgraph/dist/graph/message.js
+// node_modules/.pnpm/@langchain+langgraph@1.4.13_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3___zod@4.4.3/node_modules/@langchain/langgraph/dist/graph/message.js
 init_messages2();
 
-// node_modules/.pnpm/@langchain+langgraph@1.4.13_ac0cca7744de425b30aa94ab8460eac9/node_modules/@langchain/langgraph/dist/func/index.js
+// node_modules/.pnpm/@langchain+langgraph@1.4.13_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3___zod@4.4.3/node_modules/@langchain/langgraph/dist/func/index.js
 init_singletons();
 var entrypoint = function entrypoint2(optionsOrName, func) {
   const { name, checkpointer, store, cache: cache2 } = typeof optionsOrName === "string" ? {
@@ -69727,7 +69728,7 @@ entrypoint.final = function final({ value, save }) {
   };
 };
 
-// node_modules/.pnpm/@langchain+langgraph@1.4.13_ac0cca7744de425b30aa94ab8460eac9/node_modules/@langchain/langgraph/dist/graph/messages_annotation.js
+// node_modules/.pnpm/@langchain+langgraph@1.4.13_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3___zod@4.4.3/node_modules/@langchain/langgraph/dist/graph/messages_annotation.js
 init_v3();
 var MessagesAnnotation = Annotation.Root({ messages: Annotation({
   reducer: messagesStateReducer,
@@ -69740,13 +69741,13 @@ var MessagesZodMeta = {
 };
 var MessagesZodState = external_exports2.object({ messages: withLangGraph(external_exports2.custom(), MessagesZodMeta) });
 
-// node_modules/.pnpm/@langchain+langgraph@1.4.13_ac0cca7744de425b30aa94ab8460eac9/node_modules/@langchain/langgraph/dist/writer.js
+// node_modules/.pnpm/@langchain+langgraph@1.4.13_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3___zod@4.4.3/node_modules/@langchain/langgraph/dist/writer.js
 init_singletons();
 
-// node_modules/.pnpm/@langchain+langgraph@1.4.13_ac0cca7744de425b30aa94ab8460eac9/node_modules/@langchain/langgraph/dist/web.js
+// node_modules/.pnpm/@langchain+langgraph@1.4.13_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3___zod@4.4.3/node_modules/@langchain/langgraph/dist/web.js
 init_dist3();
 
-// node_modules/.pnpm/@langchain+langgraph@1.4.13_ac0cca7744de425b30aa94ab8460eac9/node_modules/@langchain/langgraph/dist/index.js
+// node_modules/.pnpm/@langchain+langgraph@1.4.13_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3___zod@4.4.3/node_modules/@langchain/langgraph/dist/index.js
 initializeAsyncLocalStorageSingleton();
 
 // src/plannerController.ts
@@ -71142,6 +71143,8 @@ var RpcRequestSchema = external_exports.object({
     "transaction.result",
     "provider.status",
     "provider.configure",
+    "provider.test.preview",
+    "provider.test",
     "provider.clear",
     "consent.preview",
     "consent.grant",
@@ -71212,13 +71215,24 @@ var CandidatePreviewParamsSchema = external_exports.object({ runId: external_exp
 var TransactionResultParamsSchema = external_exports.object({ result: TransactionResultSchema });
 var ProviderIdSchema = external_exports.string().regex(/^[a-z0-9][a-z0-9._-]{0,63}$/);
 var ProviderStatusParamsSchema = external_exports.object({ providerId: ProviderIdSchema.optional() });
+var ProviderApiKeySchema = external_exports.string().min(1).max(16384).refine((value) => !/[\u0000-\u001f\u007f]/.test(value), {
+  message: "API key cannot contain control characters"
+});
 var ProviderConfigureParamsSchema = external_exports.object({
   providerId: ProviderIdSchema,
   baseUrl: external_exports.url().max(2048),
   model: external_exports.string().min(1).max(256),
-  apiKey: external_exports.string().min(1).max(16384).refine((value) => !/[\u0000-\u001f\u007f]/.test(value), {
-    message: "API key cannot contain control characters"
-  })
+  apiKey: ProviderApiKeySchema.optional()
+});
+var ProviderTestPreviewParamsSchema = external_exports.object({
+  providerId: ProviderIdSchema,
+  baseUrl: external_exports.url().max(2048),
+  model: external_exports.string().min(1).max(256)
+});
+var ProviderTestParamsSchema = ProviderTestPreviewParamsSchema.extend({
+  apiKey: ProviderApiKeySchema.optional(),
+  consentKey: external_exports.string().min(1).max(512),
+  payloadHash: external_exports.string().regex(/^sha256:[0-9a-f]{64}$/)
 });
 var ProviderClearParamsSchema = external_exports.object({ providerId: ProviderIdSchema });
 var ConsentPreviewParamsSchema = external_exports.object({
@@ -71985,7 +71999,8 @@ var ConsentDataCategorySchema = external_exports.enum([
   "build_snapshot",
   "metrics",
   "tool_outputs",
-  "chat_messages"
+  "chat_messages",
+  "connection_probe"
 ]);
 var DEFAULT_CONSENT_DATA_CATEGORIES = [
   "objective",
@@ -72166,127 +72181,10 @@ function redactChatPayload(value) {
 
 // src/provider/profileService.ts
 init_zod();
-var ProviderConfigurationError = class extends Error {
-  name = "ProviderConfigurationError";
-};
-var ProviderProfileService = class {
-  #profiles;
-  #credentials;
-  #consent;
-  #now;
-  #configureChain = Promise.resolve();
-  constructor(options) {
-    this.#profiles = options.profiles;
-    this.#credentials = options.credentials;
-    this.#consent = options.consent;
-    this.#now = options.now ?? (() => /* @__PURE__ */ new Date());
-  }
-  async configure(input) {
-    let release;
-    const previous = this.#configureChain;
-    this.#configureChain = new Promise((resolve2) => {
-      release = resolve2;
-    });
-    await previous;
-    try {
-      return await this.#configureUnlocked(input);
-    } finally {
-      release();
-    }
-  }
-  async #configureUnlocked(input) {
-    const parsed = ProviderConfigureInputSchema.parse(input);
-    const profile = providerProfileWithDefaults(parsed, this.#now());
-    const oldProfile = await this.#profiles.get(profile.providerId);
-    const target = credentialTarget(profile.providerId);
-    const shouldChangeSecret = parsed.apiKey !== void 0 || parsed.clearCredential;
-    let oldSecret;
-    if (shouldChangeSecret) {
-      try {
-        oldSecret = await this.#credentials.get(target);
-      } catch (error51) {
-        throw new ProviderConfigurationError(
-          `Provider credential lookup failed: ${error51 instanceof Error ? error51.message : "unknown error"}`
-        );
-      }
-    }
-    let secretChanged = false;
-    try {
-      if (shouldChangeSecret) {
-        if (parsed.clearCredential) {
-          await this.#credentials.delete(target);
-        } else if (parsed.apiKey !== void 0) {
-          await this.#credentials.set(target, parsed.apiKey);
-        }
-        secretChanged = true;
-      }
-      await this.#profiles.put(profile);
-      return profile;
-    } catch (error51) {
-      if (secretChanged) {
-        try {
-          if (oldSecret === void 0) await this.#credentials.delete(target);
-          else await this.#credentials.set(target, oldSecret);
-        } catch (rollbackError) {
-          throw new ProviderConfigurationError(
-            `Provider configuration failed and credential rollback failed: ${rollbackError instanceof Error ? rollbackError.message : "unknown rollback error"}`
-          );
-        }
-      }
-      if (oldProfile === void 0) await this.#profiles.delete(profile.providerId);
-      else await this.#profiles.put(ProviderProfileSchema.parse(oldProfile));
-      throw new ProviderConfigurationError(
-        `Provider configuration failed: ${error51 instanceof Error ? error51.message : "unknown error"}`
-      );
-    }
-  }
-  async status(providerId) {
-    const profile = await this.#profiles.get(providerId);
-    if (profile === void 0) {
-      return { configured: false, credentialConfigured: false, consent: "required" };
-    }
-    let credentialConfigured = false;
-    try {
-      credentialConfigured = await this.#credentials.has(profile.credentialTarget);
-    } catch {
-      credentialConfigured = false;
-    }
-    return {
-      configured: true,
-      credentialConfigured,
-      consent: await this.#consent.state(profile),
-      profile
-    };
-  }
-  async preview(providerId, payload, dataCategories) {
-    const profile = await this.#profiles.get(providerId);
-    if (profile === void 0) throw new ProviderConfigurationError("Provider is not configured");
-    return this.#consent.preview(profile, payload, dataCategories);
-  }
-  async grantConsent(providerId, consentKey, dataCategories) {
-    const profile = await this.#profiles.get(providerId);
-    if (profile === void 0) throw new ProviderConfigurationError("Provider is not configured");
-    return this.#consent.grant(profile, consentKey, dataCategories);
-  }
-  async revokeConsent(providerId) {
-    await this.#consent.revoke(providerId);
-  }
-  get consent() {
-    return this.#consent;
-  }
-  get credentials() {
-    return this.#credentials;
-  }
-  get profiles() {
-    return this.#profiles;
-  }
-};
-var ProviderStatusSchema = external_exports.object({
-  configured: external_exports.boolean(),
-  credentialConfigured: external_exports.boolean(),
-  consent: external_exports.enum(["required", "granted", "revoked"]),
-  profile: ProviderProfileSchema.optional()
-}).strict();
+
+// src/provider/connectionProbe.ts
+var import_node_perf_hooks = require("node:perf_hooks");
+init_zod();
 
 // node_modules/.pnpm/openai@7.8.0_zod@4.4.3/node_modules/openai/internal/tslib.mjs
 function __classPrivateFieldSet4(receiver, state2, value, kind, f3) {
@@ -88695,7 +88593,7 @@ function fallback(reason, retryable, detail) {
     }
   };
 }
-function createDefaultTransport(config2) {
+function createOpenAICompatibleTransport(config2) {
   const client2 = new OpenAI({
     apiKey: config2.apiKey,
     baseURL: config2.baseURL,
@@ -88749,7 +88647,7 @@ var OpenAICompatibleAdapter = class {
   #callsUsed = 0;
   constructor(config2, options = {}) {
     this.#config = ProviderConfigSchema.parse(config2);
-    this.#transport = options.transport ?? createDefaultTransport(this.#config);
+    this.#transport = options.transport ?? createOpenAICompatibleTransport(this.#config);
   }
   get callsUsed() {
     return this.#callsUsed;
@@ -88859,6 +88757,304 @@ ${stringifyForModel(parsedInput.data.context)}`
     return result;
   }
 };
+
+// src/provider/connectionProbe.ts
+var CONNECTION_PROBE_TIMEOUT_MS = 3e4;
+var CONNECTION_PROBE_TOOL_NAME = "aipob_connection_probe";
+var CONNECTION_PROBE_PAYLOAD = Object.freeze({
+  kind: "connection_probe",
+  version: 1,
+  prompt: "Call aipob_connection_probe with ok=true. Do not answer with text.",
+  tool: CONNECTION_PROBE_TOOL_NAME
+});
+var ConnectionProbeResponseSchema = external_exports.looseObject({
+  model: external_exports.string().min(1).optional(),
+  choices: external_exports.array(external_exports.looseObject({
+    message: external_exports.looseObject({
+      tool_calls: external_exports.array(external_exports.looseObject({
+        type: external_exports.literal("function"),
+        function: external_exports.looseObject({
+          name: external_exports.string().min(1),
+          arguments: external_exports.string()
+        })
+      })).optional()
+    })
+  })).min(1),
+  usage: external_exports.looseObject({
+    prompt_tokens: external_exports.number().int().nonnegative().optional(),
+    completion_tokens: external_exports.number().int().nonnegative().optional()
+  }).optional()
+});
+var ConnectionProbeArgumentsSchema = external_exports.object({ ok: external_exports.literal(true) }).strict();
+var ProviderConnectionProbeError = class extends Error {
+  name = "ProviderConnectionProbeError";
+};
+function safeErrorMessage(error51, apiKey) {
+  let message = error51 instanceof Error ? error51.message : "Unknown provider error";
+  if (apiKey !== "") message = message.split(apiKey).join("[REDACTED]");
+  const status = typeof error51 === "object" && error51 !== null && "status" in error51 && typeof error51.status === "number" ? error51.status : void 0;
+  const redacted = redactString(message).slice(0, 2e3);
+  return status === void 0 ? redacted : `HTTP ${status}: ${redacted}`;
+}
+async function runProviderConnectionProbe(input, signal, transportFactory = createOpenAICompatibleTransport, timeoutMs = CONNECTION_PROBE_TIMEOUT_MS) {
+  const config2 = ProviderConfigSchema.parse({
+    ...input,
+    maxCalls: 1,
+    maxOutputTokens: 32,
+    timeoutMs
+  });
+  const transport = transportFactory(config2);
+  const timeoutSignal = AbortSignal.timeout(timeoutMs);
+  const requestSignal = signal === void 0 ? timeoutSignal : AbortSignal.any([signal, timeoutSignal]);
+  const startedAt = import_node_perf_hooks.performance.now();
+  let raw;
+  try {
+    raw = await transport.create({
+      model: config2.model,
+      messages: [
+        {
+          role: "system",
+          content: "This is an AIPathOfBuilding connection test. Use only the requested synthetic tool."
+        },
+        { role: "user", content: CONNECTION_PROBE_PAYLOAD.prompt }
+      ],
+      tools: [{
+        type: "function",
+        function: {
+          name: CONNECTION_PROBE_TOOL_NAME,
+          description: "Confirm OpenAI-compatible tool calling for AIPathOfBuilding.",
+          parameters: {
+            type: "object",
+            properties: { ok: { type: "boolean" } },
+            required: ["ok"],
+            additionalProperties: false
+          }
+        }
+      }],
+      tool_choice: { type: "function", function: { name: CONNECTION_PROBE_TOOL_NAME } },
+      parallel_tool_calls: false,
+      max_completion_tokens: 32
+    }, requestSignal);
+  } catch (error51) {
+    if (signal?.aborted) {
+      throw signal.reason instanceof Error ? signal.reason : new Error("Connection test cancelled");
+    }
+    if (timeoutSignal.aborted) {
+      throw new ProviderConnectionProbeError(`Connection test timed out after ${timeoutMs} ms`);
+    }
+    throw new ProviderConnectionProbeError(`Connection test failed: ${safeErrorMessage(error51, config2.apiKey)}`);
+  }
+  const parsed = ConnectionProbeResponseSchema.safeParse(raw);
+  if (!parsed.success) {
+    throw new ProviderConnectionProbeError("Connection test failed: provider returned a malformed Chat Completions response");
+  }
+  const calls = parsed.data.choices[0]?.message.tool_calls ?? [];
+  const probeCall = calls.find((call3) => call3.function.name === CONNECTION_PROBE_TOOL_NAME);
+  if (probeCall === void 0) {
+    throw new ProviderConnectionProbeError("Connection test failed: model did not return the required tool call");
+  }
+  let args;
+  try {
+    args = JSON.parse(probeCall.function.arguments);
+  } catch {
+    throw new ProviderConnectionProbeError("Connection test failed: tool arguments were not valid JSON");
+  }
+  if (!ConnectionProbeArgumentsSchema.safeParse(args).success) {
+    throw new ProviderConnectionProbeError("Connection test failed: tool arguments did not contain ok=true");
+  }
+  const usage = parsed.data.usage;
+  return {
+    ok: true,
+    latencyMs: Math.max(0, Math.round(import_node_perf_hooks.performance.now() - startedAt)),
+    requestedModel: config2.model,
+    responseModel: parsed.data.model ?? config2.model,
+    toolCallValidated: true,
+    ...usage?.prompt_tokens !== void 0 && usage.completion_tokens !== void 0 ? { usage: { inputTokens: usage.prompt_tokens, outputTokens: usage.completion_tokens } } : {}
+  };
+}
+
+// src/provider/profileService.ts
+var ProviderConfigurationError = class extends Error {
+  name = "ProviderConfigurationError";
+};
+function assertDurableConsentCategories(dataCategories) {
+  if (dataCategories?.includes("connection_probe")) {
+    throw new ProviderConfigurationError("connection_probe cannot be persisted as provider data consent");
+  }
+}
+var ProviderProfileService = class {
+  #profiles;
+  #credentials;
+  #consent;
+  #now;
+  #probeTransportFactory;
+  #configureChain = Promise.resolve();
+  constructor(options) {
+    this.#profiles = options.profiles;
+    this.#credentials = options.credentials;
+    this.#consent = options.consent;
+    this.#now = options.now ?? (() => /* @__PURE__ */ new Date());
+    this.#probeTransportFactory = options.probeTransportFactory;
+  }
+  async configure(input) {
+    let release;
+    const previous = this.#configureChain;
+    this.#configureChain = new Promise((resolve2) => {
+      release = resolve2;
+    });
+    await previous;
+    try {
+      return await this.#configureUnlocked(input);
+    } finally {
+      release();
+    }
+  }
+  async #configureUnlocked(input) {
+    const parsed = ProviderConfigureInputSchema.parse(input);
+    const profile = providerProfileWithDefaults(parsed, this.#now());
+    const oldProfile = await this.#profiles.get(profile.providerId);
+    const target = credentialTarget(profile.providerId);
+    if (parsed.apiKey === void 0 && !parsed.clearCredential) {
+      if (oldProfile === void 0) {
+        throw new ProviderConfigurationError("Provider credential is required for first configuration");
+      }
+      if (canonicalProviderBaseURL(oldProfile.baseURL) !== canonicalProviderBaseURL(profile.baseURL)) {
+        throw new ProviderConfigurationError("API key is required when changing the provider endpoint");
+      }
+      try {
+        if (!await this.#credentials.has(target)) {
+          throw new ProviderConfigurationError("Provider credential is not configured");
+        }
+      } catch (error51) {
+        if (error51 instanceof ProviderConfigurationError) throw error51;
+        throw new ProviderConfigurationError(
+          `Provider credential lookup failed: ${error51 instanceof Error ? error51.message : "unknown error"}`
+        );
+      }
+    }
+    const shouldChangeSecret = parsed.apiKey !== void 0 || parsed.clearCredential;
+    let oldSecret;
+    if (shouldChangeSecret) {
+      try {
+        oldSecret = await this.#credentials.get(target);
+      } catch (error51) {
+        throw new ProviderConfigurationError(
+          `Provider credential lookup failed: ${error51 instanceof Error ? error51.message : "unknown error"}`
+        );
+      }
+    }
+    let secretChanged = false;
+    try {
+      if (shouldChangeSecret) {
+        if (parsed.clearCredential) {
+          await this.#credentials.delete(target);
+        } else if (parsed.apiKey !== void 0) {
+          await this.#credentials.set(target, parsed.apiKey);
+        }
+        secretChanged = true;
+      }
+      await this.#profiles.put(profile);
+      return profile;
+    } catch (error51) {
+      if (secretChanged) {
+        try {
+          if (oldSecret === void 0) await this.#credentials.delete(target);
+          else await this.#credentials.set(target, oldSecret);
+        } catch (rollbackError) {
+          throw new ProviderConfigurationError(
+            `Provider configuration failed and credential rollback failed: ${rollbackError instanceof Error ? rollbackError.message : "unknown rollback error"}`
+          );
+        }
+      }
+      if (oldProfile === void 0) await this.#profiles.delete(profile.providerId);
+      else await this.#profiles.put(ProviderProfileSchema.parse(oldProfile));
+      throw new ProviderConfigurationError(
+        `Provider configuration failed: ${error51 instanceof Error ? error51.message : "unknown error"}`
+      );
+    }
+  }
+  async status(providerId) {
+    const profile = await this.#profiles.get(providerId);
+    if (profile === void 0) {
+      return { configured: false, credentialConfigured: false, consent: "required" };
+    }
+    let credentialConfigured = false;
+    try {
+      credentialConfigured = await this.#credentials.has(profile.credentialTarget);
+    } catch {
+      credentialConfigured = false;
+    }
+    return {
+      configured: true,
+      credentialConfigured,
+      consent: await this.#consent.state(profile),
+      profile
+    };
+  }
+  async preview(providerId, payload, dataCategories) {
+    assertDurableConsentCategories(dataCategories);
+    const profile = await this.#profiles.get(providerId);
+    if (profile === void 0) throw new ProviderConfigurationError("Provider is not configured");
+    return this.#consent.preview(profile, payload, dataCategories);
+  }
+  previewConnectionTest(input) {
+    const profile = providerProfileWithDefaults({
+      providerId: input.providerId,
+      baseURL: input.baseURL,
+      model: input.model,
+      dataCategories: ["connection_probe"],
+      maxCalls: 1,
+      maxOutputTokens: 32,
+      timeoutMs: 3e4
+    }, this.#now());
+    return this.#consent.preview(profile, CONNECTION_PROBE_PAYLOAD, ["connection_probe"]);
+  }
+  async testConnection(input, signal) {
+    const preview = this.previewConnectionTest(input);
+    if (preview.consentKey !== input.consentKey || preview.payloadPreview.redactedHash !== input.payloadHash) {
+      throw new ProviderConfigurationError("Connection test authorization is missing or stale");
+    }
+    const canonicalBaseURL = canonicalProviderBaseURL(input.baseURL);
+    let secret = input.apiKey;
+    if (secret === void 0) {
+      const stored = await this.#profiles.get(input.providerId);
+      if (stored === void 0 || canonicalProviderBaseURL(stored.baseURL) !== canonicalBaseURL) {
+        throw new ProviderConfigurationError("API key is required when testing a new provider endpoint");
+      }
+      secret = await this.#credentials.get(stored.credentialTarget);
+      if (secret === void 0) throw new ProviderConfigurationError("Provider credential is not configured");
+    }
+    return runProviderConnectionProbe({
+      apiKey: secret,
+      baseURL: canonicalBaseURL,
+      model: input.model
+    }, signal, this.#probeTransportFactory);
+  }
+  async grantConsent(providerId, consentKey, dataCategories) {
+    assertDurableConsentCategories(dataCategories);
+    const profile = await this.#profiles.get(providerId);
+    if (profile === void 0) throw new ProviderConfigurationError("Provider is not configured");
+    return this.#consent.grant(profile, consentKey, dataCategories);
+  }
+  async revokeConsent(providerId) {
+    await this.#consent.revoke(providerId);
+  }
+  get consent() {
+    return this.#consent;
+  }
+  get credentials() {
+    return this.#credentials;
+  }
+  get profiles() {
+    return this.#profiles;
+  }
+};
+var ProviderStatusSchema = external_exports.object({
+  configured: external_exports.boolean(),
+  credentialConfigured: external_exports.boolean(),
+  consent: external_exports.enum(["required", "granted", "revoked"]),
+  profile: ProviderProfileSchema.optional()
+}).strict();
 
 // src/provider/modelFactory.ts
 var ConsentGuardAdapter = class {
@@ -90720,6 +90916,7 @@ var DefaultPlannerController = class {
   #modelAdapterFactory;
   #providerId;
   #pendingConsent = /* @__PURE__ */ new Map();
+  #pendingProviderTests = /* @__PURE__ */ new Map();
   #active = /* @__PURE__ */ new Map();
   #pending = /* @__PURE__ */ new Map();
   #cancelled = /* @__PURE__ */ new Set();
@@ -90754,6 +90951,7 @@ var DefaultPlannerController = class {
         nativeEvidence: true,
         tradeBroker: hello.capabilities.includes("tradeBroker"),
         providerConsent: this.#providerService !== void 0,
+        providerConnectionTest: this.#providerService !== void 0 && hello.capabilities.includes("providerConnectionTest"),
         objectiveDraft: this.#modelAdapterFactory !== void 0,
         trade: hello.capabilities.includes("tradeBroker"),
         providerConfigured: providerStatus?.configured === true && providerStatus.credentialConfigured
@@ -90782,10 +90980,48 @@ var DefaultPlannerController = class {
       providerId: parsed.providerId,
       baseURL: parsed.baseUrl,
       model: parsed.model,
-      apiKey: parsed.apiKey
+      ...parsed.apiKey === void 0 ? {} : { apiKey: parsed.apiKey }
     });
     this.#pendingConsent.delete(parsed.providerId);
-    return { providerId: profile.providerId, configured: true, credentialConfigured: true, consent: "required" };
+    this.#pendingProviderTests.delete(parsed.providerId);
+    return { providerId: profile.providerId, ...await this.#providerService.status(profile.providerId) };
+  }
+  async previewProviderTest(params) {
+    if (this.#providerService === void 0) throw providerUnavailable();
+    const parsed = ProviderTestPreviewParamsSchema.parse(params);
+    const preview = this.#providerService.previewConnectionTest({
+      providerId: parsed.providerId,
+      baseURL: parsed.baseUrl,
+      model: parsed.model
+    });
+    this.#pendingProviderTests.set(parsed.providerId, {
+      baseURL: preview.endpoint,
+      model: preview.model,
+      consentKey: preview.consentKey,
+      payloadHash: preview.payloadPreview.redactedHash
+    });
+    return preview;
+  }
+  async testProviderConnection(params, context2) {
+    if (this.#providerService === void 0) throw providerUnavailable();
+    const parsed = ProviderTestParamsSchema.parse(params);
+    const pending = this.#pendingProviderTests.get(parsed.providerId);
+    this.#pendingProviderTests.delete(parsed.providerId);
+    if (pending === void 0 || pending.baseURL !== this.#providerService.previewConnectionTest({
+      providerId: parsed.providerId,
+      baseURL: parsed.baseUrl,
+      model: parsed.model
+    }).endpoint || pending.model !== parsed.model || pending.consentKey !== parsed.consentKey || pending.payloadHash !== parsed.payloadHash) {
+      throw new JsonRpcError(JsonRpcErrorCode.Conflict, "Connection test authorization is missing or stale");
+    }
+    return this.#providerService.testConnection({
+      providerId: parsed.providerId,
+      baseURL: parsed.baseUrl,
+      model: parsed.model,
+      ...parsed.apiKey === void 0 ? {} : { apiKey: parsed.apiKey },
+      consentKey: parsed.consentKey,
+      payloadHash: parsed.payloadHash
+    }, context2.signal);
   }
   async clearProvider(params) {
     if (this.#providerService === void 0) throw providerUnavailable();
@@ -90795,6 +91031,7 @@ var DefaultPlannerController = class {
     await this.#providerService.profiles.delete(providerId);
     await this.#providerService.revokeConsent(providerId);
     this.#pendingConsent.delete(providerId);
+    this.#pendingProviderTests.delete(providerId);
     return { providerId, configured: false, credentialConfigured: false, consent: "revoked" };
   }
   async previewConsent(params) {
@@ -90838,6 +91075,7 @@ var DefaultPlannerController = class {
       if (active.providerId === providerId) active.providerController.abort(new Error("Provider consent revoked"));
     }
     this.#pendingConsent.delete(providerId);
+    this.#pendingProviderTests.delete(providerId);
     return { providerId, consent: "revoked" };
   }
   async draftObjective(params, context2) {
@@ -92249,6 +92487,8 @@ var SUPPORTED_METHODS = /* @__PURE__ */ new Set([
   "transaction.result",
   "provider.status",
   "provider.configure",
+  "provider.test.preview",
+  "provider.test",
   "provider.clear",
   "consent.preview",
   "consent.grant",
@@ -92423,6 +92663,10 @@ var RpcRouter = class {
         return this.bind(this.controller.providerStatus, parseParams(ProviderStatusParamsSchema));
       case "provider.configure":
         return this.bind(this.controller.configureProvider, parseParams(ProviderConfigureParamsSchema));
+      case "provider.test.preview":
+        return this.bind(this.controller.previewProviderTest, parseParams(ProviderTestPreviewParamsSchema));
+      case "provider.test":
+        return this.bind(this.controller.testProviderConnection, parseParams(ProviderTestParamsSchema));
       case "provider.clear":
         return this.bind(this.controller.clearProvider, parseParams(ProviderClearParamsSchema));
       case "consent.preview":
