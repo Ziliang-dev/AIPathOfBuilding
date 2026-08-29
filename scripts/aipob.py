@@ -126,8 +126,8 @@ def check_manifest(_: argparse.Namespace) -> None:
 def release_gate(args: argparse.Namespace) -> None:
     if args.install:
         install_sidecar(args)
-    check_sidecar(argparse.Namespace(install=False))
     build_sidecar(argparse.Namespace(skip_checks=True))
+    check_sidecar(argparse.Namespace(install=False))
     check_manifest(args)
     pnpm = command_path("pnpm")
     run([pnpm, "--dir", "sidecar", "exec", "vitest", "run", "tests/release-gate.test.ts"])

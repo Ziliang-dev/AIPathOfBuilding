@@ -39,6 +39,17 @@ function assertDurableConsentCategories(dataCategories?: readonly ConsentDataCat
   }
 }
 
+function parseProviderTestSettings(input: ProviderTestSettings): ProviderTestSettings {
+  return ProviderTestSettingsSchema.parse({
+    providerId: input.providerId,
+    baseURL: input.baseURL,
+    model: input.model,
+    authMode: input.authMode,
+    apiMode: input.apiMode,
+    reasoningMode: input.reasoningMode,
+  });
+}
+
 /**
  * Coordinates profile and secret updates. Profile writes are rolled back if a
  * credential write succeeds but persistence fails; secrets never enter the
@@ -205,7 +216,7 @@ export class ProviderProfileService {
   }
 
   previewConnectionTest(input: ProviderTestSettings) {
-    const parsed = ProviderTestSettingsSchema.parse(input);
+    const parsed = parseProviderTestSettings(input);
     const resolution = resolveProviderCompatibility(parsed);
     const profile = providerProfileWithDefaults({
       providerId: parsed.providerId,
@@ -234,11 +245,11 @@ export class ProviderProfileService {
     consentKey: string;
     payloadHash: string;
   }, signal?: AbortSignal): Promise<ProviderConnectionProbeResult & { testId: string }> {
-    const preview = this.previewConnectionTest(input);
+    const parsed = parseProviderTestSettings(input);
+    const preview = this.previewConnectionTest(parsed);
     if (preview.consentKey !== input.consentKey || preview.payloadPreview.redactedHash !== input.payloadHash) {
       throw new ProviderConfigurationError("Connection test authorization is missing or stale");
     }
-    const parsed = ProviderTestSettingsSchema.parse(input);
     const canonicalBaseURL = canonicalProviderBaseURL(parsed.baseURL);
     const secret = await this.#resolveCredential(parsed, input.apiKey);
     const resolution = ProviderCompatibilityResolutionSchema.parse(resolveProviderCompatibility(parsed));
