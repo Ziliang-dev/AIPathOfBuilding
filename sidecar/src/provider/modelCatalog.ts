@@ -36,7 +36,10 @@ export async function listProviderModels(
   const config = ProviderModelCatalogInputSchema.parse(input);
   const headers: Record<string, string> = { Accept: "application/json" };
   if (config.authMode === "bearer") headers.Authorization = `Bearer ${config.apiKey}`;
-  const response = await fetch(`${canonicalProviderBaseURL(config.baseURL)}/models`, { headers, signal });
+  const response = await fetch(`${canonicalProviderBaseURL(config.baseURL)}/models`, {
+    headers,
+    ...(signal === undefined ? {} : { signal }),
+  });
   const contentLength = Number(response.headers.get("content-length") ?? "0");
   if (Number.isFinite(contentLength) && contentLength > MAX_MODEL_CATALOG_BYTES) {
     throw new Error("Provider model list exceeded the 2 MiB limit");
