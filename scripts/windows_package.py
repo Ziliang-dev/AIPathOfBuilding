@@ -9,6 +9,7 @@ import hashlib
 import json
 import os
 from pathlib import Path, PurePosixPath
+import re
 import shutil
 import subprocess
 import sys
@@ -84,6 +85,7 @@ def safe_package_path(root: Path, relative: str) -> Path:
 
 
 def run_capture(arguments: list[str], *, cwd: Path, timeout: float = 30) -> str:
+    arguments = windows_interop_arguments(arguments)
     completed = subprocess.run(
         arguments,
         cwd=cwd,
@@ -93,6 +95,27 @@ def run_capture(arguments: list[str], *, cwd: Path, timeout: float = 30) -> str:
         timeout=timeout,
     )
     return completed.stdout.strip()
+
+
+def windows_interop_arguments(arguments: list[str]) -> list[str]:
+    if os.name == "nt" or not Path(arguments[0]).name.lower().endswith(".exe"):
+        return arguments
+    wslpath = shutil.which("wslpath")
+    if wslpath is None:
+        fail("wslpath is required to pass WSL paths to a Windows executable.")
+    converted = [arguments[0]]
+    for argument in arguments[1:]:
+        if argument.startswith("/") and not re.match(r"^/[A-Za-z](?:=|$)", argument):
+            result = subprocess.run(
+                [wslpath, "-w", argument],
+                check=True,
+                text=True,
+                capture_output=True,
+            )
+            converted.append(result.stdout.strip())
+        else:
+            converted.append(argument)
+    return converted
 
 
 def parse_list(value: str | None) -> list[str]:
@@ -382,11 +405,18 @@ def owner_timeout(node: Path, bundle: Path, working_directory: Path) -> None:
         root = Path(temporary)
         ready = root / "ready.json"
         token = ("verify-" + os.urandom(16).hex()).ljust(40, "x")
-        process = subprocess.Popen([
+        command = windows_interop_arguments([
             str(node), str(bundle), "--host", "127.0.0.1", "--port", "0",
             "--session-token", token, "--data-dir", str(root), "--ready-file", str(ready),
             "--owner-connect-timeout-ms", "250",
-        ], cwd=working_directory, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        ])
+        process = subprocess.Popen(
+            command,
+            cwd=working_directory,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
         try:
             deadline = time.monotonic() + 15
             while not ready.is_file() and process.poll() is None and time.monotonic() < deadline:

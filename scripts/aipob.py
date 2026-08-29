@@ -173,9 +173,11 @@ def build_wincred(_: argparse.Namespace) -> None:
 
 
 def add_windows_commands(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
+    from ci_sync import add_sync_parser
     from windows_e2e import add_e2e_parser
     from windows_package import add_package_parsers
 
+    add_sync_parser(subparsers)
     add_package_parsers(subparsers)
     add_e2e_parser(subparsers)
 
