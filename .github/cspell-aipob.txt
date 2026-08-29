@@ -51,3 +51,4 @@ Uninst
 vitest
 wincred
 wmain
+wslpath
