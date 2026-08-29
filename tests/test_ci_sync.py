@@ -74,6 +74,25 @@ class CiSyncTests(unittest.TestCase):
         self.assertEqual(value, r"D:\Projects\AIPoB\artifacts\ci-latest")
         capture.assert_called_once()
 
+    def test_windows_gh_symlink_receives_a_windows_output_path(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            executable = directory / "gh.exe"
+            executable.touch()
+            symlink = directory / "gh"
+            symlink.symlink_to(executable)
+            with patch.object(ci_sync, "find_command", return_value="/usr/bin/wslpath"), patch.object(
+                ci_sync,
+                "run_capture",
+                return_value=r"D:\Projects\AIPoB\artifacts\ci-latest",
+            ) as capture:
+                value = ci_sync.command_path_argument(
+                    str(symlink),
+                    Path("/mnt/d/Projects/AIPoB/artifacts/ci-latest"),
+                )
+        self.assertEqual(value, r"D:\Projects\AIPoB\artifacts\ci-latest")
+        capture.assert_called_once()
+
     def test_sync_replaces_previous_run_and_keeps_only_latest(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             destination = Path(temporary) / "ci-latest"

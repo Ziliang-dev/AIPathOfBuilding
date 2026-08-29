@@ -41,7 +41,12 @@ def run_capture(arguments: list[str], *, cwd: Path = ROOT) -> str:
 
 
 def command_path_argument(command: str, path: Path) -> str:
-    if os.name == "nt" or not Path(command).name.lower().endswith(".exe"):
+    command_path = Path(command)
+    try:
+        command_name = command_path.resolve().name.lower()
+    except OSError:
+        command_name = command_path.name.lower()
+    if os.name == "nt" or not command_name.endswith(".exe"):
         return str(path)
     wslpath = find_command(None, "wslpath")
     return run_capture([wslpath, "-w", str(path)])
