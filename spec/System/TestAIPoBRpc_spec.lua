@@ -24,9 +24,9 @@ describe("AIPathOfBuilding RPC", function()
 		assert.is_true(client:OnFrame())
 		local request = json.decode(transport.outgoing:match("([^\n]+)"))
 		assert.are.equal("2.0", request.jsonrpc)
-		assert.are.equal(2, request.protocolVersion)
+		assert.are.equal(3, request.protocolVersion)
 		assert.are.equal(string.rep("a", 32), request.sessionToken)
-		table.insert(transport.incoming, json.encode({ jsonrpc = "2.0", protocolVersion = 2, id = id, result = { ok = true } }))
+		table.insert(transport.incoming, json.encode({ jsonrpc = "2.0", protocolVersion = 3, id = id, result = { ok = true } }))
 		assert.is_true(client:OnFrame())
 		assert.is_true(result.ok)
 	end)
@@ -37,10 +37,10 @@ describe("AIPathOfBuilding RPC", function()
 		local phase
 		client:Register("run.progress", function(params) phase = params.phase end)
 		assert.is_true(client:OnFrame())
-		table.insert(transport.incoming, json.encode({ jsonrpc = "2.0", protocolVersion = 2, method = "run.progress", params = { phase = "search" } }))
+		table.insert(transport.incoming, json.encode({ jsonrpc = "2.0", protocolVersion = 3, method = "run.progress", params = { phase = "search" } }))
 		assert.is_true(client:OnFrame())
 		assert.are.equal("search", phase)
-		table.insert(transport.incoming, json.encode({ jsonrpc = "2.0", protocolVersion = 3, method = "run.progress", params = { } }))
+		table.insert(transport.incoming, json.encode({ jsonrpc = "2.0", protocolVersion = 4, method = "run.progress", params = { } }))
 		local ok, err = client:OnFrame()
 		assert.is_nil(ok)
 		assert.matches("version mismatch", err)
@@ -96,7 +96,7 @@ describe("AIPathOfBuilding RPC", function()
 			Register = function() end,
 			OnFrame = function() return true end,
 			Request = function(_, method, _, callback)
-				if method == "hello" then callback({ capabilities = { providerConnectionTest = true } })
+				if method == "hello" then callback({ capabilities = { providerConnectionTest = true, providerCompatibility = true } })
 				elseif method == "provider.status" then callback({ configured = false, credentialConfigured = false, consent = "required" }) end
 				return 1
 			end,
@@ -110,6 +110,7 @@ describe("AIPathOfBuilding RPC", function()
 		assert.are.equal("idle", controller.state.status)
 		assert.are.equal("connected", controller.state.sidecarStatus)
 		assert.is_true(controller.state.sidecarCapabilities.providerConnectionTest)
+		assert.is_true(controller.state.sidecarCapabilities.providerCompatibility)
 	end)
 
 	it("routes a one-time provider connection preview and test", function()
@@ -124,7 +125,9 @@ describe("AIPathOfBuilding RPC", function()
 						payloadPreview = { redactedHash = "sha256:"..string.rep("a", 64) },
 					})
 				elseif method == "provider.test" then
-					callback({ ok = true, latencyMs = 12, toolCallValidated = true })
+					callback({ ok = true, latencyMs = 12, toolCallValidated = true, testId = "test-id" })
+				elseif method == "provider.models.list" then
+					callback({ models = { "model-a", "model-b" } })
 				end
 				return #requests
 			end,
@@ -134,14 +137,20 @@ describe("AIPathOfBuilding RPC", function()
 			rpc = rpc, transaction = { Apply = function() return { ok = true } end },
 		})
 		controller.helloComplete = true
-		controller.state.sidecarCapabilities = { providerConnectionTest = true }
-		local preview, result
-		assert.is_true(controller:PreviewProviderTest({ baseUrl = "https://provider.invalid/v1", model = "test", apiKey = "secret" }, function(value) preview = value end))
-		assert.is_true(controller:TestProviderConnection({ baseUrl = "https://provider.invalid/v1", model = "test", apiKey = "secret" }, preview, function(value) result = value end))
+		controller.state.sidecarCapabilities = { providerConnectionTest = true, providerCompatibility = true }
+		local preview, result, models
+		local profile = { baseUrl = "https://provider.invalid/v1", model = "test", apiKey = "secret", authMode = "bearer", apiMode = "auto", reasoningMode = "auto" }
+		assert.is_true(controller:PreviewProviderTest(profile, function(value) preview = value end))
+		assert.is_true(controller:TestProviderConnection(profile, preview, function(value) result = value end))
+		assert.is_true(controller:ListProviderModels(profile, function(value) models = value.models end))
 		assert.is_true(result.ok)
+		assert.are.same({ "model-a", "model-b" }, models)
 		assert.are.equal("provider.test.preview", requests[1].method)
 		assert.are.equal("provider.test", requests[2].method)
+		assert.are.equal("provider.models.list", requests[3].method)
 		assert.are.equal("secret", requests[2].params.apiKey)
+		assert.are.equal("auto", requests[2].params.apiMode)
+		assert.are.equal("auto", requests[2].params.reasoningMode)
 		assert.are.equal("passed", controller.state.providerTestStatus)
 	end)
 
@@ -312,16 +321,36 @@ describe("AIPathOfBuilding RPC", function()
 			exists = function(path)
 				return path:match("sidecar/dist/server%.cjs$") ~= nil
 					or path:match("sidecar/runtime/node%.exe$") ~= nil
+					or path:match("sidecar/runtime/aipob%-sidecar%-launcher%.exe$") ~= nil
 					or path:match("Path of Building%.exe$") ~= nil
 					or path:match("AIPoBWorker%.lua$") ~= nil
 			end,
 		})
 		assert.is_true(launcher:Start())
-		assert.matches("node", spawned.command:lower(), nil, true)
+		assert.matches("aipob%-sidecar%-launcher", spawned.command:lower())
+		assert.matches("node%.exe", spawned.args:lower())
 		assert.matches("--pob%-executable", spawned.args)
 		assert.matches("--worker%-script", spawned.args)
 		assert.matches("AIPoBWorker%.lua", spawned.args)
 		assert.matches("--worker%-count", spawned.args)
+		launcher:Shutdown()
+	end)
+
+	it("falls back to direct Node for older portable layouts", function()
+		local Launcher = require("Modules.AIPoB.SidecarLauncher")
+		local command
+		local launcher = Launcher.new({
+			scriptPath = GetScriptPath(), userPath = main.userPath,
+			spawn = function(value) command = value end,
+			exists = function(path)
+				return path:match("sidecar/dist/server%.cjs$") ~= nil
+					or path:match("sidecar/runtime/node%.exe$") ~= nil
+					or path:match("Path of Building%.exe$") ~= nil
+					or path:match("AIPoBWorker%.lua$") ~= nil
+			end,
+		})
+		assert.is_true(launcher:Start())
+		assert.matches("node", command:lower(), nil, true)
 		launcher:Shutdown()
 	end)
 end)

@@ -168,7 +168,7 @@ describe("AIPlannerTab", function()
 		}
 		planner.state = {
 			status = "idle", candidates = { }, sidecarStatus = "connected",
-			sidecarCapabilities = { providerConnectionTest = true },
+			sidecarCapabilities = { providerConnectionTest = true, providerCompatibility = true },
 			providerStatus = { configured = false, credentialConfigured = false, consent = "required" },
 		}
 
@@ -179,6 +179,7 @@ describe("AIPlannerTab", function()
 		controls.key:SetText("test-secret")
 		assert.is_false(controls.save.enabled())
 		popupState.testedRevision = popupState.inputRevision
+		popupState.testId = "8d9e3853-93b9-4b03-a9ab-f84d4c4d33ae"
 		assert.is_true(controls.save.enabled())
 		controls.model:SetText("changed-model", true)
 		assert.is_false(controls.save.enabled())
@@ -190,16 +191,59 @@ describe("AIPlannerTab", function()
 		main:ClosePopup()
 	end)
 
+	it("applies provider presets and keeps manual model entry after optional discovery", function()
+		newBuild()
+		local planner = build.plannerTab
+		local listed
+		planner.controller = {
+			EnsureConnected = function() return true end,
+			ListProviderModels = function(_, profile, callback)
+				listed = profile
+				callback({ models = { "model-a", "model-b" } })
+				return true
+			end,
+		}
+		planner.state = {
+			status = "idle", candidates = { }, sidecarStatus = "connected",
+			sidecarCapabilities = { providerConnectionTest = true, providerCompatibility = true },
+			providerStatus = { configured = false, credentialConfigured = false, consent = "required" },
+		}
+
+		planner:OpenProviderPopup()
+		local controls = planner.providerPopupControls
+		controls.preset:SetSel(2)
+		assert.are.equal("https://openrouter.ai/api/v1", controls.endpoint.buf)
+		assert.are.equal("openai/gpt-4.1-mini", controls.model.buf)
+		controls.key:SetText("test-secret")
+		assert.is_true(controls.modelLoad.enabled())
+		controls.modelLoad.onClick()
+		assert.are.equal("test-secret", listed.apiKey)
+		assert.are.equal(2, #controls.modelChoice.list)
+		controls.modelChoice:SetSel(2)
+		assert.are.equal("model-b", controls.model.buf)
+
+		controls.preset:SetSel(4)
+		assert.are.equal("http://127.0.0.1:11434/v1", controls.endpoint.buf)
+		assert.are.equal("none", controls.auth:GetSelValueByKey("value"))
+		controls.model:SetText("local-model")
+		controls.key:SetText("")
+		assert.is_true(controls.test.enabled())
+		controls.cancel.onClick()
+	end)
+
 	it("requires a new key when the provider endpoint changes", function()
 		newBuild()
 		local planner = build.plannerTab
 		planner.controller = { EnsureConnected = function() return true end }
 		planner.state = {
 			status = "idle", candidates = { }, sidecarStatus = "connected",
-			sidecarCapabilities = { providerConnectionTest = true },
+			sidecarCapabilities = { providerConnectionTest = true, providerCompatibility = true },
 			providerStatus = {
 				configured = true, credentialConfigured = true, consent = "required",
-				profile = { baseURL = "https://provider.invalid/v1/", model = "saved-model" },
+				profile = {
+					baseURL = "https://provider.invalid/v1/", model = "saved-model",
+					authMode = "bearer", apiMode = "auto", reasoningMode = "auto",
+				},
 			},
 		}
 
@@ -234,7 +278,11 @@ describe("AIPlannerTab", function()
 			end,
 			TestProviderConnection = function(_, _, _, callback)
 				if shouldPass then
-					callback({ ok = true, latencyMs = 12, responseModel = "test-model", toolCallValidated = true })
+					callback({
+						ok = true, latencyMs = 12, responseModel = "test-model", toolCallValidated = true,
+						testId = "8d9e3853-93b9-4b03-a9ab-f84d4c4d33ae",
+						resolvedApiMode = "chat_completions", resolvedReasoning = "provider_default",
+					})
 				else
 					callback(nil, "Connection test failed: HTTP 401")
 				end
@@ -247,7 +295,7 @@ describe("AIPlannerTab", function()
 		}
 		planner.state = {
 			status = "idle", candidates = { }, sidecarStatus = "connected",
-			sidecarCapabilities = { providerConnectionTest = true },
+			sidecarCapabilities = { providerConnectionTest = true, providerCompatibility = true },
 			providerStatus = { configured = false, credentialConfigured = false, consent = "required" },
 		}
 

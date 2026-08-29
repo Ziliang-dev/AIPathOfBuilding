@@ -8,7 +8,6 @@ import {
   ProviderConfigurationError,
   ProviderProfileService,
   ProviderProfileSchema,
-  createConsentKey,
   parseObjectiveSpecDraft,
   providerProfileWithDefaults,
   canonicalProviderBaseURL,
@@ -20,7 +19,45 @@ import type { ModelAdapter, ModelTurnInput, ModelTurnResult } from "../src/llm/t
 import type { HighLevelToolName } from "../src/llm/toolSchemas.js";
 
 function profile(providerId = "openai"): ProviderProfile {
-  return providerProfileWithDefaults({ providerId, model: "test-model", apiKey: "secret" }, new Date("2026-01-01T00:00:00.000Z"));
+  return providerProfileWithDefaults(
+    { providerId, model: "test-model", apiKey: "secret" },
+    undefined,
+    new Date("2026-01-01T00:00:00.000Z"),
+  );
+}
+
+const providerSettings = {
+  providerId: "openai",
+  baseURL: "https://provider.invalid/v1",
+  model: "test-model",
+  authMode: "bearer" as const,
+  apiMode: "chat_completions" as const,
+  reasoningMode: "auto" as const,
+};
+
+function successfulProbe() {
+  return {
+    model: "resolved-model",
+    choices: [{ message: { tool_calls: [{
+      id: "probe", type: "function",
+      function: { name: CONNECTION_PROBE_TOOL_NAME, arguments: '{"ok":true}' },
+    }] } }],
+  };
+}
+
+async function testedConfigure(
+  service: ProviderProfileService,
+  input: Partial<typeof providerSettings> & { apiKey?: string } = {},
+) {
+  const settings = { ...providerSettings, ...input };
+  const preview = service.previewConnectionTest(settings);
+  const test = await service.testConnection({
+    ...settings,
+    ...(input.apiKey === undefined ? {} : { apiKey: input.apiKey }),
+    consentKey: preview.consentKey,
+    payloadHash: preview.payloadPreview.redactedHash,
+  });
+  return service.configure({ ...settings, testId: test.testId, ...(input.apiKey === undefined ? {} : { apiKey: input.apiKey }) });
 }
 
 class StubAdapter implements ModelAdapter<HighLevelToolName> {
@@ -51,26 +88,91 @@ describe("provider profile and consent", () => {
     const credentials = new MemoryCredentialStore();
     const profiles = new MemoryProviderProfileStore();
     const consent = new ConsentManager(new MemoryConsentRecordStore());
-    const service = new ProviderProfileService({ profiles, credentials, consent });
-    await service.configure({ providerId: "openai", model: "test-model", apiKey: "secret" });
+    const service = new ProviderProfileService({
+      profiles, credentials, consent, probeTransportFactory: () => ({ create: async () => successfulProbe() }),
+    });
+    await testedConfigure(service, { apiKey: "secret" });
     const status = await service.status("openai");
     expect(status.credentialConfigured).toBe(true);
     expect(JSON.stringify(status)).not.toContain("secret");
     expect(await credentials.get("AIPathOfBuilding/LLM/openai")).toBe("secret");
   });
 
+  it("configures a tested loopback provider without inventing a credential", async () => {
+    const credentials = new MemoryCredentialStore();
+    const service = new ProviderProfileService({
+      profiles: new MemoryProviderProfileStore(),
+      credentials,
+      consent: new ConsentManager(),
+      probeTransportFactory: () => ({ create: async () => successfulProbe() }),
+    });
+    const settings = {
+      providerId: "openai",
+      baseURL: "http://127.0.0.1:11434/v1",
+      model: "local-model",
+      authMode: "none" as const,
+      apiMode: "auto" as const,
+      reasoningMode: "auto" as const,
+    };
+    const preview = service.previewConnectionTest(settings);
+    const tested = await service.testConnection({
+      ...settings,
+      consentKey: preview.consentKey,
+      payloadHash: preview.payloadPreview.redactedHash,
+    });
+    await expect(service.configure({ ...settings, testId: tested.testId })).resolves.toMatchObject({
+      authMode: "none",
+      resolvedApiMode: "chat_completions",
+    });
+    await expect(service.status("openai")).resolves.toMatchObject({
+      configured: true,
+      credentialConfigured: true,
+    });
+    expect(await credentials.has("AIPathOfBuilding/LLM/openai")).toBe(false);
+  });
+
+  it("consumes a successful test ticket and binds it to exact settings", async () => {
+    const service = new ProviderProfileService({
+      profiles: new MemoryProviderProfileStore(),
+      credentials: new MemoryCredentialStore(),
+      consent: new ConsentManager(),
+      probeTransportFactory: () => ({ create: async () => successfulProbe() }),
+    });
+    const preview = service.previewConnectionTest(providerSettings);
+    const tested = await service.testConnection({
+      ...providerSettings,
+      apiKey: "secret",
+      consentKey: preview.consentKey,
+      payloadHash: preview.payloadPreview.redactedHash,
+    });
+    await expect(service.configure({
+      ...providerSettings,
+      model: "changed-after-test",
+      apiKey: "secret",
+      testId: tested.testId,
+    })).rejects.toThrow(/matching successful connection test/);
+    await expect(service.configure({
+      ...providerSettings,
+      apiKey: "secret",
+      testId: tested.testId,
+    })).rejects.toThrow(/matching successful connection test/);
+  });
+
   it("reuses a stored key only when the canonical endpoint is unchanged", async () => {
     const credentials = new MemoryCredentialStore();
     const profiles = new MemoryProviderProfileStore();
-    const service = new ProviderProfileService({ profiles, credentials, consent: new ConsentManager() });
-    await service.configure({
-      providerId: "openai", baseURL: "https://provider.invalid/v1/", model: "model-a", apiKey: "secret",
+    const service = new ProviderProfileService({
+      profiles, credentials, consent: new ConsentManager(),
+      probeTransportFactory: () => ({ create: async () => successfulProbe() }),
     });
-    await expect(service.configure({
-      providerId: "openai", baseURL: "https://provider.invalid/v1", model: "model-b",
+    await testedConfigure(service, { baseURL: "https://provider.invalid/v1/", model: "model-a", apiKey: "secret" });
+    await expect(testedConfigure(service, {
+      baseURL: "https://provider.invalid/v1", model: "model-b",
     })).resolves.toMatchObject({ model: "model-b" });
-    await expect(service.configure({
-      providerId: "openai", baseURL: "https://other.invalid/v1", model: "model-b",
+    const changed = { ...providerSettings, baseURL: "https://other.invalid/v1", model: "model-b" };
+    const preview = service.previewConnectionTest(changed);
+    await expect(service.testConnection({
+      ...changed, consentKey: preview.consentKey, payloadHash: preview.payloadPreview.redactedHash,
     })).rejects.toThrow(/API key is required/);
     expect(await credentials.get("AIPathOfBuilding/LLM/openai")).toBe("secret");
   });
@@ -94,13 +196,16 @@ describe("provider profile and consent", () => {
       }),
     });
     const preview = service.previewConnectionTest({
-      providerId: "openai", baseURL: "https://provider.invalid/v1", model: "test-model",
+      ...providerSettings,
     });
     expect(preview.dataCategories).toEqual(["connection_probe"]);
     await expect(service.testConnection({
       providerId: "openai",
       baseURL: "https://provider.invalid/v1",
       model: "test-model",
+      authMode: "bearer",
+      apiMode: "chat_completions",
+      reasoningMode: "auto",
       apiKey: "ephemeral-secret",
       consentKey: preview.consentKey,
       payloadHash: preview.payloadPreview.redactedHash,
@@ -116,35 +221,44 @@ describe("provider profile and consent", () => {
     const credentials = new MemoryCredentialStore();
     const profiles = new MemoryProviderProfileStore();
     const consent = new ConsentManager(new MemoryConsentRecordStore());
+    let shouldFail = false;
     const service = new ProviderProfileService({
       profiles,
       credentials,
       consent,
       probeTransportFactory: () => ({
-        create: async () => { throw Object.assign(new Error("unauthorized"), { status: 401 }); },
+        create: async () => {
+          if (shouldFail) throw Object.assign(new Error("unauthorized"), { status: 401 });
+          return successfulProbe();
+        },
       }),
     });
-    await service.configure({
-      providerId: "openai", baseURL: "https://provider.invalid/v1", model: "saved-model", apiKey: "saved-secret",
-    });
+    await testedConfigure(service, { model: "saved-model", apiKey: "saved-secret" });
+    shouldFail = true;
     const preview = service.previewConnectionTest({
-      providerId: "openai", baseURL: "https://provider.invalid/v1", model: "unsaved-model",
+      ...providerSettings, model: "unsaved-model",
     });
     await expect(service.testConnection({
       providerId: "openai",
       baseURL: "https://provider.invalid/v1",
       model: "unsaved-model",
+      authMode: "bearer",
+      apiMode: "chat_completions",
+      reasoningMode: "auto",
       consentKey: preview.consentKey,
       payloadHash: preview.payloadPreview.redactedHash,
     })).rejects.toThrow(/HTTP 401/);
 
     const changedEndpointPreview = service.previewConnectionTest({
-      providerId: "openai", baseURL: "https://other.invalid/v1", model: "unsaved-model",
+      ...providerSettings, baseURL: "https://other.invalid/v1", model: "unsaved-model",
     });
     await expect(service.testConnection({
       providerId: "openai",
       baseURL: "https://other.invalid/v1",
       model: "unsaved-model",
+      authMode: "bearer",
+      apiMode: "chat_completions",
+      reasoningMode: "auto",
       consentKey: changedEndpointPreview.consentKey,
       payloadHash: changedEndpointPreview.payloadPreview.redactedHash,
     })).rejects.toThrow(/API key is required/);
@@ -163,8 +277,9 @@ describe("provider profile and consent", () => {
       profiles,
       credentials,
       consent: new ConsentManager(),
+      probeTransportFactory: () => ({ create: async () => successfulProbe() }),
     });
-    await expect(service.configure({ providerId: "openai", model: "test-model", apiKey: "secret" })).rejects.toBeInstanceOf(ProviderConfigurationError);
+    await expect(testedConfigure(service, { apiKey: "secret" })).rejects.toBeInstanceOf(ProviderConfigurationError);
     expect(await credentials.has("AIPathOfBuilding/LLM/openai")).toBe(false);
     profiles.put = originalPut;
   });
@@ -179,7 +294,7 @@ describe("provider profile and consent", () => {
     if (blocked.kind === "fallback") expect(blocked.signal.reason).toBe("provider_consent_required");
     expect(inner.callsUsed).toBe(0);
     await expect(consent.grant(p, "sha256:wrong")).rejects.toThrow(/consent key/i);
-    await consent.grant(p, createConsentKey({ providerId: p.providerId, baseURL: p.baseURL, model: p.model, dataCategories: p.dataCategories }));
+    await consent.grant(p, consent.preview(p).consentKey);
     expect((await guarded.complete({ messages: [{ role: "user", content: "hello" }] })).kind).toBe("message");
     await consent.revoke(p.providerId);
     expect((await guarded.complete({ messages: [{ role: "user", content: "hello" }] })).kind).toBe("fallback");
@@ -199,8 +314,9 @@ describe("provider profile and consent", () => {
       profiles: new MemoryProviderProfileStore(),
       credentials: new MemoryCredentialStore(),
       consent: new ConsentManager(),
+      probeTransportFactory: () => ({ create: async () => successfulProbe() }),
     });
-    await service.configure({ providerId: "openai", model: "test-model", apiKey: "secret" });
+    await testedConfigure(service, { apiKey: "secret" });
     await expect(service.preview("openai", undefined, ["connection_probe"]))
       .rejects.toThrow(/cannot be persisted/);
     await expect(service.grantConsent("openai", `sha256:${"a".repeat(64)}`, ["connection_probe"]))

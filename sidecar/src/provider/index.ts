@@ -2,6 +2,8 @@ export * from "./types.js";
 export * from "./consent.js";
 export * from "./profileService.js";
 export * from "./modelFactory.js";
+export * from "./modelCatalog.js";
 export * from "./connectionProbe.js";
+export * from "./compatibility.js";
 export * from "./draft.js";
 export * from "./sqliteStore.js";

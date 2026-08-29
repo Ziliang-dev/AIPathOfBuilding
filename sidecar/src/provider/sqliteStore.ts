@@ -4,6 +4,7 @@ import Database from "better-sqlite3";
 import { ConsentDataCategorySchema } from "./types.js";
 import type { ConsentRecord, ConsentRecordStore } from "./consent.js";
 import {
+  migrateProviderProfile,
   ProviderProfileSchema,
   type ProviderProfile,
   type ProviderProfileStore,
@@ -37,7 +38,7 @@ export class SqliteProviderStore implements ProviderProfileStore {
   async get(providerId: string): Promise<ProviderProfile | undefined> {
     const row = this.#db.prepare("SELECT payload FROM provider_profiles WHERE provider_id = ?")
       .get(providerId) as { payload: string } | undefined;
-    return row === undefined ? undefined : ProviderProfileSchema.parse(JSON.parse(row.payload));
+    return row === undefined ? undefined : migrateProviderProfile(JSON.parse(row.payload));
   }
 
   async put(profile: ProviderProfile): Promise<void> {

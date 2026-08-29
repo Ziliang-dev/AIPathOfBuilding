@@ -313,7 +313,7 @@ function Controller:_hello()
 	self.state.message = self.state.sidecarMessage
 	self.rpc:Request("hello", {
 		clientName = "pob-lua", clientVersion = tostring(_G.version or "1"),
-		capabilities = { "nativeLinkProbe", "nativeEvidence", "tradeBroker", "providerConsent", "providerConnectionTest", "objectiveDraft" },
+		capabilities = { "nativeLinkProbe", "nativeEvidence", "tradeBroker", "providerConsent", "providerConnectionTest", "providerCompatibility", "objectiveDraft" },
 	}, function(result, err)
 		self.helloPending = false
 		if err then self:_setSidecarError("Sidecar handshake failed: " .. errorText(err)) return end
@@ -365,7 +365,11 @@ end
 function Controller:ConfigureProvider(profile, callback)
 	if not self.rpc or not self.helloComplete then return nil, "sidecar is not connected" end
 	if type(profile) ~= "table" then return nil, "provider profile is required" end
-	local params = { providerId = "openai", baseUrl = profile.baseUrl, model = profile.model }
+	local params = {
+		providerId = "openai", baseUrl = profile.baseUrl, model = profile.model,
+		authMode = profile.authMode, apiMode = profile.apiMode, reasoningMode = profile.reasoningMode,
+		testId = profile.testId,
+	}
 	if type(profile.apiKey) == "string" and profile.apiKey ~= "" then params.apiKey = profile.apiKey end
 	self.rpc:Request("provider.configure", params, function(result, err)
 		if err then
@@ -395,6 +399,7 @@ function Controller:PreviewProviderTest(profile, callback)
 	self.state.providerTestMessage = "Preparing one-time connection-test authorization"
 	self.rpc:Request("provider.test.preview", {
 		providerId = "openai", baseUrl = profile.baseUrl, model = profile.model,
+		authMode = profile.authMode, apiMode = profile.apiMode, reasoningMode = profile.reasoningMode,
 	}, function(result, err)
 		if err then
 			self.state.providerTestStatus = "failed"
@@ -418,6 +423,7 @@ function Controller:TestProviderConnection(profile, preview, callback)
 	end
 	local params = {
 		providerId = "openai", baseUrl = profile.baseUrl, model = profile.model,
+		authMode = profile.authMode, apiMode = profile.apiMode, reasoningMode = profile.reasoningMode,
 		consentKey = preview.consentKey, payloadHash = payload.redactedHash,
 	}
 	if type(profile.apiKey) == "string" and profile.apiKey ~= "" then params.apiKey = profile.apiKey end
@@ -435,6 +441,24 @@ function Controller:TestProviderConnection(profile, preview, callback)
 		self.state.providerTestMessage = "Connection test passed"
 		if callback then callback(result) end
 	end, 45000)
+	return true
+end
+
+function Controller:ListProviderModels(profile, callback)
+	if not self.rpc or not self.helloComplete then return nil, "sidecar is not connected" end
+	if type(profile) ~= "table" then return nil, "provider profile is required" end
+	local params = {
+		providerId = "openai", baseUrl = profile.baseUrl, authMode = profile.authMode,
+	}
+	if type(profile.apiKey) == "string" and profile.apiKey ~= "" then params.apiKey = profile.apiKey end
+	self.rpc:Request("provider.models.list", params, function(result, err)
+		if err then
+			local message = "Model list failed: " .. errorText(err)
+			if callback then callback(nil, message) end
+			return
+		end
+		if callback then callback(result) end
+	end, 30000)
 	return true
 end
 

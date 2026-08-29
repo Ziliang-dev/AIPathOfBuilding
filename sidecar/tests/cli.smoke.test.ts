@@ -4,6 +4,7 @@ import net, { type Socket } from "node:net";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { PROTOCOL_VERSION } from "../src/schemas.js";
 
 interface Message {
   id?: string;
@@ -137,10 +138,10 @@ describe("packaged CLI", () => {
     child.stderr?.on("data", (chunk: Buffer) => errors.push(chunk));
 
     const ready = await pollReadyFile(readyFile, child, errors);
-    expect(ready).toMatchObject({ protocolVersion: 2, host: "127.0.0.1" });
+    expect(ready).toMatchObject({ protocolVersion: PROTOCOL_VERSION, host: "127.0.0.1" });
     const client = await RpcTestClient.connect(ready.port, token);
-    const hello = await client.request("hello", { client: "smoke", protocolVersion: 2 });
-    expect(hello).toMatchObject({ protocolVersion: 2 });
+    const hello = await client.request("hello", { client: "smoke", protocolVersion: PROTOCOL_VERSION });
+    expect(hello).toMatchObject({ protocolVersion: PROTOCOL_VERSION });
 
     const snapshot = {
       schemaVersion: 2,
@@ -248,7 +249,7 @@ class RpcTestClient {
       this.#pending.set(id, { resolve: resolveRequest, reject });
     });
     this.socket.write(`${JSON.stringify({
-      jsonrpc: "2.0", id, method, params, protocolVersion: 2, sessionToken: this.token,
+      jsonrpc: "2.0", id, method, params, protocolVersion: PROTOCOL_VERSION, sessionToken: this.token,
     })}\n`);
     return promise;
   }

@@ -25,7 +25,7 @@ commit before publishing a release.
 | Capability | Current evidence and boundary |
 | --- | --- |
 | Planner objective UI | Goals, Scenario weights, hard constraints, Budget, Locks, candidate sources, exact Trade realm/league, and per-run confirmation are wired in `AIPlannerTab.lua` |
-| Protocol v2 | Schema/protocol version 2, authenticated bidirectional loopback JSON-RPC, cancellation, timeouts, notifications, reverse Trade requests, and checkpoint reconnect are aligned across TypeScript and Lua |
+| Protocol v3 | Schema version 2/protocol version 3, authenticated bidirectional loopback JSON-RPC, cancellation, timeouts, notifications, reverse Trade requests, provider compatibility negotiation, and checkpoint reconnect are aligned across TypeScript and Lua |
 | Build capture and coverage | Sanitized XML, fingerprint, versions, metrics, config, gameplay paths, typed catalog, and graph validation cross the boundary; rollback XML remains local to the Transaction path |
 | Scenario and Condition Evidence | Current diagnostic plus four Sustainable and four Peak Scenarios, generic resolver rules, native source/uptime probes, conflict handling, and Candidate/Scenario proof fingerprints are connected |
 | Native link compatibility | Every proposed link Candidate is probed through PoB's native skill/support matrix; incomplete proof, unsupported gems, disabled/over-capacity links, stale Candidate fingerprints, and Apply-time proof drift fail closed |
@@ -33,12 +33,12 @@ commit before publishing a release.
 | Dynamic Trade/catalog broker | Search issues bounded typed constraints; the PoB process owns query JSON, OAuth, rate limiting, currency conversion, Budget enforcement, and seller data; the sidecar receives sanitized items and creates fingerprint-bound `importAndEquip` actions |
 | Trade degradation | Timeout, upstream failure, rate limit, or unavailable broker becomes a warning; deterministic local search continues without mutating the active Build |
 | Credential Manager | The OpenAI-compatible API key is stored only under `AIPathOfBuilding/LLM/<providerId>` through the WinCred helper; non-LLM targets are rejected; PoE OAuth is untouched |
-| Provider connection test | `providerConnectionTest` negotiates additive preview/test RPC; LLM Setup starts the sidecar, one-shot consent binds a fixed synthetic forced-tool-call probe, unsaved fields remain non-durable, and Configure is gated on an exact successful result |
+| Provider compatibility and connection test | Presets, manual model entry, optional bounded `/models` discovery, Auto/advanced API routing, semantic reasoning, Bearer/loopback-no-key auth, Chat/Responses encoding, and provider-specific continuation are connected; one-shot consent binds one fixed 1024-token required-tool probe, and Configure consumes an exact short-lived successful-test ticket |
 | Provider consent | First-send preview binds endpoint, model, categories, privacy/redaction policy, and redacted payload hash; consent is persisted, revocable, and checked before provider calls |
 | Planner Chat and model injection | Ephemeral Chat produces a strict Objective Draft, unresolved metrics block use, UI review resets confirmation, and the consent-gated adapter is injected into PlanSearch/RefineSearch/Explain with deterministic fallback |
 | Search and Transaction | Worker isolation, Locks, Budget, hard constraints, Pareto selection, non-mutating Preview, fresh Apply verification, explicit approval, dependency ordering, native re-proof, rollback, and recovery journal are connected |
 | Golden corpus and release harness | Corpus schema v2 covers Standard and Ruthless XML Builds, actor/season projections, five required adapters, required graph nodes, four typed action kinds, baseline/four Sustainable Scenario metrics, field policy, and Candidate fingerprints |
-| Canonical Windows packaging | Portable and repository-owned NSIS paths consume one verified staging tree with Node `24.20.0` x64 / ABI `137`, `better-sqlite3`, WinCred helper, PoB runtime, exact sidecar bundle, metadata, checksums, and a package-local exact-branch `win32` manifest; the updater resolves repository-style `src`, runtime, package-root, and staging paths without entering Dev Mode or misplacing files |
+| Canonical Windows packaging | Portable and repository-owned NSIS paths consume one verified staging tree with Node `24.20.0` x64 / ABI `137`, `better-sqlite3`, WinCred helper, GUI-subsystem hidden sidecar launcher, PoB runtime, exact sidecar bundle, metadata, checksums, and a package-local exact-branch `win32` manifest; the updater resolves repository-style `src`, runtime, package-root, and staging paths without entering Dev Mode or misplacing files |
 | Latest CI portable synchronization | The WSL Python CLI selects the current branch's latest successful Actions run, downloads and fully verifies its canonical portable once, then safely retains only the managed latest copy or one lock-blocked pending replacement |
 | Fault and process E2E definitions | Windows jobs cover apply, reject, injected transaction failure, checkpoint restart, silent NSIS install, and a real packaged PoB worker process; no pixel UI automation is used |
 
@@ -87,7 +87,7 @@ A release must not be published if any gate is skipped or fails.
 
 ## Release gates
 
-1. Schema/protocol v2 types, Lua validation, RPC methods, and tests remain
+1. Schema v2/protocol v3 types, Lua validation, RPC methods, and tests remain
    aligned.
 2. Each claimed gameplay field has a coverage policy, candidate behavior or an
    explicit non-searchable policy, Lua application support, and corpus evidence.

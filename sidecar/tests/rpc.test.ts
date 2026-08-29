@@ -27,6 +27,7 @@ function createController(overrides: Partial<PlannerController> = {}): PlannerCo
     recordTransactionResult: async () => ({ recorded: true }),
     providerStatus: async () => ({ configured: false }),
     configureProvider: async () => ({ configured: true }),
+    listProviderModels: async () => ({ models: [] }),
     previewProviderTest: async () => ({ preview: true }),
     testProviderConnection: async () => ({ ok: true }),
     clearProvider: async () => ({ configured: false }),
@@ -246,8 +247,8 @@ describe("RpcServer", () => {
       3,
     );
 
-    expect(messages[0]).toMatchObject({ method: "run.progress", protocolVersion: 2 });
-    expect(messages[1]).toMatchObject({ method: "run.completed", protocolVersion: 2 });
+    expect(messages[0]).toMatchObject({ method: "run.progress", protocolVersion: PROTOCOL_VERSION });
+    expect(messages[1]).toMatchObject({ method: "run.completed", protocolVersion: PROTOCOL_VERSION });
     expect(messages[2]).toMatchObject({ id: 7, result: { runId: "run-1", accepted: true } });
   });
 
@@ -310,27 +311,43 @@ describe("RpcServer", () => {
   it("routes connection-test preview and execution through additive RPC methods", async () => {
     const previewProviderTest = vi.fn(async () => ({ consentKey: "bound" }));
     const testProviderConnection = vi.fn(async () => ({ ok: true }));
-    const { address } = await startServer(createController({ previewProviderTest, testProviderConnection }));
+    const listProviderModels = vi.fn(async () => ({ models: ["test-model"] }));
+    const { address } = await startServer(createController({
+      previewProviderTest,
+      testProviderConnection,
+      listProviderModels,
+    }));
     const socket = await connect(address);
     const payloadHash = `sha256:${"a".repeat(64)}`;
 
     const responses = await sendAndCollect(socket, [
       request(20, "provider.test.preview", {
         providerId: "openai", baseUrl: "https://provider.invalid/v1", model: "test-model",
+        authMode: "bearer", apiMode: "auto", reasoningMode: "auto",
       }),
       request(21, "provider.test", {
         providerId: "openai",
         baseUrl: "https://provider.invalid/v1",
         model: "test-model",
+        authMode: "bearer",
+        apiMode: "auto",
+        reasoningMode: "auto",
         apiKey: "ephemeral-secret",
         consentKey: "bound",
         payloadHash,
       }),
-    ], 2);
+      request(22, "provider.models.list", {
+        providerId: "openai",
+        baseUrl: "https://provider.invalid/v1",
+        authMode: "bearer",
+        apiKey: "ephemeral-secret",
+      }),
+    ], 3);
 
-    expect(responses.map((response) => asRecord(response).id).sort()).toEqual([20, 21]);
+    expect(responses.map((response) => asRecord(response).id).sort()).toEqual([20, 21, 22]);
     expect(previewProviderTest).toHaveBeenCalledOnce();
     expect(testProviderConnection).toHaveBeenCalledOnce();
+    expect(listProviderModels).toHaveBeenCalledOnce();
   });
 
   it("requires a request id", async () => {

@@ -1,7 +1,7 @@
 local json = require("dkjson")
 local Util = require("Modules.AIPoB.Util")
 
-local RpcClient = { PROTOCOL_VERSION = 2, ASYNC = { } }
+local RpcClient = { PROTOCOL_VERSION = 3, ASYNC = { } }
 RpcClient.__index = RpcClient
 
 local function encode(value)

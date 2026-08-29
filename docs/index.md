@@ -71,6 +71,7 @@ minimum context is:
 - [ADR 0002: Require a human-gated transaction for every Build change](adr/0002-aipob-human-gated-transactions.md)
 - [ADR 0003: Bind brokers, native proof, and provider consent to protocol v2](adr/0003-aipob-protocol-v2-broker-consent-boundary.md)
 - [ADR 0004: Authorize provider connection probes without granting data consent](adr/0004-provider-connection-probe.md)
+- [ADR 0005: Resolve provider compatibility before saving and hide the packaged sidecar](adr/0005-provider-compatibility-and-hidden-sidecar.md)
 
 ## Upstream Path of Building developer references
 

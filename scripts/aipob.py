@@ -173,6 +173,29 @@ def build_wincred(_: argparse.Namespace) -> None:
     print(output)
 
 
+def build_sidecar_launcher(_: argparse.Namespace) -> None:
+    compiler = command_path("cl.exe")
+    native = ROOT / "native" / "sidecar-launcher"
+    source = native / "sidecar_launcher.cpp"
+    output = native / "sidecar-launcher.exe"
+    run([
+        compiler,
+        "/nologo",
+        "/O2",
+        "/EHsc",
+        "/W4",
+        "/std:c++17",
+        "/DUNICODE",
+        "/D_UNICODE",
+        f"/Fe:{output}",
+        str(source),
+        "shell32.lib",
+        "/link",
+        "/SUBSYSTEM:WINDOWS",
+    ])
+    print(output)
+
+
 def add_windows_commands(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     from ci_sync import add_sync_parser
     from windows_e2e import add_e2e_parser
@@ -207,6 +230,9 @@ def parser() -> argparse.ArgumentParser:
 
     wincred = commands.add_parser("build-wincred")
     wincred.set_defaults(handler=build_wincred)
+
+    launcher = commands.add_parser("build-sidecar-launcher")
+    launcher.set_defaults(handler=build_sidecar_launcher)
 
     add_windows_commands(commands)
     return result

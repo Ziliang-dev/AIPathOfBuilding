@@ -38,8 +38,9 @@ pnpm --version
 | Search reports a Trade warning | Missing Budget/league, PoB Trade authentication, rate limit, network, or query failure | Check the exact warning and PoB Trade state; local search continues, so do not assume the run included external items |
 | `Import a build or add an active main skill before search` | The selected main socket group is absent, disabled, or has no enabled active skill | Import a Build or configure and select an active main skill; level 1 by itself is not an error |
 | LLM Setup shows `Sidecar: failed` | Sidecar launch, ready-file, native dependency, or handshake failed | Read the displayed error, fix the exact package/runtime mismatch, then use **Retry Sidecar**; opening setup never starts an optimization |
+| Opening LLM Setup shows a Node console/taskbar window | Portable predates the GUI-subsystem sidecar launcher or omitted it | Sync a successful current CI portable containing `sidecar/runtime/aipob-sidecar-launcher.exe`; do not install a local Node runtime |
 | **Test Connection** is disabled | Sidecar is not connected, endpoint/model is empty, or neither an entered nor same-endpoint saved key exists | Wait for `Sidecar: connected`; fill the fields and key as required; hover the disabled control for its reason |
-| Connection test returns 401/404/429, timeout, or tool-call error | Bad key, endpoint/model mismatch, rate limit, provider timeout, or incompatible Chat Completions/tool-calling behavior | Correct the unsaved fields and retry; failure does not overwrite the saved profile or Credential Manager key |
+| Connection test returns 401/404/429, timeout, or tool-call error | Bad key, endpoint/model mismatch, rate limit, provider timeout, exhausted reasoning budget, or missing tool support | Keep API/Reasoning on Auto first; try Reasoning Fast for a reasoning-heavy model; verify the selected model exposes function tools. Failure does not overwrite saved profile or key |
 | Trade item cannot be applied | Stale Build fingerprint, slot mismatch, changed catalog item, or content-hash mismatch | Start a new run from the current Build; never bypass `importAndEquip` source/hash validation |
 | Provider status is unconfigured | No OpenAI-compatible profile or LLM credential | Configure endpoint, model, and key in Planner provider setup; do not use `.env` or project files |
 | Provider consent is required | First call, changed endpoint/model/policy, or revoked consent | Review the redacted consent preview and grant it only if its exact destination and categories are acceptable |
@@ -108,7 +109,8 @@ The portable package must keep these components compatible:
 - Node.js 24.20.0 x64 runtime and ABI 137;
 - installed `better-sqlite3` package;
 - its Windows x64 native binding; and
-- the WinCred helper; and
+- the WinCred helper;
+- the GUI-subsystem hidden sidecar launcher; and
 - the bundled `server.cjs`.
 
 Replacing only `node.exe` can break SQLite loading. Rebuild and reverify the

@@ -11,6 +11,7 @@ import os
 from pathlib import Path, PurePosixPath
 import re
 import shutil
+import struct
 import subprocess
 import sys
 import tempfile
@@ -282,6 +283,10 @@ def package_windows(args: argparse.Namespace) -> None:
         Path(args.credential_helper or ROOT / "native" / "wincred-helper" / "wincred-helper.exe"),
         "WinCred helper",
     )
+    sidecar_launcher = required_file(
+        Path(args.sidecar_launcher or ROOT / "native" / "sidecar-launcher" / "sidecar-launcher.exe"),
+        "sidecar launcher",
+    )
     if args.sidecar_bundle:
         bundle_path = required_file(Path(args.sidecar_bundle), "Sidecar artifact")
     else:
@@ -345,6 +350,7 @@ def package_windows(args: argparse.Namespace) -> None:
     copy_file(bundle_path, package_dist / "server.cjs")
     copy_file(node_path, package_runtime / "node.exe")
     copy_file(credential_helper, package_runtime / "aipob-credential-helper.exe")
+    copy_file(sidecar_launcher, package_runtime / "aipob-sidecar-launcher.exe")
 
     sqlite_source = required_directory(SIDECAR / "node_modules" / "better-sqlite3", "better-sqlite3 package")
     sqlite_package = required_file(sqlite_source / "package.json", "better-sqlite3 package metadata")
@@ -397,6 +403,10 @@ def package_windows(args: argparse.Namespace) -> None:
             "credentialHelper": {
                 "path": "sidecar/runtime/aipob-credential-helper.exe",
                 "sha256": sha256(package_runtime / "aipob-credential-helper.exe"),
+            },
+            "sidecarLauncher": {
+                "path": "sidecar/runtime/aipob-sidecar-launcher.exe",
+                "sha256": sha256(package_runtime / "aipob-sidecar-launcher.exe"),
             },
             "packages": [{
                 "name": "better-sqlite3",
@@ -484,6 +494,71 @@ def owner_timeout(node: Path, bundle: Path, working_directory: Path) -> None:
                 process.wait(timeout=5)
 
 
+def verify_gui_subsystem(executable: Path) -> None:
+    data = executable.read_bytes()
+    if len(data) < 0x40 or data[:2] != b"MZ":
+        fail(f"Sidecar launcher is not a PE executable: {executable}")
+    pe_offset = struct.unpack_from("<I", data, 0x3C)[0]
+    optional_offset = pe_offset + 24
+    if pe_offset + 4 > len(data) or data[pe_offset:pe_offset + 4] != b"PE\0\0" or optional_offset + 70 > len(data):
+        fail(f"Sidecar launcher has an invalid PE header: {executable}")
+    subsystem = struct.unpack_from("<H", data, optional_offset + 68)[0]
+    if subsystem != 2:
+        fail(f"Sidecar launcher must use the Windows GUI subsystem; found {subsystem}.")
+
+
+def visible_windows_for_pid(pid: int) -> list[int]:
+    if os.name != "nt":
+        return []
+    import ctypes
+    from ctypes import wintypes
+
+    visible: list[int] = []
+    callback_type = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+
+    @callback_type
+    def callback(window: int, _parameter: int) -> bool:
+        window_pid = wintypes.DWORD()
+        ctypes.windll.user32.GetWindowThreadProcessId(window, ctypes.byref(window_pid))
+        if window_pid.value == pid and ctypes.windll.user32.IsWindowVisible(window):
+            visible.append(int(window))
+        return True
+
+    ctypes.windll.user32.EnumWindows(callback, 0)
+    return visible
+
+
+def hidden_launcher_owner_timeout(launcher: Path, node: Path, bundle: Path, working_directory: Path) -> None:
+    with tempfile.TemporaryDirectory(prefix="aipob-hidden-launcher-") as temporary:
+        root = Path(temporary) / "path with spaces"
+        root.mkdir()
+        ready = root / "ready.json"
+        token = ("hidden-" + os.urandom(16).hex()).ljust(40, "x")
+        command = windows_interop_arguments([
+            str(launcher), str(node), str(bundle), "--host", "127.0.0.1", "--port", "0",
+            "--session-token", token, "--data-dir", str(root), "--ready-file", str(ready),
+            "--owner-connect-timeout-ms", "750",
+        ])
+        completed = subprocess.run(command, cwd=working_directory, check=False, timeout=15)
+        if completed.returncode != 0:
+            fail(f"Sidecar launcher exited with {completed.returncode} before starting Node.")
+        deadline = time.monotonic() + 15
+        while not ready.is_file() and time.monotonic() < deadline:
+            time.sleep(0.05)
+        if not ready.is_file():
+            fail("Hidden sidecar launcher did not produce a ready file.")
+        ready_payload = json.loads(ready.read_text(encoding="utf-8"))
+        pid = int(ready_payload["pid"])
+        windows = visible_windows_for_pid(pid)
+        if windows:
+            fail(f"Hidden sidecar Node process exposed visible windows: {windows}")
+        deadline = time.monotonic() + 15
+        while ready.exists() and time.monotonic() < deadline:
+            time.sleep(0.05)
+        if ready.exists():
+            fail("Hidden sidecar did not stop and remove its ready file after owner timeout.")
+
+
 def verify_package_root(root: Path, *, skip_launch: bool = False) -> dict[str, object]:
     root = root.resolve()
     verify_checksums(root)
@@ -499,11 +574,13 @@ def verify_package_root(root: Path, *, skip_launch: bool = False) -> dict[str, o
     bundle = safe_package_path(root, str(sidecar["bundle"]))
     node = root / "sidecar" / "runtime" / "node.exe"
     credential = safe_package_path(root, str(metadata["native"]["credentialHelper"]["path"]))
+    launcher = safe_package_path(root, str(metadata["native"]["sidecarLauncher"]["path"]))
     native = safe_package_path(root, str(metadata["native"]["packages"][0]["nativeBinding"]))
     required = [
         bundle,
         node,
         credential,
+        launcher,
         native,
         root / "src" / "AIPoBWorker.lua",
         root / "src" / "UpdateCheck.lua",
@@ -524,12 +601,14 @@ def verify_package_root(root: Path, *, skip_launch: bool = False) -> dict[str, o
         (node, metadata["node"]["sha256"], "Node runtime metadata hash mismatch."),
         (native, metadata["native"]["packages"][0]["nativeSha256"], "Native binding metadata hash mismatch."),
         (credential, metadata["native"]["credentialHelper"]["sha256"], "WinCred helper metadata hash mismatch."),
+        (launcher, metadata["native"]["sidecarLauncher"]["sha256"], "Sidecar launcher metadata hash mismatch."),
         (root / "manifest.cfg", metadata["inputs"]["manifestConfig"]["sha256"], "Manifest configuration metadata hash mismatch."),
         (root / "manifest.xml", metadata["inputs"]["manifestXml"]["sha256"], "Release manifest metadata hash mismatch."),
     ]
     for path, expected, message in checks:
         if sha256(path) != expected:
             fail(message)
+    verify_gui_subsystem(launcher)
     validate_runtime_manifest(root / "manifest.xml", metadata)
     manifest = ET.parse(root / "manifest.xml").getroot()
     entries = [entry for entry in manifest.findall("File") if entry.get("part") == "sidecar" and entry.get("name") == "sidecar/dist/server.cjs"]
@@ -554,6 +633,7 @@ def verify_package_root(root: Path, *, skip_launch: bool = False) -> dict[str, o
     ], cwd=root / "sidecar")
     if not skip_launch:
         owner_timeout(node, bundle, root / "sidecar")
+        hidden_launcher_owner_timeout(launcher, node, bundle, root / "sidecar")
     print(f"Verified full Windows package: {root}")
     return metadata
 
@@ -679,6 +759,7 @@ def add_package_parsers(subparsers: argparse._SubParsersAction[argparse.Argument
     package.add_argument("--manifest-config")
     package.add_argument("--update-branch")
     package.add_argument("--credential-helper")
+    package.add_argument("--sidecar-launcher")
     package.add_argument("--skip-build", action="store_true")
     package.set_defaults(handler=package_windows)
 

@@ -50,11 +50,55 @@ describe("provider connection probe", () => {
     });
     expect(request).toMatchObject({
       model: "requested-model",
-      tool_choice: { type: "function", function: { name: CONNECTION_PROBE_TOOL_NAME } },
-      parallel_tool_calls: false,
-      max_completion_tokens: 32,
+      tool_choice: "required",
+      max_tokens: 1024,
     });
     expect(JSON.stringify(request)).not.toContain("secret");
+  });
+
+  it("encodes and validates a Responses API function call", async () => {
+    let request: Record<string, unknown> | undefined;
+    const result = await runProviderConnectionProbe({
+      apiKey: "secret",
+      baseURL: "https://api.openai.com/v1",
+      model: "gpt-test",
+      apiMode: "responses",
+      providerKind: "openai",
+      reasoningMode: "fast",
+    }, undefined, factory({
+      model: "gpt-resolved",
+      output: [{ type: "function_call", call_id: "probe-1", name: CONNECTION_PROBE_TOOL_NAME, arguments: '{"ok":true}' }],
+      usage: { input_tokens: 10, output_tokens: 4 },
+    }, undefined, (value) => { request = value; }));
+
+    expect(result).toMatchObject({
+      ok: true,
+      resolvedApiMode: "responses",
+      resolvedReasoning: "low",
+      usage: { inputTokens: 10, outputTokens: 4 },
+    });
+    expect(request).toMatchObject({
+      tool_choice: "required",
+      max_output_tokens: 1024,
+      store: false,
+      reasoning: { effort: "low" },
+    });
+  });
+
+  it("maps balanced DeepSeek reasoning to high while preserving tool output budget", async () => {
+    let request: Record<string, unknown> | undefined;
+    await runProviderConnectionProbe({
+      apiKey: "secret",
+      baseURL: "https://api.deepseek.com",
+      model: "deepseek-v4-flash",
+      providerKind: "deepseek",
+      reasoningMode: "balanced",
+    }, undefined, factory(success, undefined, (value) => { request = value; }));
+    expect(request).toMatchObject({
+      thinking: { type: "enabled" },
+      reasoning_effort: "high",
+      max_tokens: 1024,
+    });
   });
 
   it.each<[unknown, RegExp]>([

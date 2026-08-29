@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const SCHEMA_VERSION = 2 as const;
-export const PROTOCOL_VERSION = 2 as const;
+export const PROTOCOL_VERSION = 3 as const;
 
 export const CapabilitySchema = z.enum([
   "nativeLinkProbe",
@@ -9,6 +9,7 @@ export const CapabilitySchema = z.enum([
   "tradeBroker",
   "providerConsent",
   "providerConnectionTest",
+  "providerCompatibility",
   "objectiveDraft",
 ]);
 export type Capability = z.infer<typeof CapabilitySchema>;

@@ -4,6 +4,7 @@ import type { ModelAdapter, ModelTurnInput, ModelTurnResult } from "../llm/types
 import { ConsentManager, redactChatPayload } from "./consent.js";
 import { ProviderConfigurationError, type ProviderProfileService } from "./profileService.js";
 import type { ProviderProfile } from "./types.js";
+import { providerKindForBaseURL } from "./compatibility.js";
 
 /** Adds the consent gate in front of every provider request. */
 export class ConsentGuardAdapter implements ModelAdapter<HighLevelToolName> {
@@ -62,13 +63,19 @@ export class ProviderModelAdapterFactory {
     if (!status.configured || status.profile === undefined) {
       throw new ProviderConfigurationError("Provider is not configured");
     }
-    const secret = await this.#service.credentials.get(status.profile.credentialTarget);
+    const secret = status.profile.authMode === "none"
+      ? ""
+      : await this.#service.credentials.get(status.profile.credentialTarget);
     if (secret === undefined) throw new ProviderConfigurationError("Provider credential is not configured");
     const inner = new OpenAICompatibleAdapter(
       {
         apiKey: secret,
         baseURL: status.profile.baseURL,
         model: status.profile.model,
+        authMode: status.profile.authMode,
+        apiMode: status.profile.resolvedApiMode,
+        providerKind: providerKindForBaseURL(status.profile.baseURL),
+        reasoningMode: status.profile.reasoningMode,
         maxCalls: status.profile.maxCalls,
         maxOutputTokens: status.profile.maxOutputTokens,
         timeoutMs: status.profile.timeoutMs,

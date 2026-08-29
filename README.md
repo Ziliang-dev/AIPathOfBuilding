@@ -37,7 +37,7 @@ matrix is [Status and roadmap](docs/aipob/status-and-roadmap.md).
   ordering, rollback, and recovery journal
 - Authenticated loopback JSON-RPC, cancellation, persistent workflow
   checkpoints, reconnect/resume support, structured failure handling, and
-  bidirectional protocol-v2 Trade requests
+  bidirectional protocol-v3 Trade/provider requests
 - PoB-native link compatibility probes plus candidate/scenario-bound Condition
   Evidence, uptime, and proof fingerprints
 - Player, minion, spectre, Animate Guardian, party, Bloodline, Pact, advanced
@@ -45,17 +45,18 @@ matrix is [Status and roadmap](docs/aipob/status-and-roadmap.md).
 - Dynamic, Budget-bound Trade/catalog queries in the authenticated PoB process;
   seller/account data stays there, while the sidecar receives sanitized typed
   catalog items and emits fingerprint-bound `importAndEquip` actions
-- OpenAI-compatible provider configuration with API keys stored only under the
-  `AIPathOfBuilding/LLM/*` Windows Credential Manager namespace, explicit
-  one-shot connection probe for unsaved settings, revocable first-send data
-  consent, ephemeral Planner Chat, and workflow model injection with
-  deterministic fallback
+- OpenAI-compatible provider presets plus manual setup, Auto/advanced
+  Chat/Responses routing, semantic reasoning, optional `/models` discovery,
+  Bearer or loopback-no-key auth, API keys stored only under the
+  `AIPathOfBuilding/LLM/*` Windows Credential Manager namespace, exact one-shot
+  connection testing, revocable first-send consent, ephemeral Planner Chat,
+  and deterministic fallback
 - Versioned Golden corpus and release gate covering both 3.29 rulesets,
   mechanic adapters, graph nodes, candidate actions, metrics, and all AIPoB Lua
   specs
 - Deterministic bundle/manifest ordering; full PoB portable and canonical NSIS
-  packaging pinned to Node `24.20.0` x64 / ABI `137`; apply, reject, failure,
-  restart, and real-PoB worker E2E jobs
+  packaging pinned to Node `24.20.0` x64 / ABI `137`, with a hidden native
+  sidecar launcher; apply, reject, failure, restart, and real-PoB worker E2E jobs
 - Latest-successful-CI portable synchronization with full package verification,
   idempotent run tracking, and safe latest/pending replacement
 
@@ -111,11 +112,12 @@ python3 scripts/aipob.py release-gate
 
 Launch the checked-out PoB development runtime, open a Build with an enabled
 active main skill, and select **AI Build Planner**. The sidecar starts lazily
-when LLM setup or a confirmed search needs it. **Test Connection** validates the
-current unsaved endpoint, model, key, Chat Completions, and forced tool calling
-before **Configure** is enabled. Without a configured and consented provider,
-the CLI uses deterministic fallback. Provider keys are never loaded from a
-project file or `.env`.
+when LLM setup or a confirmed search needs it. Provider presets select safe Auto
+defaults; Advanced exposes API route, reasoning, and auth overrides. **Test
+Connection** sends one fixed required-tool request through the resolved path and
+must pass before **Configure** is enabled. Without a configured and consented
+provider, the CLI uses deterministic fallback. Provider keys are never loaded
+from a project file or `.env`.
 
 Detailed setup and current UI behavior: [Getting started](docs/aipob/getting-started.md).
 
@@ -148,7 +150,8 @@ never deleted.
 ## Windows packages
 
 Supply Node.js 24.20.0 x64. The portable packaging script validates the version,
-architecture, ABI, native SQLite binding, WinCred helper, manifest, and hashes.
+architecture, ABI, native SQLite binding, WinCred helper, hidden sidecar
+launcher, manifest, and hashes.
 It writes a package-local `manifest.xml` with the exact update branch and
 `platform="win32"`; the repository manifest remains in upstream Dev Mode form:
 
@@ -164,8 +167,9 @@ Default output:
 artifacts/AIPathOfBuilding-AIPoB-windows-x64.zip
 ```
 
-Node and the `better-sqlite3` native module are installer-owned. A Node major or
-native ABI change requires a new installer or portable package.
+Node, `better-sqlite3`, WinCred helper, and hidden sidecar launcher are
+installer-owned. A Node major, native ABI, or launcher change requires a new
+installer or portable package.
 
 Build the canonical NSIS installer from that verified ZIP:
 

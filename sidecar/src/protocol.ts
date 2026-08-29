@@ -12,6 +12,11 @@ import {
   TradeCatalogResultSchema,
   TransactionResultSchema,
 } from "./schemas.js";
+import {
+  ProviderApiModeSchema,
+  ProviderAuthModeSchema,
+  ProviderReasoningModeSchema,
+} from "./provider/compatibility.js";
 
 export const RpcIdSchema = z.union([z.string().min(1), z.number().int()]);
 export type RpcId = z.infer<typeof RpcIdSchema>;
@@ -32,6 +37,7 @@ export const RpcRequestSchema = z.object({
     "provider.configure",
     "provider.test.preview",
     "provider.test",
+    "provider.models.list",
     "provider.clear",
     "consent.preview",
     "consent.grant",
@@ -122,17 +128,30 @@ export const ProviderConfigureParamsSchema = z.object({
   providerId: ProviderIdSchema,
   baseUrl: z.url().max(2_048),
   model: z.string().min(1).max(256),
+  authMode: ProviderAuthModeSchema,
+  apiMode: ProviderApiModeSchema,
+  reasoningMode: ProviderReasoningModeSchema,
+  testId: z.string().uuid(),
   apiKey: ProviderApiKeySchema.optional(),
 });
 export const ProviderTestPreviewParamsSchema = z.object({
   providerId: ProviderIdSchema,
   baseUrl: z.url().max(2_048),
   model: z.string().min(1).max(256),
+  authMode: ProviderAuthModeSchema,
+  apiMode: ProviderApiModeSchema,
+  reasoningMode: ProviderReasoningModeSchema,
 });
 export const ProviderTestParamsSchema = ProviderTestPreviewParamsSchema.extend({
   apiKey: ProviderApiKeySchema.optional(),
   consentKey: z.string().min(1).max(512),
   payloadHash: z.string().regex(/^sha256:[0-9a-f]{64}$/),
+});
+export const ProviderModelsListParamsSchema = z.object({
+  providerId: ProviderIdSchema,
+  baseUrl: z.url().max(2_048),
+  authMode: ProviderAuthModeSchema,
+  apiKey: ProviderApiKeySchema.optional(),
 });
 export const ProviderClearParamsSchema = z.object({ providerId: ProviderIdSchema });
 export const ConsentPreviewParamsSchema = z.object({

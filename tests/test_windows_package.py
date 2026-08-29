@@ -3,6 +3,7 @@ from __future__ import annotations
 import sys
 import tempfile
 from pathlib import Path
+import struct
 import unittest
 import xml.etree.ElementTree as ET
 
@@ -10,7 +11,12 @@ import xml.etree.ElementTree as ET
 SCRIPTS = Path(__file__).resolve().parent.parent / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
-from windows_package import validate_runtime_manifest, validate_update_branch, write_runtime_manifest  # noqa: E402
+from windows_package import (  # noqa: E402
+    validate_runtime_manifest,
+    validate_update_branch,
+    verify_gui_subsystem,
+    write_runtime_manifest,
+)
 
 
 class RuntimeManifestTests(unittest.TestCase):
@@ -49,6 +55,22 @@ class RuntimeManifestTests(unittest.TestCase):
                 validate_runtime_manifest(manifest, {
                     "update": {"branch": "codex/provider-test", "platform": "win32"},
                 })
+
+    def test_sidecar_launcher_requires_windows_gui_subsystem(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            executable = Path(temporary) / "launcher.exe"
+            image = bytearray(256)
+            image[:2] = b"MZ"
+            struct.pack_into("<I", image, 0x3C, 0x80)
+            image[0x80:0x84] = b"PE\0\0"
+            struct.pack_into("<H", image, 0x80 + 24 + 68, 2)
+            executable.write_bytes(image)
+            verify_gui_subsystem(executable)
+
+            struct.pack_into("<H", image, 0x80 + 24 + 68, 3)
+            executable.write_bytes(image)
+            with self.assertRaisesRegex(RuntimeError, "GUI subsystem"):
+                verify_gui_subsystem(executable)
 
 
 if __name__ == "__main__":

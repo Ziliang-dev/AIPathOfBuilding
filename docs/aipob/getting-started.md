@@ -92,12 +92,19 @@ consented provider, the run uses the deterministic domain schedule.
 ## Configure Planner Chat
 
 Open **LLM Setup**. The window starts and handshakes the sidecar without starting
-an optimization. Enter an OpenAI-compatible endpoint, model name, and API key,
-then select **Test Connection**. Review the one-time authorization: it sends one
-fixed synthetic forced-tool-call probe, no Build or chat data, and may incur a
-very small provider charge. A successful result reports latency, response model,
-tool-call validation, and optional token usage; only then is **Configure**
-enabled. Editing any field invalidates the result.
+an optimization. Choose OpenAI, OpenRouter, DeepSeek, Local, or Custom; endpoint
+and model remain editable. **Load Models** optionally reads a bounded `/models`
+catalog, while manual entry always works. Auto picks Responses for official
+OpenAI and Chat Completions elsewhere. Advanced exposes API route, semantic
+Reasoning (`Auto`, `Off`, `Fast`, `Balanced`, `Deep`), and authentication.
+No-key mode is loopback-only.
+
+Select **Test Connection**. Review the one-time authorization: it sends exactly
+one fixed synthetic required-tool probe with a 1024-token output budget, no Build
+or chat data, and may incur a small provider charge. A successful result reports
+latency, response model, resolved API/reasoning mode, tool-call validation, and
+optional token usage; only then is **Configure** enabled. Editing any bound field
+invalidates the result. Configure consumes the matching short-lived test ticket.
 
 The test does not save the profile or key and does not replace normal provider
 consent. Failed tests leave both the unsaved protected key and existing saved
@@ -154,7 +161,7 @@ The complete list is in [Status and roadmap](status-and-roadmap.md).
 
 Provide an existing Node.js 24.20.0 x64 executable. The packaging script
 validates the exact version, architecture, ABI, SQLite native binding, WinCred
-helper, manifest, and hashes. It refuses to overwrite an existing output
+helper, GUI-subsystem sidecar launcher, manifest, and hashes. It refuses to overwrite an existing output
 directory or archive.
 
 ```bash
@@ -169,9 +176,10 @@ artifacts/AIPathOfBuilding-AIPoB-windows-x64.zip
 ```
 
 The package includes the full PoB runtime, sidecar bundle, `better-sqlite3` and
-its matching native binding, Node runtime, and WinCred helper. A Node or native
-ABI change requires a new installer or portable package; the PoB auto-updater
-cannot safely replace those installer-owned components.
+its matching native binding, Node runtime, WinCred helper, and hidden sidecar
+launcher. A Node, native ABI, or launcher change requires a new installer or
+portable package; the PoB auto-updater cannot safely replace those
+installer-owned components.
 
 Packaging leaves the repository `manifest.xml` unchanged and writes only the
 staged copy with `platform="win32"` and the selected update branch. Metadata

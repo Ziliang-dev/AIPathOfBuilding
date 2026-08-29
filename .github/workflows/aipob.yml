@@ -136,6 +136,9 @@ jobs:
       - name: Build WinCred helper
         run: python scripts/aipob.py build-wincred
 
+      - name: Build hidden sidecar launcher
+        run: python scripts/aipob.py build-sidecar-launcher
+
       - name: Download canonical sidecar bundle
         uses: actions/download-artifact@v4
         with:

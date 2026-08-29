@@ -18,6 +18,7 @@ both sides.
 | `sidecar/src/llm/`, `sidecar/src/agent/`, and `sidecar/src/provider/` | Read-only model adapter, consent gate, Planner Chat drafting, and controller injection |
 | `sidecar/src/trade/` | Sanitized Trade catalog contract and bounded search broker |
 | `sidecar/src/credentials/` and `native/wincred-helper/` | LLM-only Windows Credential Manager client and native helper |
+| `native/sidecar-launcher/` | Windows GUI-subsystem launcher that starts packaged Node without a visible console/taskbar window |
 | `sidecar/src/domain/nativeProbe.ts` and `sidecar/src/worker/nativeProbeWorkerPool.ts` | Native compatibility/evidence proof barrier |
 | `sidecar/src/domain/actor-season.ts` | Actor, passive override, and season projections |
 | `sidecar/src/storage/` | SQLite and memory planner stores |
@@ -151,12 +152,13 @@ python3 scripts/aipob.py release-gate
 `sidecar/dist/server.cjs` is tracked because it participates in PoB's manifest
 and auto-update path. Do not hand-edit it. Rebuild it from TypeScript source.
 
-Node.js and the native `better-sqlite3` runtime are installer-owned. Auto-update
-may replace `server.cjs`; a Node major or native ABI change requires a new
-installer or portable package.
+Node.js, native `better-sqlite3`, WinCred helper, and hidden sidecar launcher are
+installer-owned. Auto-update may replace `server.cjs`; a Node major, native ABI,
+or launcher change requires a new installer or portable package.
 
-GitHub Actions supplies the exact Node.js 24.20.0 x64 / ABI 137, MSVC, and NSIS
-toolchain. A manual WSL packaging run may point at a Windows Node executable:
+GitHub Actions supplies exact Node.js 24.20.0 x64 / ABI 137, MSVC-built native
+helpers, and NSIS. A manual WSL packaging run needs prebuilt native helpers and
+may point at a Windows Node executable:
 
 ```bash
 python3 scripts/aipob.py package-windows \

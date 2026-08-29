@@ -49,10 +49,11 @@ describe("DefaultPlannerController", () => {
     await expect(planner.hello({
       clientName: "test",
       clientVersion: "1",
-      capabilities: ["providerConnectionTest"],
-    })).resolves.toMatchObject({ capabilities: { providerConnectionTest: true } });
+      capabilities: ["providerConnectionTest", "providerCompatibility"],
+    })).resolves.toMatchObject({ capabilities: { providerConnectionTest: true, providerCompatibility: true } });
     const preview = await planner.previewProviderTest({
       providerId: "openai", baseUrl: "https://provider.invalid/v1", model: "test-model",
+      authMode: "bearer", apiMode: "auto", reasoningMode: "auto",
     }) as { consentKey: string; payloadPreview: { redactedHash: string } };
     const context = {
       requestId: "probe",
@@ -63,6 +64,9 @@ describe("DefaultPlannerController", () => {
       providerId: "openai",
       baseUrl: "https://provider.invalid/v1",
       model: "test-model",
+      authMode: "bearer" as const,
+      apiMode: "auto" as const,
+      reasoningMode: "auto" as const,
       apiKey: "ephemeral-secret",
       consentKey: preview.consentKey,
       payloadHash: preview.payloadPreview.redactedHash,
@@ -79,6 +83,7 @@ describe("DefaultPlannerController", () => {
     ]) {
       const boundPreview = await planner.previewProviderTest({
         providerId: "openai", baseUrl: "https://provider.invalid/v1", model: "test-model",
+        authMode: "bearer", apiMode: "auto", reasoningMode: "auto",
       }) as { consentKey: string; payloadPreview: { redactedHash: string } };
       await expect(planner.testProviderConnection({
         ...params,
@@ -501,13 +506,31 @@ describe("DefaultPlannerController", () => {
       profiles: new MemoryProviderProfileStore(),
       credentials: new MemoryCredentialStore(),
       consent: new ConsentManager(new MemoryConsentRecordStore()),
+      probeTransportFactory: () => ({
+        create: async () => ({
+          choices: [{ message: { tool_calls: [{
+            id: "probe", type: "function",
+            function: { name: CONNECTION_PROBE_TOOL_NAME, arguments: '{"ok":true}' },
+          }] } }],
+        }),
+      }),
     });
-    await providerService.configure({
+    const settings = {
       providerId: "openai",
       baseURL: "https://example.com/v1",
       model: "golden-model",
+      authMode: "bearer" as const,
+      apiMode: "chat_completions" as const,
+      reasoningMode: "auto" as const,
       apiKey: "provider-secret",
+    };
+    const testPreview = providerService.previewConnectionTest(settings);
+    const tested = await providerService.testConnection({
+      ...settings,
+      consentKey: testPreview.consentKey,
+      payloadHash: testPreview.payloadPreview.redactedHash,
     });
+    await providerService.configure({ ...settings, testId: tested.testId });
     const preview = await providerService.preview("openai", { objective: "redacted preview" });
     await providerService.grantConsent("openai", preview.consentKey, preview.dataCategories);
     const providerRequests: Record<string, unknown>[] = [];

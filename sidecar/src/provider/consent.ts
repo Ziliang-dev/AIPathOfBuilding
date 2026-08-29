@@ -8,6 +8,13 @@ import {
   type ConsentDataCategory,
   type ProviderProfile,
 } from "./types.js";
+import type {
+  ProviderApiMode,
+  ProviderAuthMode,
+  ProviderReasoningMode,
+  ResolvedProviderApiMode,
+  ResolvedProviderReasoning,
+} from "./compatibility.js";
 
 export interface ConsentRecord {
   readonly providerId: string;
@@ -44,6 +51,11 @@ export interface ConsentDescriptorInput {
   readonly providerId: string;
   readonly baseURL: string;
   readonly model: string;
+  readonly authMode: ProviderAuthMode;
+  readonly apiMode: ProviderApiMode;
+  readonly resolvedApiMode: ResolvedProviderApiMode;
+  readonly reasoningMode: ProviderReasoningMode;
+  readonly resolvedReasoning: ResolvedProviderReasoning;
   readonly dataCategories?: readonly ConsentDataCategory[];
   readonly privacyPolicyVersion?: string;
   readonly redactionPolicyVersion?: string;
@@ -53,6 +65,11 @@ export interface ProviderConsentPreview {
   readonly providerId: string;
   readonly endpoint: string;
   readonly model: string;
+  readonly authMode: ProviderAuthMode;
+  readonly apiMode: ProviderApiMode;
+  readonly resolvedApiMode: ResolvedProviderApiMode;
+  readonly reasoningMode: ProviderReasoningMode;
+  readonly resolvedReasoning: ResolvedProviderReasoning;
   readonly dataCategories: readonly ConsentDataCategory[];
   readonly privacyPolicyVersion: string;
   readonly redactionPolicyVersion: string;
@@ -78,6 +95,11 @@ function canonicalDescriptor(input: ConsentDescriptorInput): string {
     providerId: input.providerId,
     endpoint: canonicalProviderBaseURL(input.baseURL),
     model: input.model,
+    authMode: input.authMode,
+    apiMode: input.apiMode,
+    resolvedApiMode: input.resolvedApiMode,
+    reasoningMode: input.reasoningMode,
+    resolvedReasoning: input.resolvedReasoning,
     dataCategories: categories,
     privacyPolicyVersion: input.privacyPolicyVersion ?? PRIVACY_POLICY_VERSION,
     redactionPolicyVersion: input.redactionPolicyVersion ?? REDACTION_POLICY_VERSION,
@@ -127,6 +149,11 @@ export class ConsentManager {
       providerId: profile.providerId,
       endpoint: profile.baseURL,
       model: profile.model,
+      authMode: profile.authMode,
+      apiMode: profile.apiMode,
+      resolvedApiMode: profile.resolvedApiMode,
+      reasoningMode: profile.reasoningMode,
+      resolvedReasoning: profile.resolvedReasoning,
       dataCategories: effectiveCategories(descriptor.dataCategories),
       privacyPolicyVersion: PRIVACY_POLICY_VERSION,
       redactionPolicyVersion: REDACTION_POLICY_VERSION,
@@ -165,6 +192,11 @@ function profileDescriptor(profile: ProviderProfile, dataCategories?: readonly C
     providerId: profile.providerId,
     baseURL: profile.baseURL,
     model: profile.model,
+    authMode: profile.authMode,
+    apiMode: profile.apiMode,
+    resolvedApiMode: profile.resolvedApiMode,
+    reasoningMode: profile.reasoningMode,
+    resolvedReasoning: profile.resolvedReasoning,
     dataCategories: dataCategories === undefined || dataCategories.length === 0
       ? profile.dataCategories
       : effectiveCategories(dataCategories),

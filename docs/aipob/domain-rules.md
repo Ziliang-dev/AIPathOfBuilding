@@ -129,6 +129,13 @@ roadmap work.
 ## Provider and consent rules
 
 - Only OpenAI-compatible profiles are supported by the connected provider path.
+- Auto API routing uses Responses only for the official OpenAI endpoint and Chat
+  Completions elsewhere. Advanced overrides are explicit and never trigger an
+  automatic second inference request.
+- Reasoning is configured semantically as Auto, Off, Fast, Balanced, or Deep and
+  translated by the compatibility layer. Auto omits optional reasoning fields.
+- No-key authentication is permitted only for loopback endpoints. Remote
+  endpoints require a Bearer key.
 - API keys may exist only in Windows Credential Manager under
   `AIPathOfBuilding/LLM/<providerId>`. Project files, `.env`, command arguments,
   logs, status payloads, and SQLite profiles must not contain keys.
@@ -146,8 +153,13 @@ roadmap work.
   endpoint requires a newly entered key. Failure must not change the saved
   profile, credential, or durable consent.
 - Connection-test results expose only success, latency, requested/response
-  model, forced-tool-call validation, and optional token usage. Keys and raw
-  provider responses must not enter RPC results, logs, SQLite, or status files.
+  model, resolved API/reasoning mode, forced-tool-call validation, a one-use
+  test ID, and optional token usage. Configure must consume the matching
+  unexpired ticket for the exact settings and credential fingerprint. Keys and
+  raw provider responses must not enter RPC results, logs, SQLite, or status
+  files.
+- Optional model discovery is bounded and non-authorizing. Manual model entry
+  remains available when `/models` is missing or provider-specific.
 - Revocation prevents new provider calls and aborts matching active provider
   work. Deterministic fallback remains valid.
 - Planner Chat text is ephemeral. Its output must pass the strict Objective Draft

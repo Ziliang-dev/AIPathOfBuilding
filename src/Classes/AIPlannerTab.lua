@@ -513,24 +513,103 @@ end
 function AIPlannerTabClass:OpenProviderPopup()
 	self:ControllerCall("EnsureConnected")
 	local controls = { }
-	local popupState = { inputRevision = 0, statusText = "Waiting for sidecar", loading = false }
+	local popupState = { inputRevision = 0, statusText = "Waiting for sidecar", loading = false, modelChoices = { } }
 	local profile = type(self.state.providerStatus) == "table" and self.state.providerStatus.profile or { }
+	local providerPresets = {
+		{ label = "OpenAI", value = "openai", baseUrl = "https://api.openai.com/v1", model = "gpt-4.1-mini", authMode = "bearer" },
+		{ label = "OpenRouter", value = "openrouter", baseUrl = "https://openrouter.ai/api/v1", model = "openai/gpt-4.1-mini", authMode = "bearer" },
+		{ label = "DeepSeek", value = "deepseek", baseUrl = "https://api.deepseek.com", model = "deepseek-chat", authMode = "bearer" },
+		{ label = "Local", value = "local", baseUrl = "http://127.0.0.1:11434/v1", model = "", authMode = "none" },
+		{ label = "Custom", value = "custom" },
+	}
+	local apiModes = {
+		{ label = "Auto", value = "auto" },
+		{ label = "Chat Completions", value = "chat_completions" },
+		{ label = "Responses", value = "responses" },
+	}
+	local reasoningModes = {
+		{ label = "Auto", value = "auto" },
+		{ label = "Off", value = "off" },
+		{ label = "Fast", value = "fast" },
+		{ label = "Balanced", value = "balanced" },
+		{ label = "Deep", value = "deep" },
+	}
+	local authModes = {
+		{ label = "Bearer key", value = "bearer" },
+		{ label = "No key (local)", value = "none" },
+	}
 	local function invalidateTest()
 		if popupState.loading then return end
 		popupState.inputRevision = popupState.inputRevision + 1
 		popupState.testedRevision = nil
+		popupState.testId = nil
 		popupState.statusText = "Fields changed; run Test Connection again"
 	end
-	controls.endpointLabel = new("LabelControl"):LabelControl(nil, {0, 14, 0, 16}, "^7OpenAI-compatible endpoint")
-	controls.endpoint = new("EditControl"):EditControl(nil, {0, 34, 560, 20}, profile.baseURL or "https://api.openai.com/v1", nil, nil, 2048, invalidateTest)
-	controls.modelLabel = new("LabelControl"):LabelControl(nil, {0, 64, 0, 16}, "^7Model")
-	controls.model = new("EditControl"):EditControl(nil, {0, 84, 560, 20}, profile.model or "gpt-5.4", nil, nil, 256, invalidateTest)
-	controls.keyLabel = new("LabelControl"):LabelControl(nil, {0, 114, 0, 16}, "^7API key (stored only in Windows Credential Manager)")
+	controls.presetLabel = new("LabelControl"):LabelControl(nil, {0, 14, 0, 16}, "^7Provider")
+	controls.preset = new("DropDownControl"):DropDownControl(nil, {0, 34, 180, 20}, providerPresets, function(_, preset)
+		if type(preset) ~= "table" or preset.value == "custom" then return end
+		popupState.loading = true
+		controls.endpoint:SetText(preset.baseUrl)
+		controls.model:SetText(preset.model)
+		controls.auth:SetSel(preset.authMode == "none" and 2 or 1, true)
+		popupState.loading = false
+		invalidateTest()
+	end)
+	controls.preset:SelByValue("custom", "value")
+	for _, preset in ipairs(providerPresets) do
+		if preset.baseUrl and comparableProviderEndpoint(preset.baseUrl) == comparableProviderEndpoint(profile.baseURL or "") then
+			controls.preset:SelByValue(preset.value, "value")
+			break
+		end
+	end
+	controls.endpointLabel = new("LabelControl"):LabelControl(nil, {0, 64, 0, 16}, "^7OpenAI-compatible endpoint")
+	controls.endpoint = new("EditControl"):EditControl(nil, {0, 84, 680, 20}, profile.baseURL or "https://api.openai.com/v1", nil, nil, 2048, invalidateTest)
+	controls.modelLabel = new("LabelControl"):LabelControl(nil, {0, 114, 0, 16}, "^7Model")
+	controls.model = new("EditControl"):EditControl(nil, {0, 134, 410, 20}, profile.model or "gpt-4.1-mini", nil, nil, 256, invalidateTest)
+	controls.modelLoad = new("ButtonControl"):ButtonControl(nil, {420, 134, 100, 20}, "Load Models", function()
+		popupState.statusText = "Loading provider model list"
+		local input = {
+			baseUrl = controls.endpoint.buf,
+			authMode = controls.auth:GetSelValueByKey("value"),
+			apiKey = controls.key.buf,
+		}
+		self:ControllerCall("ListProviderModels", input, function(result, listErr)
+			if listErr then popupState.statusText = listErr return end
+			local models = type(result) == "table" and result.models or nil
+			if type(models) ~= "table" or #models == 0 then
+				popupState.statusText = "Provider returned no model IDs; enter one manually"
+				return
+			end
+			popupState.modelChoices = models
+			controls.modelChoice:SetList(models)
+			controls.modelChoice.selIndex = 1
+			popupState.statusText = "Loaded "..tostring(#models).." models; select one or keep typing"
+		end)
+	end)
+	controls.modelChoice = new("DropDownControl"):DropDownControl(nil, {530, 134, 150, 20}, { }, function(_, value)
+		if type(value) == "string" and value ~= "" then controls.model:SetText(value) end
+	end)
+	controls.modelChoice.shown = function() return #popupState.modelChoices > 0 end
+	controls.keyLabel = new("LabelControl"):LabelControl(nil, {0, 164, 0, 16}, "^7API key (stored only in Windows Credential Manager)")
 	local hasStoredKey = type(self.state.providerStatus) == "table" and self.state.providerStatus.credentialConfigured == true
-	controls.key = new("EditControl"):EditControl(nil, {0, 134, 560, 20}, "", hasStoredKey and "Leave blank to use the saved key" or "Required for first configuration", nil, 16384, invalidateTest)
+	controls.key = new("EditControl"):EditControl(nil, {0, 184, 680, 20}, "", hasStoredKey and "Leave blank to use the saved key" or "Required for remote providers", nil, 16384, invalidateTest)
 	controls.key:SetProtected(true)
-	controls.disclosure = new("LabelControl"):LabelControl(nil, {0, 164, 0, 16}, "^8Test sends one fixed synthetic tool call; no Build or chat data. Provider may charge a small fee.")
-	controls.status = new("LabelControl"):LabelControl(nil, {0, 188, 0, 16}, "")
+	controls.advanced = new("CheckBoxControl"):CheckBoxControl(nil, {0, 216, 16}, "Advanced", nil, "Override API route, reasoning, or authentication.", false)
+	controls.advanced.labelRight = true
+	controls.apiLabel = new("LabelControl"):LabelControl(nil, {115, 216, 0, 16}, "^7API")
+	controls.api = new("DropDownControl"):DropDownControl(nil, {145, 214, 150, 20}, apiModes, function() invalidateTest() end)
+	controls.api:SelByValue(profile.apiMode or "auto", "value")
+	controls.reasoningLabel = new("LabelControl"):LabelControl(nil, {305, 216, 0, 16}, "^7Reasoning")
+	controls.reasoning = new("DropDownControl"):DropDownControl(nil, {375, 214, 130, 20}, reasoningModes, function() invalidateTest() end)
+	controls.reasoning:SelByValue(profile.reasoningMode or "auto", "value")
+	controls.authLabel = new("LabelControl"):LabelControl(nil, {515, 216, 0, 16}, "^7Auth")
+	controls.auth = new("DropDownControl"):DropDownControl(nil, {555, 214, 125, 20}, authModes, function() invalidateTest() end)
+	controls.auth:SelByValue(profile.authMode or "bearer", "value")
+	for _, control in ipairs({ controls.apiLabel, controls.api, controls.reasoningLabel, controls.reasoning, controls.authLabel, controls.auth }) do
+		control.shown = function() return controls.advanced.state end
+	end
+	controls.disclosure = new("LabelControl"):LabelControl(nil, {0, 248, 0, 16}, "^8Test sends one fixed synthetic tool call; no Build/chat data; exactly one inference request.")
+	controls.status = new("LabelControl"):LabelControl(nil, {0, 272, 0, 16}, "")
 	controls.status.label = function()
 		local sidecar = self.state and self.state.sidecarStatus or "stopped"
 		local sidecarLabel = ({ starting = "Starting", connecting = "Starting", reconnecting = "Starting", connected = "Connected", failed = "Failed", stopped = "Stopped" })[sidecar] or safeText(sidecar)
@@ -543,25 +622,41 @@ function AIPlannerTabClass:OpenProviderPopup()
 	end
 	local function connectionTestSupported()
 		local capabilities = self.state and self.state.sidecarCapabilities
-		return type(capabilities) == "table" and capabilities.providerConnectionTest == true
+		return type(capabilities) == "table" and capabilities.providerConnectionTest == true and capabilities.providerCompatibility == true
 	end
 	local function currentInput()
-		return { baseUrl = controls.endpoint.buf, model = controls.model.buf, apiKey = controls.key.buf }
+		return {
+			baseUrl = controls.endpoint.buf,
+			model = controls.model.buf,
+			apiKey = controls.key.buf,
+			authMode = controls.auth:GetSelValueByKey("value"),
+			apiMode = controls.api:GetSelValueByKey("value"),
+			reasoningMode = controls.reasoning:GetSelValueByKey("value"),
+			testId = popupState.testId,
+		}
 	end
-	local function fieldsPresent()
+	local function savedKeyUsable()
 		local status = self.state and self.state.providerStatus
 		local savedProfile = type(status) == "table" and status.profile or nil
-		local savedKeyUsable = type(savedProfile) == "table" and status.credentialConfigured == true
+		return type(savedProfile) == "table" and status.credentialConfigured == true
+			and savedProfile.authMode ~= "none"
 			and comparableProviderEndpoint(savedProfile.baseURL) == comparableProviderEndpoint(controls.endpoint.buf)
-		return controls.endpoint.buf ~= "" and controls.model.buf ~= ""
-			and (controls.key.buf ~= "" or savedKeyUsable)
 	end
-	controls.retry = new("ButtonControl"):ButtonControl(nil, {-245, 224, 105, 20}, "Retry Sidecar", function()
+	local function fieldsPresent()
+		local authMode = controls.auth:GetSelValueByKey("value")
+		return controls.endpoint.buf ~= "" and controls.model.buf ~= ""
+			and (authMode == "none" or controls.key.buf ~= "" or savedKeyUsable())
+	end
+	controls.modelLoad.enabled = function()
+		if not connected() or controls.endpoint.buf == "" then return false end
+		return controls.auth:GetSelValueByKey("value") == "none" or controls.key.buf ~= "" or savedKeyUsable()
+	end
+	controls.retry = new("ButtonControl"):ButtonControl(nil, {-270, 316, 105, 20}, "Retry Sidecar", function()
 		popupState.statusText = "Retrying sidecar"
 		self:ControllerCall("EnsureConnected")
 	end)
 	controls.retry.shown = function() return self.state and self.state.sidecarStatus == "failed" end
-	controls.test = new("ButtonControl"):ButtonControl(nil, {-120, 224, 125, 20}, "Test Connection", function()
+	controls.test = new("ButtonControl"):ButtonControl(nil, {-145, 316, 125, 20}, "Test Connection", function()
 		if not fieldsPresent() or popupState.testing then return end
 		local attempt = currentInput()
 		attempt.revision = popupState.inputRevision
@@ -585,6 +680,7 @@ function AIPlannerTabClass:OpenProviderPopup()
 			main:OpenConfirmPopup(
 				"One-time LLM Connection Test",
 				"Endpoint: "..safeText(preview.endpoint).."\nModel: "..safeText(preview.model)
+					.."\nAPI: "..safeText(preview.resolvedApiMode).."\nReasoning: "..safeText(preview.resolvedReasoning)
 					.."\nData: fixed synthetic connection_probe only\nRedacted bytes: "..safeText(payload.estimatedBytes)
 					.."\nPayload hash: "..safeText(payload.redactedHash)
 					.."\n\nRun this one-time provider request? It does not grant normal Build/chat consent.",
@@ -607,10 +703,12 @@ function AIPlannerTabClass:OpenProviderPopup()
 							return
 						end
 						popupState.testedRevision = attempt.revision
+						popupState.testId = result.testId
 						local usage = type(result.usage) == "table"
 							and "; tokens "..safeText(result.usage.inputTokens).."/"..safeText(result.usage.outputTokens) or ""
 						popupState.statusText = "Passed in "..safeText(result.latencyMs).." ms; model "
-							..safeText(result.responseModel or result.requestedModel).."; tool calling verified"..usage..". Configure to save."
+							..safeText(result.responseModel or result.requestedModel).."; "..safeText(result.resolvedApiMode)
+							.."; reasoning "..safeText(result.resolvedReasoning).."; tool calling verified"..usage..". Configure to save."
 					end)
 					if not queued then
 						popupState.testing = false
@@ -627,15 +725,15 @@ function AIPlannerTabClass:OpenProviderPopup()
 	controls.test.enabled = function() return connected() and connectionTestSupported() and fieldsPresent() and not popupState.testing and not popupState.configuring end
 	controls.test.tooltipText = function()
 		if not connected() then return "Wait for the sidecar to connect or retry after failure." end
-		if not connectionTestSupported() then return "The connected sidecar does not support provider connection tests." end
+		if not connectionTestSupported() then return "The connected sidecar does not support Provider compatibility v3." end
 		if controls.endpoint.buf == "" then return "Enter an OpenAI-compatible endpoint." end
 		if controls.model.buf == "" then return "Enter the provider model name." end
 		if not fieldsPresent() then return "Enter an API key; a saved key is reusable only for the unchanged endpoint." end
 		if popupState.testing then return "Wait for the current connection test." end
 		return "Runs a real forced tool-call probe against the current unsaved fields."
 	end
-	controls.save = new("ButtonControl"):ButtonControl(nil, {15, 224, 100, 20}, "Configure", function()
-		if popupState.testedRevision ~= popupState.inputRevision or popupState.configuring then return end
+	controls.save = new("ButtonControl"):ButtonControl(nil, {-10, 316, 100, 20}, "Configure", function()
+		if popupState.testedRevision ~= popupState.inputRevision or not popupState.testId or popupState.configuring then return end
 		popupState.configuring = true
 		popupState.statusText = "Saving tested configuration"
 		local accepted = self:ControllerCall("ConfigureProvider", currentInput(), function(_, configureErr)
@@ -657,14 +755,15 @@ function AIPlannerTabClass:OpenProviderPopup()
 		end
 	end)
 	controls.save.enabled = function()
-		return connected() and connectionTestSupported() and popupState.testedRevision == popupState.inputRevision and not popupState.testing and not popupState.configuring
+		return connected() and connectionTestSupported() and popupState.testId ~= nil
+			and popupState.testedRevision == popupState.inputRevision and not popupState.testing and not popupState.configuring
 	end
 	controls.save.tooltipText = function()
 		return popupState.testedRevision == popupState.inputRevision
 			and "Save the exact tested fields, then review normal provider data consent."
 			or "Run Test Connection successfully for these exact fields first."
 	end
-	controls.clear = new("ButtonControl"):ButtonControl(nil, {125, 224, 90, 20}, "Clear", function()
+	controls.clear = new("ButtonControl"):ButtonControl(nil, {100, 316, 90, 20}, "Clear", function()
 		popupState.statusText = "Clearing saved provider configuration"
 		self:ControllerCall("ClearProvider", function(_, clearErr)
 			if clearErr then
@@ -680,7 +779,7 @@ function AIPlannerTabClass:OpenProviderPopup()
 		end)
 	end)
 	controls.clear.enabled = function() return connected() and not popupState.testing and not popupState.configuring end
-	controls.cancel = new("ButtonControl"):ButtonControl(nil, {225, 224, 90, 20}, "Cancel", function()
+	controls.cancel = new("ButtonControl"):ButtonControl(nil, {200, 316, 90, 20}, "Cancel", function()
 		popupState.loading = true
 		controls.key:SetText("")
 		popupState.loading = false
@@ -690,7 +789,7 @@ function AIPlannerTabClass:OpenProviderPopup()
 	end)
 	self.providerPopupControls = controls
 	self.providerPopupState = popupState
-	main:OpenPopup(620, 265, "Planner LLM", controls, "test", "key", "cancel")
+	main:OpenPopup(740, 365, "Planner LLM", controls, "test", "key", "cancel")
 end
 
 function AIPlannerTabClass:ConfirmProviderConsent()

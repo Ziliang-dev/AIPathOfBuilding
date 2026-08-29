@@ -107,6 +107,85 @@ describe("OpenAICompatibleAdapter", () => {
     });
   });
 
+  it("encodes Responses API tools and parses function-call output", async () => {
+    const transport = new StubTransport({
+      model: "resolved-model",
+      output: [
+        { type: "reasoning", id: "reasoning-1" },
+        {
+          type: "function_call",
+          call_id: "call-r1",
+          name: "inspect_build",
+          arguments: '{"snapshotId":"snapshot-1","domains":["skills"]}',
+        },
+      ],
+      usage: { input_tokens: 20, output_tokens: 7 },
+    });
+    const model = new OpenAICompatibleAdapter({
+      apiKey: "secret",
+      baseURL: "https://api.openai.com/v1",
+      model: "gpt-test",
+      authMode: "bearer",
+      apiMode: "responses",
+      providerKind: "openai",
+      reasoningMode: "fast",
+    }, { transport });
+
+    const result = await model.complete({ messages: [{ role: "user", content: "Inspect" }] });
+    expect(result).toMatchObject({
+      kind: "message",
+      toolCalls: [{ id: "call-r1", name: "inspect_build" }],
+      usage: { inputTokens: 20, outputTokens: 7 },
+    });
+    expect(transport.request).toMatchObject({
+      model: "gpt-test",
+      tool_choice: "auto",
+      max_output_tokens: 4096,
+      reasoning: { effort: "low" },
+      store: false,
+    });
+    const tools = transport.request?.tools as Array<Record<string, unknown>>;
+    expect(tools[0]).toMatchObject({ type: "function", name: "inspect_build", strict: true });
+  });
+
+  it("keeps DeepSeek reasoning content inside the adapter for the next tool turn", async () => {
+    const responses = [
+      {
+        choices: [{ message: {
+          content: null,
+          reasoning_content: "private-reasoning",
+          tool_calls: [{
+            id: "call-d1", type: "function",
+            function: { name: "inspect_build", arguments: '{"snapshotId":"snapshot-1"}' },
+          }],
+        } }],
+      },
+      { choices: [{ message: { content: "Done" } }] },
+    ];
+    const requests: Record<string, unknown>[] = [];
+    const transport: ChatCompletionTransport = {
+      create: async (request) => {
+        requests.push(request);
+        return responses.shift();
+      },
+    };
+    const model = new OpenAICompatibleAdapter({
+      apiKey: "secret",
+      baseURL: "https://api.deepseek.com",
+      model: "deepseek-v4-flash",
+      providerKind: "deepseek",
+      reasoningMode: "fast",
+    }, { transport });
+    await model.complete({ messages: [{ role: "user", content: "Inspect" }] });
+    await model.complete({ messages: [
+      { role: "user", content: "Inspect" },
+      { role: "assistant", content: "", toolCalls: [{ id: "call-d1", name: "inspect_build", arguments: '{"snapshotId":"snapshot-1"}' }] },
+      { role: "tool", content: "{}", toolCallId: "call-d1" },
+    ] });
+    expect(JSON.stringify(requests[1])).toContain("private-reasoning");
+    expect(requests[1]).toMatchObject({ thinking: { type: "enabled" }, reasoning_effort: "low" });
+  });
+
   it("accepts provider nulls only for optional arguments", async () => {
     const model = adapter(
       new StubTransport({

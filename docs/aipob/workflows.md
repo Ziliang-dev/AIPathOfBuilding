@@ -94,10 +94,13 @@ Every provider request is redacted and blocked until consent matches the current
 endpoint, model, categories, policy, and payload.
 
 Provider setup has a separate pre-configuration check. Opening **LLM Setup**
-starts the sidecar without starting search. A one-shot authorization permits one
-fixed synthetic forced-tool-call probe and nothing else. Success enables
-**Configure** for the exact unchanged fields; it does not grant normal provider
-data consent. Configure then enters the existing first-send consent workflow.
+starts the sidecar without starting search. Auto resolves provider dialect and
+reasoning behavior; Advanced permits explicit overrides. A one-shot
+authorization permits exactly one fixed synthetic required-tool probe and
+nothing else. Success creates a short-lived ticket bound to exact settings and
+credential fingerprint. Configure consumes it, then enters the existing
+first-send consent workflow. No automatic dialect retry creates a second
+provider request.
 
 ### Search and evaluate
 

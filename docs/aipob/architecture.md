@@ -88,7 +88,7 @@ acknowledgement. Successful acknowledgement clears the journal.
 ### Transport boundary
 
 The sidecar listens only on `127.0.0.1`. Each request carries JSON-RPC version
-`2.0`, protocol version `2`, and a random per-launch session token of at least 32
+`2.0`, protocol version `3`, and a random per-launch session token of at least 32
 characters. The server enforces maximum frame size, request timeout,
 authentication, ordered newline-delimited frames, and cancellation.
 
@@ -104,6 +104,7 @@ Request methods:
 - `transaction.result`
 - `provider.status`
 - `provider.configure`
+- `provider.models.list`
 - `provider.test.preview`
 - `provider.test`
 - `provider.clear`
@@ -131,7 +132,7 @@ The wire contract is defined by [`protocol.ts`](../../sidecar/src/protocol.ts),
 
 ### Versioned data contracts
 
-Protocol version `2` and schema version `2` currently cross the process
+Protocol version `3` and schema version `2` currently cross the process
 boundary. Principal validated values are:
 
 - `ObjectiveSpec`: confirmed goals, weights, hard constraints, Locks, Budget,
@@ -202,15 +203,22 @@ and redacted payload preview. Without it, the deterministic schedule remains
 active. Planner Chat returns a strict Objective Draft; the UI requires review
 and another Objective confirmation before search.
 
-The additive `providerConnectionTest` capability exposes a one-shot connection
-probe. `provider.test.preview` binds the exact endpoint, model, policy versions,
-`connection_probe` category, and fixed redacted payload hash. After explicit UI
-confirmation, `provider.test` makes one real, bounded Chat Completions request
-with a forced synthetic tool call. It returns only validation status, latency,
-requested/response model, and optional token usage. It does not persist the
-unsaved profile, key, response, consent, or payload, and it does not authorize
-Build or chat data. Changing any field invalidates the UI result. A saved key may
-be reused only when the canonical endpoint is unchanged.
+The `providerCompatibility` capability exposes presets, optional bounded
+`/models` discovery, semantic reasoning modes, and explicit advanced overrides.
+Auto mode resolves official OpenAI endpoints to Responses and other endpoints
+to Chat Completions. Provider-specific encoding maps reasoning and continuation
+fields without weakening local tool validation. No-key authentication is
+loopback-only.
+
+`providerConnectionTest` exposes a one-shot connection probe.
+`provider.test.preview` binds the exact endpoint, model, auth/API/reasoning
+selection, resolved request path, policy versions, `connection_probe` category,
+and fixed redacted payload hash. After explicit UI confirmation,
+`provider.test` makes exactly one bounded request with a required synthetic tool
+call and 1024 output tokens. Success issues a short-lived, one-use ticket bound
+to the tested settings and credential fingerprint; Configure consumes it. The
+probe does not persist the unsaved profile, key, response, consent, or payload,
+and does not authorize Build or chat data.
 
 ### Persistence
 
@@ -229,6 +237,11 @@ non-persistent.
 The ready file publishes protocol version, loopback host, selected port, and
 PID. It never contains the session token. The sidecar removes only a ready file
 whose PID still belongs to its process.
+
+The Windows portable starts Node through the packaged GUI-subsystem
+`aipob-sidecar-launcher.exe`. The helper passes structured arguments directly to
+`CreateProcessW` with `CREATE_NO_WINDOW`; no console/taskbar window is created.
+Direct Node launch remains only as an older-package/development fallback.
 
 Provider profiles and consent decisions contain no secret. The API key is held
 only by Windows Credential Manager under `AIPathOfBuilding/LLM/<providerId>`.

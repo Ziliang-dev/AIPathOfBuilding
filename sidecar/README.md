@@ -42,7 +42,7 @@ node dist/server.cjs \
 ```
 
 After binding, the server atomically writes the ready file as
-`{"protocolVersion":1,"host":"127.0.0.1","port":...,"pid":...}`. The session
+`{"protocolVersion":3,"host":"127.0.0.1","port":...,"pid":...}`. The session
 token is never persisted there. Delete or replace a stale ready file before
 launching a new process.
 
@@ -50,12 +50,14 @@ The deprecated `--worker-command` escape hatch accepts only one JSON argv array,
 for example `'["PathOfBuilding.exe","src/AIPoBWorker.lua"]'`. It is passed to
 `spawn()` with `shell:false`; raw shell command strings are rejected.
 
-RPC methods: `hello`, `build.capture`, `run.start`, `run.stream`, `run.cancel`,
+RPC methods also include provider status/configuration, optional model discovery,
+one-shot connection testing, consent, and objective drafting. Core run methods
+are `hello`, `build.capture`, `run.start`, `run.stream`, `run.cancel`,
 `run.resume`, `candidate.preview`, and `transaction.result`. Server notifications
 are `run.progress`, `run.awaitingApproval`, `transaction.apply`, `run.completed`,
 and `run.failed`.
 
-The shipped CLI intentionally starts with `providerConfigured=false` and uses
-the deterministic domain schedule. It never reads or writes a plaintext API-key
-file or environment variable. A future PoB credential UI must use Windows
-Credential Manager before enabling the included OpenAI-compatible adapter.
+The shipped CLI starts with `providerConfigured=false` until the PoB setup UI
+tests and saves a profile through Windows Credential Manager. It never reads or
+writes a plaintext API-key file or environment variable. Without matching
+first-send consent, the deterministic domain schedule remains available.

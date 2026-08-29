@@ -1,3 +1,4 @@
+import { createHash, randomUUID } from "node:crypto";
 import { z } from "zod";
 import { type CredentialStore } from "../credentials/types.js";
 import { credentialTarget } from "../credentials/wincredClient.js";
@@ -9,12 +10,20 @@ import {
   type ProviderConnectionProbeResult,
 } from "./connectionProbe.js";
 import {
+  ProviderCompatibilityResolutionSchema,
+  resolveProviderCompatibility,
+  type ProviderCompatibilityResolution,
+} from "./compatibility.js";
+import { listProviderModels } from "./modelCatalog.js";
+import {
   ProviderConfigureInputSchema,
   ProviderProfileSchema,
   type ProviderConfigureInput,
   type ProviderProfile,
   type ProviderProfileStore,
   type ProviderStatus,
+  ProviderTestSettingsSchema,
+  type ProviderTestSettings,
   type ConsentDataCategory,
   providerProfileWithDefaults,
   canonicalProviderBaseURL,
@@ -41,6 +50,17 @@ export class ProviderProfileService {
   readonly #consent: ConsentManager;
   readonly #now: () => Date;
   readonly #probeTransportFactory: ChatCompletionTransportFactory | undefined;
+  readonly #successfulTests = new Map<string, {
+    providerId: string;
+    baseURL: string;
+    model: string;
+    authMode: ProviderTestSettings["authMode"];
+    apiMode: ProviderTestSettings["apiMode"];
+    reasoningMode: ProviderTestSettings["reasoningMode"];
+    resolution: ProviderCompatibilityResolution;
+    credentialFingerprint: string;
+    expiresAt: number;
+  }>();
   #configureChain: Promise<void> = Promise.resolve();
 
   constructor(options: {
@@ -71,10 +91,22 @@ export class ProviderProfileService {
 
   async #configureUnlocked(input: ProviderConfigureInput): Promise<ProviderProfile> {
     const parsed = ProviderConfigureInputSchema.parse(input);
-    const profile = providerProfileWithDefaults(parsed, this.#now());
+    const ticket = this.#successfulTests.get(parsed.testId);
+    this.#successfulTests.delete(parsed.testId);
+    const baseURL = canonicalProviderBaseURL(parsed.baseURL);
+    if (ticket === undefined || ticket.expiresAt < this.#now().getTime()
+      || ticket.providerId !== parsed.providerId
+      || ticket.baseURL !== baseURL
+      || ticket.model !== parsed.model
+      || ticket.authMode !== parsed.authMode
+      || ticket.apiMode !== parsed.apiMode
+      || ticket.reasoningMode !== parsed.reasoningMode) {
+      throw new ProviderConfigurationError("A matching successful connection test is required before configuration");
+    }
+    const profile = providerProfileWithDefaults(parsed, ticket.resolution, this.#now());
     const oldProfile = await this.#profiles.get(profile.providerId);
     const target = credentialTarget(profile.providerId);
-    if (parsed.apiKey === undefined && !parsed.clearCredential) {
+    if (parsed.authMode === "bearer" && parsed.apiKey === undefined && !parsed.clearCredential) {
       if (oldProfile === undefined) {
         throw new ProviderConfigurationError("Provider credential is required for first configuration");
       }
@@ -92,7 +124,15 @@ export class ProviderProfileService {
         );
       }
     }
-    const shouldChangeSecret = parsed.apiKey !== undefined || parsed.clearCredential;
+    let testedSecret = "";
+    if (parsed.authMode === "bearer") {
+      testedSecret = parsed.apiKey ?? await this.#credentials.get(target) ?? "";
+      if (testedSecret === "") throw new ProviderConfigurationError("Provider credential is not configured");
+    }
+    if (credentialFingerprint(parsed.authMode, testedSecret) !== ticket.credentialFingerprint) {
+      throw new ProviderConfigurationError("API key changed after the successful connection test");
+    }
+    const shouldChangeSecret = parsed.authMode === "none" || parsed.apiKey !== undefined || parsed.clearCredential;
     let oldSecret: string | undefined;
     if (shouldChangeSecret) {
       try {
@@ -106,7 +146,7 @@ export class ProviderProfileService {
     let secretChanged = false;
     try {
       if (shouldChangeSecret) {
-        if (parsed.clearCredential) {
+        if (parsed.clearCredential || parsed.authMode === "none") {
           await this.#credentials.delete(target);
         } else if (parsed.apiKey !== undefined) {
           await this.#credentials.set(target, parsed.apiKey);
@@ -143,7 +183,7 @@ export class ProviderProfileService {
     }
     let credentialConfigured = false;
     try {
-      credentialConfigured = await this.#credentials.has(profile.credentialTarget);
+      credentialConfigured = profile.authMode === "none" || await this.#credentials.has(profile.credentialTarget);
     } catch {
       // A missing helper is reported as not configured; no secret or helper
       // path is exposed through status. Creation still fails closed.
@@ -164,46 +204,108 @@ export class ProviderProfileService {
     return this.#consent.preview(profile, payload, dataCategories);
   }
 
-  previewConnectionTest(input: { providerId: string; baseURL: string; model: string }) {
+  previewConnectionTest(input: ProviderTestSettings) {
+    const parsed = ProviderTestSettingsSchema.parse(input);
+    const resolution = resolveProviderCompatibility(parsed);
     const profile = providerProfileWithDefaults({
-      providerId: input.providerId,
-      baseURL: input.baseURL,
-      model: input.model,
+      providerId: parsed.providerId,
+      baseURL: parsed.baseURL,
+      model: parsed.model,
+      authMode: parsed.authMode,
+      apiMode: parsed.apiMode,
+      reasoningMode: parsed.reasoningMode,
       dataCategories: ["connection_probe"],
       maxCalls: 1,
-      maxOutputTokens: 32,
+      maxOutputTokens: 1_024,
       timeoutMs: 30_000,
-    }, this.#now());
-    return this.#consent.preview(profile, CONNECTION_PROBE_PAYLOAD, ["connection_probe"]);
+    }, resolution, this.#now());
+    return this.#consent.preview(profile, {
+      ...CONNECTION_PROBE_PAYLOAD,
+      authMode: parsed.authMode,
+      apiMode: parsed.apiMode,
+      reasoningMode: parsed.reasoningMode,
+      resolvedApiMode: resolution.apiMode,
+      resolvedReasoning: resolution.reasoning,
+    }, ["connection_probe"]);
   }
 
-  async testConnection(input: {
-    providerId: string;
-    baseURL: string;
-    model: string;
+  async testConnection(input: ProviderTestSettings & {
     apiKey?: string;
     consentKey: string;
     payloadHash: string;
-  }, signal?: AbortSignal): Promise<ProviderConnectionProbeResult> {
+  }, signal?: AbortSignal): Promise<ProviderConnectionProbeResult & { testId: string }> {
     const preview = this.previewConnectionTest(input);
     if (preview.consentKey !== input.consentKey || preview.payloadPreview.redactedHash !== input.payloadHash) {
       throw new ProviderConfigurationError("Connection test authorization is missing or stale");
     }
-    const canonicalBaseURL = canonicalProviderBaseURL(input.baseURL);
-    let secret = input.apiKey;
-    if (secret === undefined) {
-      const stored = await this.#profiles.get(input.providerId);
-      if (stored === undefined || canonicalProviderBaseURL(stored.baseURL) !== canonicalBaseURL) {
-        throw new ProviderConfigurationError("API key is required when testing a new provider endpoint");
-      }
-      secret = await this.#credentials.get(stored.credentialTarget);
-      if (secret === undefined) throw new ProviderConfigurationError("Provider credential is not configured");
-    }
-    return runProviderConnectionProbe({
+    const parsed = ProviderTestSettingsSchema.parse(input);
+    const canonicalBaseURL = canonicalProviderBaseURL(parsed.baseURL);
+    const secret = await this.#resolveCredential(parsed, input.apiKey);
+    const resolution = ProviderCompatibilityResolutionSchema.parse(resolveProviderCompatibility(parsed));
+    const result = await runProviderConnectionProbe({
       apiKey: secret,
       baseURL: canonicalBaseURL,
-      model: input.model,
+      model: parsed.model,
+      authMode: parsed.authMode,
+      apiMode: resolution.apiMode,
+      providerKind: resolution.providerKind,
+      reasoningMode: parsed.reasoningMode,
     }, signal, this.#probeTransportFactory);
+    const testId = randomUUID();
+    this.#successfulTests.set(testId, {
+      providerId: parsed.providerId,
+      baseURL: canonicalBaseURL,
+      model: parsed.model,
+      authMode: parsed.authMode,
+      apiMode: parsed.apiMode,
+      reasoningMode: parsed.reasoningMode,
+      resolution,
+      credentialFingerprint: credentialFingerprint(parsed.authMode, secret),
+      expiresAt: this.#now().getTime() + 10 * 60_000,
+    });
+    return { ...result, testId };
+  }
+
+  async listModels(input: {
+    providerId: string;
+    baseURL: string;
+    authMode: ProviderTestSettings["authMode"];
+    apiKey?: string;
+  }, signal?: AbortSignal): Promise<readonly string[]> {
+    const settings = ProviderTestSettingsSchema.parse({
+      providerId: input.providerId,
+      baseURL: input.baseURL,
+      model: "model-catalog",
+      authMode: input.authMode,
+      apiMode: "auto",
+      reasoningMode: "auto",
+    });
+    const secret = await this.#resolveCredential(settings, input.apiKey);
+    return listProviderModels({
+      baseURL: settings.baseURL,
+      authMode: settings.authMode,
+      apiKey: secret,
+    }, signal);
+  }
+
+  clearSuccessfulTests(providerId: string): void {
+    for (const [testId, ticket] of this.#successfulTests) {
+      if (ticket.providerId === providerId) this.#successfulTests.delete(testId);
+    }
+  }
+
+  async #resolveCredential(settings: ProviderTestSettings, supplied?: string): Promise<string> {
+    if (settings.authMode === "none") return "";
+    if (supplied !== undefined) return supplied;
+    const canonicalBaseURL = canonicalProviderBaseURL(settings.baseURL);
+    const stored = await this.#profiles.get(settings.providerId);
+    if (stored === undefined || stored.authMode !== "bearer"
+      || canonicalProviderBaseURL(stored.baseURL) !== canonicalBaseURL) {
+      throw new ProviderConfigurationError("API key is required when testing a new provider endpoint");
+    }
+    const secret = await this.#credentials.get(stored.credentialTarget);
+    if (secret === undefined) throw new ProviderConfigurationError("Provider credential is not configured");
+    return secret;
   }
 
   async grantConsent(providerId: string, consentKey: string, dataCategories?: readonly ConsentDataCategory[]) {
@@ -238,3 +340,7 @@ export const ProviderStatusSchema = z
     profile: ProviderProfileSchema.optional(),
   })
   .strict();
+
+function credentialFingerprint(authMode: ProviderTestSettings["authMode"], secret: string): string {
+  return createHash("sha256").update(`${authMode}\0${secret}`, "utf8").digest("hex");
+}

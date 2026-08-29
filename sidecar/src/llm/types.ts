@@ -1,15 +1,30 @@
 import { z } from "zod";
+import {
+  ProviderAuthModeSchema,
+  ProviderKindSchema,
+  ProviderReasoningModeSchema,
+  ResolvedProviderApiModeSchema,
+} from "../provider/compatibility.js";
 
 export const ProviderConfigSchema = z
   .object({
-    apiKey: z.string().min(1),
+    apiKey: z.string().default(""),
     baseURL: z.string().url().optional(),
     model: z.string().min(1),
+    authMode: ProviderAuthModeSchema.default("bearer"),
+    apiMode: ResolvedProviderApiModeSchema.default("chat_completions"),
+    providerKind: ProviderKindSchema.default("generic"),
+    reasoningMode: ProviderReasoningModeSchema.default("auto"),
     maxCalls: z.number().int().min(1).max(128).default(16),
     maxOutputTokens: z.number().int().min(1).max(65_536).default(4096),
     timeoutMs: z.number().int().min(100).max(600_000).default(120_000),
   })
-  .strict();
+  .strict()
+  .superRefine((value, context) => {
+    if (value.authMode === "bearer" && value.apiKey.length === 0) {
+      context.addIssue({ code: "custom", path: ["apiKey"], message: "Bearer authentication requires an API key" });
+    }
+  });
 
 export type ProviderConfig = z.infer<typeof ProviderConfigSchema>;
 

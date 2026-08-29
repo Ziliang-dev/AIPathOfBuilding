@@ -1,5 +1,16 @@
 import { z } from "zod";
 import { credentialTarget } from "../credentials/wincredClient.js";
+import {
+  ProviderApiModeSchema,
+  ProviderAuthModeSchema,
+  ProviderCompatibilityResolutionSchema,
+  ProviderReasoningModeSchema,
+  ResolvedProviderApiModeSchema,
+  ResolvedProviderReasoningSchema,
+  assertProviderAuthAllowed,
+  resolveProviderCompatibility,
+  type ProviderCompatibilityResolution,
+} from "./compatibility.js";
 
 export const DEFAULT_PROVIDER_BASE_URL = "https://api.openai.com/v1";
 export const PRIVACY_POLICY_VERSION = "1";
@@ -31,9 +42,15 @@ export const ProviderProfileIdSchema = z
 
 export const ProviderProfileSchema = z
   .object({
+    profileVersion: z.literal(2),
     providerId: ProviderProfileIdSchema,
     baseURL: z.string().url(),
     model: z.string().min(1).max(256),
+    authMode: ProviderAuthModeSchema,
+    apiMode: ProviderApiModeSchema,
+    resolvedApiMode: ResolvedProviderApiModeSchema,
+    reasoningMode: ProviderReasoningModeSchema,
+    resolvedReasoning: ResolvedProviderReasoningSchema,
     credentialTarget: z.string().min(1),
     maxCalls: z.number().int().min(1).max(128),
     maxOutputTokens: z.number().int().min(1).max(65_536),
@@ -46,14 +63,27 @@ export const ProviderProfileSchema = z
     if (value.credentialTarget !== credentialTarget(value.providerId)) {
       context.addIssue({ code: "custom", path: ["credentialTarget"], message: "Credential target is not an LLM target" });
     }
+    try {
+      assertProviderAuthAllowed(value.baseURL, value.authMode);
+    } catch (error) {
+      context.addIssue({
+        code: "custom",
+        path: ["authMode"],
+        message: error instanceof Error ? error.message : "Invalid provider authentication mode",
+      });
+    }
   });
 export type ProviderProfile = z.infer<typeof ProviderProfileSchema>;
 
 export const ProviderConfigureInputSchema = z
   .object({
+    testId: z.string().uuid(),
     providerId: ProviderProfileIdSchema,
     model: z.string().min(1).max(256),
     baseURL: z.string().url().optional(),
+    authMode: ProviderAuthModeSchema.default("bearer"),
+    apiMode: ProviderApiModeSchema.default("auto"),
+    reasoningMode: ProviderReasoningModeSchema.default("auto"),
     apiKey: z.string().min(1).max(16_384).refine((value) => !/[\u0000-\u001f\u007f]/.test(value), {
       message: "API key cannot contain control characters",
     }).optional(),
@@ -68,8 +98,38 @@ export const ProviderConfigureInputSchema = z
     if (value.clearCredential && value.apiKey !== undefined) {
       context.addIssue({ code: "custom", path: ["apiKey"], message: "clearCredential cannot be combined with apiKey" });
     }
+    try {
+      assertProviderAuthAllowed(canonicalProviderBaseURL(value.baseURL), value.authMode);
+    } catch (error) {
+      context.addIssue({
+        code: "custom",
+        path: ["authMode"],
+        message: error instanceof Error ? error.message : "Invalid provider authentication mode",
+      });
+    }
   });
 export type ProviderConfigureInput = z.input<typeof ProviderConfigureInputSchema>;
+export type ProviderProfileInput = Omit<ProviderConfigureInput, "testId"> & { testId?: string };
+
+export const ProviderTestSettingsSchema = z.object({
+  providerId: ProviderProfileIdSchema,
+  model: z.string().min(1).max(256),
+  baseURL: z.string().url(),
+  authMode: ProviderAuthModeSchema.default("bearer"),
+  apiMode: ProviderApiModeSchema.default("auto"),
+  reasoningMode: ProviderReasoningModeSchema.default("auto"),
+}).strict().superRefine((value, context) => {
+  try {
+    assertProviderAuthAllowed(canonicalProviderBaseURL(value.baseURL), value.authMode);
+  } catch (error) {
+    context.addIssue({
+      code: "custom",
+      path: ["authMode"],
+      message: error instanceof Error ? error.message : "Invalid provider authentication mode",
+    });
+  }
+});
+export type ProviderTestSettings = z.infer<typeof ProviderTestSettingsSchema>;
 
 export interface ProviderProfileStore {
   get(providerId: string): Promise<ProviderProfile | undefined>;
@@ -107,18 +167,56 @@ export function canonicalProviderBaseURL(value: string | undefined): string {
   return url.toString().replace(/\/$/, "");
 }
 
-export function providerProfileWithDefaults(input: ProviderConfigureInput, now = new Date()): ProviderProfile {
-  const parsed = ProviderConfigureInputSchema.parse(input);
-  return ProviderProfileSchema.parse({
-    providerId: parsed.providerId,
-    baseURL: canonicalProviderBaseURL(parsed.baseURL),
+export function providerProfileWithDefaults(
+  input: ProviderProfileInput,
+  resolution?: ProviderCompatibilityResolution,
+  now = new Date(),
+): ProviderProfile {
+  const parsed = ProviderConfigureInputSchema.parse({
+    ...input,
+    testId: input.testId ?? "00000000-0000-4000-8000-000000000000",
+  });
+  const baseURL = canonicalProviderBaseURL(parsed.baseURL);
+  const resolved = ProviderCompatibilityResolutionSchema.parse(resolution ?? resolveProviderCompatibility({
+    baseURL,
     model: parsed.model,
+    apiMode: parsed.apiMode,
+    reasoningMode: parsed.reasoningMode,
+  }));
+  return ProviderProfileSchema.parse({
+    profileVersion: 2,
+    providerId: parsed.providerId,
+    baseURL,
+    model: parsed.model,
+    authMode: parsed.authMode,
+    apiMode: parsed.apiMode,
+    resolvedApiMode: resolved.apiMode,
+    reasoningMode: parsed.reasoningMode,
+    resolvedReasoning: resolved.reasoning,
     credentialTarget: credentialTarget(parsed.providerId),
     maxCalls: parsed.maxCalls,
     maxOutputTokens: parsed.maxOutputTokens,
     timeoutMs: parsed.timeoutMs,
     dataCategories: parsed.dataCategories,
     updatedAt: now.toISOString(),
+  });
+}
+
+/** Upgrade protocol-v2 provider rows without changing their effective request path. */
+export function migrateProviderProfile(value: unknown): ProviderProfile {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return ProviderProfileSchema.parse(value);
+  }
+  const source = value as Record<string, unknown>;
+  if (source.profileVersion === 2) return ProviderProfileSchema.parse(source);
+  return ProviderProfileSchema.parse({
+    ...source,
+    profileVersion: 2,
+    authMode: source.authMode ?? "bearer",
+    apiMode: source.apiMode ?? "chat_completions",
+    resolvedApiMode: source.resolvedApiMode ?? "chat_completions",
+    reasoningMode: source.reasoningMode ?? "auto",
+    resolvedReasoning: source.resolvedReasoning ?? "provider_default",
   });
 }
 
