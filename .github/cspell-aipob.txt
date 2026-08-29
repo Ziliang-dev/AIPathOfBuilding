@@ -48,7 +48,9 @@ tradequery
 traderesult
 unconsented
 Uninst
+usbipd
 vitest
 wincred
 wmain
+wslconfig
 wslpath
