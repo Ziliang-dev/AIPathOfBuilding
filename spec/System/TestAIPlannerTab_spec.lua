@@ -180,7 +180,7 @@ describe("AIPlannerTab", function()
 		assert.is_false(controls.save.enabled())
 		popupState.testedRevision = popupState.inputRevision
 		assert.is_true(controls.save.enabled())
-		controls.model:SetText("changed-model")
+		controls.model:SetText("changed-model", true)
 		assert.is_false(controls.save.enabled())
 		popupState.loading = true
 		controls.key:SetText("")
