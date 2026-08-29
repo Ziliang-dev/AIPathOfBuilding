@@ -4,6 +4,18 @@ This file applies to the entire repository. Preserve upstream Path of Building
 behavior unless the task explicitly changes it. Do not revert unrelated user
 changes.
 
+## Shell environment
+
+- Use WSL2 Ubuntu with Bash by default for all commands, including repository
+  searches, Git, Python, Node.js, Docker, Lua tools, tests, and builds.
+- Do not add or run PowerShell scripts. Repository commands use the Python CLI
+  from WSL; Windows-only packaging runs the same CLI in GitHub Actions.
+- Use `cmd.exe` only for WSL lifecycle or configuration, `.wslconfig`,
+  `usbipd`, or another required Windows-only bridge.
+- Do not use PowerShell or `cmd.exe` when an equivalent WSL command works.
+- Keep Linux tool caches and virtual environments inside the WSL filesystem.
+  Write final project artifacts to the mounted workspace only.
+
 ## Read before changing code
 
 For any AIPoB domain, search, evaluation, or transaction change, read:
@@ -45,32 +57,45 @@ page or an ADR.
 
 For sidecar or cross-process changes, run from the repository root:
 
-```powershell
-./scripts/check-sidecar.ps1
-./scripts/build-sidecar.ps1
-./scripts/check-manifest.ps1
+```bash
+python3 scripts/aipob.py check-sidecar
+python3 scripts/aipob.py build-sidecar
+python3 scripts/aipob.py check-manifest
 ```
 
 For Lua behavior, run the relevant Busted specs, preferably through:
 
-```powershell
+```bash
 docker compose up --abort-on-container-exit
 ```
 
 At minimum, target the matching files under `spec/System/`. A protocol or
 Transaction change normally requires both TypeScript and Lua tests.
 
-All project PowerShell scripts target `pwsh`. Start non-trivial scripts with
-strict mode and terminating errors, use `-LiteralPath` for filesystem paths,
-check external command exit codes, and syntax-check changed `.ps1` files with
-`System.Management.Automation.Language.Parser` before execution.
+All repository commands run through `scripts/aipob.py`. Syntax-check changed
+Python command modules with `python3 -m py_compile` from WSL and check every
+external command exit code.
+
+## Post-update CI artifact sync
+
+- Do not create a scheduled task, heartbeat, polling daemon, or self-hosted
+  runner for local artifact synchronization.
+- After an agent-authored repository update is committed and pushed, wait for
+  every required GitHub Actions check associated with the exact pushed HEAD.
+- Repair failures and wait for the replacement checks. Never synchronize an
+  artifact from a failed, cancelled, stale, or still-running workflow.
+- After the exact HEAD's `AIPoB Sidecar` workflow and aggregate release gate
+  pass, run `python3 scripts/aipob.py sync-ci-windows` once from WSL.
+- Confirm `artifacts/ci-latest/ci-sync.json` records the current HEAD and report
+  the Actions run ID and launch path. The command handles idempotence and
+  latest-only replacement; do not add a second downloader.
 
 ## Generated and release files
 
 - `sidecar/dist/server.cjs` is generated but tracked because PoB's manifest and
   auto-update path ship it. Never hand-edit it; rebuild from TypeScript.
 - Build the deterministic bundle before manifest generation.
-- Run `scripts/check-manifest.ps1` after rebuilding the bundle.
+- Run `python3 scripts/aipob.py check-manifest` after rebuilding the bundle.
 - Node.js and the `better-sqlite3` native runtime are installer-owned. Do not
   add them to the auto-update manifest.
 - Do not hand-edit files marked as generated under `src/Data` or `src/TreeData`;

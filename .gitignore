@@ -5,6 +5,7 @@
 *.code-workspace
 inspect.lua
 __pycache__/
+.pytest_cache/
 *.pyc
 
 # Development files
