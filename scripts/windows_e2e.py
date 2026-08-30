@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import argparse
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import os
 from pathlib import Path
 import socket
 import subprocess
 import tempfile
+import threading
 import time
 from typing import Any, TextIO
 
@@ -32,6 +34,28 @@ socket.on('data', chunk => {
     const message = JSON.parse(frame);
     if (message.type === 'shutdown') { socket.end(); process.exit(0); }
     if (message.type !== 'evaluate') continue;
+    if (message.job.payload.operation === 'mechanic_experiment') {
+      const experiment = message.job.payload.mechanicExperiment;
+      const observation = {
+        context: experiment.context,
+        fingerprint: 'sha256:' + '1'.repeat(64),
+        projectionFingerprint: 'sha256:' + '2'.repeat(64),
+        nativeProbeFingerprint: 'sha256:' + '3'.repeat(64),
+        evidenceFingerprint: 'sha256:' + '4'.repeat(64),
+        metrics: { combinedDps: 1000000, effectiveHitPool: 50000, worstCaseMaxHit: 20000 },
+        skills: [], conditions: [], activeItemIds: [], activeModifierIds: [], activePassiveIds: [],
+        configValues: {}, resources: {}, cooldowns: {}, durations: {},
+        contributions: { combinedDps: 1000000, effectiveHitPool: 50000, worstCaseMaxHit: 20000 },
+      };
+      socket.write(JSON.stringify({ type: 'result', jobId: message.job.id, result: {
+        jobId: message.job.id, candidateId: message.job.candidateId, operation: 'mechanic_experiment',
+        mechanicExperimentResult: {
+          experimentId: experiment.id, ...(experiment.claimId ? { claimId: experiment.claimId } : {}),
+          context: experiment.context, baseline: observation, diagnostic: observation,
+        },
+      } }) + '\n');
+      continue;
+    }
     if (message.job.payload.operation === 'probe') {
       const nativeEvidenceByScenario = {};
       for (const scenario of message.job.payload.scenarios) nativeEvidenceByScenario[scenario.id + ':' + scenario.profile] = {
@@ -58,6 +82,137 @@ socket.on('data', chunk => {
   }
 });
 """.strip()
+
+
+MECHANIC_SOURCE_IDS = [
+    "weaponSet1:item:e2e:explicit:1:parsed:1",
+    "weaponSet2:item:e2e:explicit:1:parsed:1",
+]
+
+
+class FixtureProvider:
+    """Loopback OpenAI-compatible tool caller used only by packaged E2E."""
+
+    def __init__(self) -> None:
+        self._sequence = 0
+        self._lock = threading.Lock()
+        provider = self
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_POST(self) -> None:  # noqa: N802 - stdlib handler contract
+                try:
+                    length = int(self.headers.get("Content-Length", "0"))
+                    if length <= 0 or length > 4 * 1024 * 1024:
+                        raise ValueError("invalid fixture request length")
+                    payload = json.loads(self.rfile.read(length).decode("utf-8"))
+                    response = provider._completion(payload)
+                    encoded = json.dumps(response, separators=(",", ":")).encode("utf-8")
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json")
+                    self.send_header("Content-Length", str(len(encoded)))
+                    self.end_headers()
+                    self.wfile.write(encoded)
+                except Exception as error:  # pragma: no cover - surfaced by E2E failure
+                    encoded = json.dumps({"error": {"message": str(error)}}).encode("utf-8")
+                    self.send_response(400)
+                    self.send_header("Content-Type", "application/json")
+                    self.send_header("Content-Length", str(len(encoded)))
+                    self.end_headers()
+                    self.wfile.write(encoded)
+
+            def log_message(self, _format: str, *args: Any) -> None:
+                del args
+
+        self.server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        self.thread = threading.Thread(target=self.server.serve_forever, name="aipob-e2e-provider", daemon=True)
+
+    @property
+    def base_url(self) -> str:
+        return f"http://127.0.0.1:{self.server.server_port}/v1"
+
+    def start(self) -> None:
+        self.thread.start()
+
+    def stop(self) -> None:
+        self.server.shutdown()
+        self.server.server_close()
+        self.thread.join(timeout=5)
+
+    def _next_id(self) -> str:
+        with self._lock:
+            self._sequence += 1
+            return f"e2e-tool-{self._sequence}"
+
+    @staticmethod
+    def _tool_names(payload: dict[str, Any]) -> list[str]:
+        result: list[str] = []
+        for tool in payload.get("tools", []):
+            if not isinstance(tool, dict):
+                continue
+            function = tool.get("function")
+            if isinstance(function, dict) and isinstance(function.get("name"), str):
+                result.append(function["name"])
+            elif isinstance(tool.get("name"), str):
+                result.append(tool["name"])
+        return result
+
+    def _completion(self, payload: dict[str, Any]) -> dict[str, Any]:
+        names = self._tool_names(payload)
+        messages = payload.get("messages", [])
+        message_text = "\n".join(
+            str(message.get("content", ""))
+            for message in messages
+            if isinstance(message, dict)
+        )
+        tool_name: str | None = None
+        arguments: dict[str, Any] | None = None
+        content = "E2E Provider supplied read-only guidance from verified fixture tools."
+        if "aipob_connection_probe" in names:
+            tool_name, arguments = "aipob_connection_probe", {"ok": True}
+        elif "submit_mechanic_claims" in names:
+            if '"phase":"critic"' in message_text:
+                tool_name, arguments = "submit_mechanic_review", {
+                    "verdict": "complete",
+                    "missingEntityIds": [],
+                    "conflictingClaimIds": [],
+                    "invalidProofIds": [],
+                    "summary": "E2E fixture claims have exact local PoB provenance.",
+                }
+            elif any(isinstance(message, dict) and message.get("role") == "tool" for message in messages):
+                tool_name, arguments = "submit_mechanic_claims", {
+                    "claims": [
+                        {
+                            "sourceId": source_id,
+                            "relation": "grants",
+                            "targetId": source_id.rsplit(":explicit:1:parsed:1", 1)[0],
+                            "context": context,
+                            "statement": "Inactive diagnostic fixture modifier belongs to its inventory item.",
+                            "evidenceIds": [source_id],
+                        }
+                        for source_id, context in zip(MECHANIC_SOURCE_IDS, ("weaponSet1", "weaponSet2"), strict=True)
+                    ],
+                    "complete": True,
+                }
+            else:
+                tool_name, arguments = "inspect_mechanic_entity", {"entityIds": MECHANIC_SOURCE_IDS}
+
+        tool_calls = [] if tool_name is None else [{
+            "id": self._next_id(),
+            "type": "function",
+            "function": {"name": tool_name, "arguments": json.dumps(arguments, separators=(",", ":"))},
+        }]
+        return {
+            "id": f"chatcmpl-{self._next_id()}",
+            "object": "chat.completion",
+            "created": 0,
+            "model": "aipob-e2e-fixture",
+            "choices": [{
+                "index": 0,
+                "finish_reason": "tool_calls" if tool_calls else "stop",
+                "message": {"role": "assistant", "content": "" if tool_calls else content, "tool_calls": tool_calls},
+            }],
+            "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2},
+        }
 
 
 def fail(message: str) -> "NoReturn":
@@ -191,6 +346,30 @@ def find_pob(root: Path) -> Path:
 
 def base_snapshot(schema_version: int) -> dict[str, Any]:
     projection_fingerprint = "sha256:" + ("0" * 64)
+    required_catalogs = [
+        {
+            "id": "pob:skills", "domain": "skills", "kind": "currentBuild", "available": True,
+            "data": {"currentGroupsTruncated": False, "nativeLinkProbe": {"complete": True, "truncated": False, "groups": []}},
+        },
+        {"id": "pob:items", "domain": "gear", "kind": "currentBuild", "available": True, "data": {"truncated": False}},
+        {"id": "pob:tree", "domain": "tree", "kind": "currentBuild", "available": True, "data": {"allocated": [], "allocatedTruncated": False}},
+        {
+            "id": "pob:actors", "domain": "actor", "kind": "currentBuild", "available": True,
+            "data": {"actorSeason": {"actors": [], "season": {}, "truncated": False}},
+        },
+        {
+            "id": "pob:config", "domain": "config", "kind": "currentBuild", "available": True,
+            "data": {"conditionClaims": [], "valuesTruncated": False, "conditionClaimsTruncated": False},
+        },
+        {
+            "id": "pob:loadouts", "domain": "progression", "kind": "currentBuild", "available": True,
+            "data": {
+                "itemSetIds": [1], "activeItemSetId": 1,
+                "treeSpecIds": [1], "activeTreeSpecId": 1,
+                "skillSetIds": [1], "activeSkillSetId": 1, "truncated": False,
+            },
+        },
+    ]
     return {
         "schemaVersion": schema_version,
         "xml": '<PathOfBuilding><Build level="90"/><Config/><Skills/><Items/><Tree/><Party/></PathOfBuilding>',
@@ -204,16 +383,32 @@ def base_snapshot(schema_version: int) -> dict[str, Any]:
         "gameplayFieldPaths": ["Build", "Build.@level", "Config", "Skills", "Items", "Tree", "Party"],
         "mechanicProjection": {
             "version": 1,
-            "inventory": {"version": 1, "sections": [], "lineFlags": [], "sourceFamilies": []},
-            "items": [],
-            "modifierCount": 0,
+            "inventory": {"version": 1, "sections": ["explicit"], "lineFlags": [], "sourceFamilies": []},
+            "items": [{
+                "id": "e2e", "name": "E2E inactive inventory item", "equipped": False, "active": False,
+                "references": [], "state": {}, "legality": {"version": 1, "status": "valid", "findings": []},
+                "modifierLines": [{
+                    "id": "item:e2e:explicit:1", "section": "explicit", "ordinal": 1,
+                    "rawText": "1% increased E2E fixture value", "active": False, "disabled": False,
+                    "flags": [], "modTags": [], "parseStatus": "parsed",
+                    "provenance": {
+                        "sourceFamily": "explicit", "sourceTable": "e2e", "sourceModId": "E2EFixture",
+                        "resolution": "exact", "evidence": ["e2e:fixture"],
+                    },
+                    "parsedMods": [{
+                        "name": "E2EFixture", "type": "INC", "classification": "numeric",
+                        "value": 1, "flags": 0, "keywordFlags": 0, "tags": [],
+                    }],
+                }],
+            }],
+            "modifierCount": 1,
             "activeModifierCount": 0,
             "unresolvedModifierCount": 0,
             "descriptions": {"entries": [], "truncated": False},
             "fingerprint": projection_fingerprint,
         },
         "mechanicProjectionFingerprint": projection_fingerprint,
-        "contentCatalog": [{
+        "contentCatalog": [*required_catalogs, {
             "id": "config:e2e",
             "domain": "gear",
             "kind": "proposal",
@@ -237,6 +432,40 @@ def base_snapshot(schema_version: int) -> dict[str, Any]:
             },
         }],
     }
+
+
+def configure_fixture_provider(rpc: RpcClient, base_url: str) -> None:
+    settings = {
+        "providerId": "openai",
+        "baseUrl": base_url,
+        "model": "aipob-e2e-fixture",
+        "authMode": "none",
+        "apiMode": "chat_completions",
+        "reasoningMode": "off",
+    }
+    preview = rpc.request("provider.test.preview", settings)
+    tested = rpc.request("provider.test", {
+        **settings,
+        "consentKey": preview["consentKey"],
+        "payloadHash": preview["payloadPreview"]["redactedHash"],
+    })
+    configured = rpc.request("provider.configure", {**settings, "testId": tested["testId"]})
+    if not configured.get("configured"):
+        fail("E2E fixture Provider was not configured.")
+    consent = rpc.request("consent.preview", {
+        "providerId": "openai",
+        "dataCategories": [
+            "objective", "build_snapshot", "metrics", "tool_outputs", "chat_messages",
+            "mechanic_report", "mechanic_facts", "mechanic_experiment_results",
+        ],
+    })
+    granted = rpc.request("consent.grant", {
+        "providerId": "openai",
+        "consentKey": consent["consentKey"],
+        "payloadHash": consent["payloadPreview"]["redactedHash"],
+    })
+    if granted.get("decision") != "granted":
+        fail("E2E fixture Provider consent was not granted.")
 
 
 def objective(schema_version: int) -> dict[str, Any]:
@@ -266,6 +495,7 @@ def e2e_windows(args: argparse.Namespace) -> None:
         schema_version = int(metadata["sidecar"]["schemaVersion"])
         node = root / "sidecar" / "runtime" / "node.exe"
         bundle = safe_package_path(root, str(metadata["sidecar"]["bundle"]))
+        credential_helper = safe_package_path(root, str(metadata["native"]["credentialHelper"]["path"]))
         use_packaged_pob = args.use_packaged_pob
         pob = find_pob(root) if use_packaged_pob else Path(args.pob_executable).resolve() if args.pob_executable else None
         worker = root / "src" / "AIPoBWorker.lua" if use_packaged_pob else Path(args.worker_script).resolve() if args.worker_script else root / "src" / "AIPoBWorker.lua"
@@ -285,12 +515,15 @@ def e2e_windows(args: argparse.Namespace) -> None:
             str(node), str(bundle), "--host", "127.0.0.1", "--port", "0",
             "--session-token", token, "--data-dir", str(data_directory), "--ready-file", str(ready_path),
             "--worker-count", worker_count, "--owner-connect-timeout-ms", "30000",
+            "--credential-helper", str(credential_helper),
         ]
         if pob is None:
             arguments.extend(["--worker-command", json.dumps([str(node), str(fixture_path), "--"])])
         else:
             arguments.extend(["--pob-executable", str(pob), "--worker-script", str(worker)])
 
+        provider = FixtureProvider()
+        provider.start()
         sidecar = SidecarProcess(arguments, root / "sidecar", ready_path, rpc_timeout)
         rpc: RpcClient | None = None
         try:
@@ -299,6 +532,7 @@ def e2e_windows(args: argparse.Namespace) -> None:
             hello = rpc.request("hello", {"clientName": "aipob-windows-e2e", "clientVersion": "1", "capabilities": []})
             if int(hello["protocolVersion"]) != protocol_version:
                 fail("E2E hello protocol mismatch.")
+            configure_fixture_provider(rpc, provider.base_url)
             rpc.request("build.capture", {"snapshot": base_snapshot(schema_version)})
             started = rpc.request("run.start", {"snapshotFingerprint": "e2e-build", "objective": objective(schema_version)})
             run_id = str(started["runId"])
@@ -359,6 +593,7 @@ def e2e_windows(args: argparse.Namespace) -> None:
             stderr = sidecar.stop()
             if stderr.strip():
                 print(stderr, file=os.sys.stderr)
+            provider.stop()
             remove_tree(data_directory)
 
 
