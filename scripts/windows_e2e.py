@@ -190,6 +190,7 @@ def find_pob(root: Path) -> Path:
 
 
 def base_snapshot(schema_version: int) -> dict[str, Any]:
+    projection_fingerprint = "sha256:" + ("0" * 64)
     return {
         "schemaVersion": schema_version,
         "xml": '<PathOfBuilding><Build level="90"/><Config/><Skills/><Items/><Tree/><Party/></PathOfBuilding>',
@@ -201,6 +202,17 @@ def base_snapshot(schema_version: int) -> dict[str, Any]:
         "config": {"enemyIsBoss": "None"},
         "buildState": {"level": 90},
         "gameplayFieldPaths": ["Build", "Build.@level", "Config", "Skills", "Items", "Tree", "Party"],
+        "mechanicProjection": {
+            "version": 1,
+            "inventory": {"version": 1, "sections": [], "lineFlags": [], "sourceFamilies": []},
+            "items": [],
+            "modifierCount": 0,
+            "activeModifierCount": 0,
+            "unresolvedModifierCount": 0,
+            "descriptions": {"entries": [], "truncated": False},
+            "fingerprint": projection_fingerprint,
+        },
+        "mechanicProjectionFingerprint": projection_fingerprint,
         "contentCatalog": [{
             "id": "config:e2e",
             "domain": "gear",
