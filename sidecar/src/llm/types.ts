@@ -109,3 +109,21 @@ export interface ModelAdapter<TName extends string = string> {
   readonly callsRemaining: number;
   complete(input: ModelTurnInput, signal?: AbortSignal): Promise<ModelTurnResult<TName>>;
 }
+
+export interface ModelFunctionToolDefinition<TName extends string = string> {
+  readonly type: "function";
+  readonly function: {
+    readonly name: TName;
+    readonly description: string;
+    readonly strict: true;
+    readonly parameters: Record<string, unknown>;
+  };
+}
+
+/** Injectable model-tool seam. Domain modules own names, schemas and parsing. */
+export interface ModelToolRegistry<TName extends string = string> {
+  readonly definitions: readonly ModelFunctionToolDefinition<TName>[];
+  readonly toolChoice?: "auto" | "required" | TName;
+  isName(value: string): value is TName;
+  parseArguments(name: TName, rawArguments: string): unknown;
+}

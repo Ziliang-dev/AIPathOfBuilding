@@ -2,6 +2,7 @@ import { Annotation } from "@langchain/langgraph";
 import type {
   BuildSnapshot,
   BuildMechanicReport,
+  VerifiedBuildMechanicReport,
   BuildAction,
   Candidate,
   ObjectiveSpec,
@@ -68,7 +69,7 @@ export interface WorkflowNodeUpdate {
   objective?: ObjectiveSpec;
   objectiveConfirmed?: boolean;
   scenarios?: ScenarioSpec[];
-  mechanicReport?: BuildMechanicReport;
+  mechanicReport?: BuildMechanicReport | VerifiedBuildMechanicReport;
   artifacts?: Record<string, unknown>;
   frontier?: Candidate[];
   selected?: Candidate[];
@@ -98,7 +99,7 @@ export const WorkflowStateAnnotation = Annotation.Root({
   objective: replace<ObjectiveSpec | undefined>(() => undefined),
   objectiveConfirmed: replace(() => false),
   scenarios: replace<ScenarioSpec[]>(() => []),
-  mechanicReport: replace<BuildMechanicReport | undefined>(() => undefined),
+  mechanicReport: replace<BuildMechanicReport | VerifiedBuildMechanicReport | undefined>(() => undefined),
   artifacts: replace<Record<string, unknown>>(() => ({})),
   frontier: replace<Candidate[]>(() => []),
   selected: replace<Candidate[]>(() => []),

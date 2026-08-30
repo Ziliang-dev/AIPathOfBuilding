@@ -21,6 +21,8 @@ local function initialState()
 		sidecarStatus = "stopped", sidecarMessage = "Sidecar not started",
 		providerTestStatus = "idle",
 		mechanicReport = nil,
+		mechanicAnalysisId = nil,
+		mechanicProgress = nil,
 	}
 end
 
@@ -172,6 +174,13 @@ function Controller:_resumeCheckpoint()
 		end
 		if type(stream) == "table" and type(stream.candidates) == "table" then self.state.candidates = stream.candidates end
 		local status = type(stream) == "table" and stream.status or nil
+		if type(stream) == "table" and type(stream.awaitingProvider) == "table" then
+			self.reconnectRunId = nil
+			self.state.status = "awaitingProvider"
+			self.state.providerAwaiting = stream.awaitingProvider
+			self.state.message = "Checkpoint awaits LLM; Retry or Cancel"
+			return
+		end
 		if status == "completed" then
 			self.reconnectRunId = nil
 			if self.pendingAppliedResult then self.pendingAppliedResult.rollbackSnapshot = nil end
@@ -221,6 +230,35 @@ function Controller:_resumeCheckpoint()
 	end, 30000)
 end
 
+function Controller:_resumeMechanicAnalysis()
+	local analysisId = self.state.mechanicAnalysisId
+	if not analysisId or not self.rpc then return end
+	self.rpc:Request("mechanics.status", { analysisId = analysisId }, function(result, err)
+		if err then
+			self:_setError("Mechanic checkpoint unavailable; select Analyze Build to resume: " .. errorText(err))
+			return
+		end
+		local status = type(result) == "table" and result.status or "failed"
+		if type(result) == "table" and type(result.progress) == "table" then
+			self.state.mechanicProgress = result.progress
+			self.state.progress = tonumber(result.progress.progress) or self.state.progress
+		end
+		if status == "completed" and type(result.report) == "table" then
+			self.state.mechanicReport = result.report
+			self.state.status = result.report.status
+			self.state.message = result.report.summary or "Mechanic report restored"
+		elseif status == "running" then
+			self.state.status = "analyzingMechanics"
+			self.state.message = "Mechanic analysis reconnected"
+		elseif status == "cancelled" then
+			self.state.status = "cancelled"
+			self.state.message = "Mechanic analysis cancelled"
+		else
+			self:_setError("Mechanic analysis failed: " .. errorText(type(result) == "table" and result.error or status))
+		end
+	end, 10000)
+end
+
 function Controller:_registerHandlers()
 	if not self.rpc or self.handlersRegistered then return end
 	self.handlersRegistered = true
@@ -243,6 +281,30 @@ function Controller:_registerHandlers()
 		self.state.mechanicReport = params.report
 		self.state.status = "awaitingMechanicReview"
 		self.state.message = "Critical mechanics must be corrected before optimization"
+	end)
+	self.rpc:Register("run.awaitingProvider", function(params)
+		if params.runId and self.state.runId and params.runId ~= self.state.runId then return end
+		self.state.status = "awaitingProvider"
+		self.state.message = "LLM unavailable during " .. tostring(params.phase or "workflow") .. "; Retry or Cancel"
+		self.state.providerAwaiting = params
+	end)
+	self.rpc:Register("mechanics.progress", function(params)
+		if params.analysisId ~= self.state.mechanicAnalysisId then return end
+		self.state.status = "analyzingMechanics"
+		self.state.progress = tonumber(params.progress) or self.state.progress
+		self.state.mechanicProgress = params
+		self.state.message = tostring(params.message or params.phase or "Understanding Build mechanics")
+	end)
+	self.rpc:Register("mechanics.completed", function(params)
+		if params.analysisId ~= self.state.mechanicAnalysisId then return end
+		self.state.mechanicReport = params.report
+		self.state.status = type(params.report) == "table" and params.report.status or "error"
+		self.state.progress = 1
+		self.state.message = type(params.report) == "table" and params.report.summary or "Mechanic analysis returned no report"
+	end)
+	self.rpc:Register("mechanics.failed", function(params)
+		if params.analysisId ~= self.state.mechanicAnalysisId then return end
+		self:_setError("Mechanic analysis failed: " .. errorText(params.error))
 	end)
 	self.rpc:Register("run.awaitingApproval", function(params)
 		if params.runId and self.state.runId and params.runId ~= self.state.runId then return end
@@ -350,7 +412,8 @@ function Controller:_hello()
 		self:RefreshProviderStatus()
 		if self.reconnectRunId then self:_resumeCheckpoint()
 		elseif self.pendingObjective then self:_captureAndStart()
-		elseif self.pendingAnalysis then self:_captureAndAnalyze() end
+		elseif self.pendingAnalysis then self:_captureAndAnalyze()
+		elseif self.state.mechanicAnalysisId then self:_resumeMechanicAnalysis() end
 	end, 10000)
 end
 
@@ -367,13 +430,15 @@ function Controller:_captureAndAnalyze()
 	self.rpc:Request("build.capture", { snapshot = snapshot }, function(result, err)
 		if err then self:_setError("Build capture failed: " .. errorText(err)) return end
 		local fingerprint = type(result) == "table" and result.snapshotFingerprint or snapshot.fingerprint
-		self.rpc:Request("build.analyze", { snapshotFingerprint = fingerprint }, function(report, analyzeErr)
+		self.rpc:Request("mechanics.start", {
+			snapshotFingerprint = fingerprint,
+			contexts = { "weaponSet1", "weaponSet2" },
+			force = false,
+		}, function(started, analyzeErr)
 			if analyzeErr then self:_setError("Mechanic analysis failed: " .. errorText(analyzeErr)) return end
-			self.state.mechanicReport = report
-			self.state.status = type(report) == "table" and report.status or "warning"
-			local findings = type(report) == "table" and report.findings or { }
-			self.state.message = type(report) == "table" and report.summary
-				or ("Mechanic report ready: " .. tostring(#findings) .. " finding(s)")
+			self.state.mechanicAnalysisId = type(started) == "table" and started.analysisId or nil
+			self.state.status = "analyzingMechanics"
+			self.state.message = "LLM analyst is reading local PoB facts"
 		end, 30000)
 	end, 30000)
 end
@@ -543,7 +608,7 @@ function Controller:PreviewProviderConsent()
 	if not self.rpc or not self.helloComplete then return nil, "sidecar is not connected" end
 	self.rpc:Request("consent.preview", {
 		providerId = "openai",
-		dataCategories = { "objective", "build_snapshot", "metrics", "tool_outputs", "chat_messages", "mechanic_report" },
+		dataCategories = { "objective", "build_snapshot", "metrics", "tool_outputs", "chat_messages", "mechanic_report", "mechanic_facts", "mechanic_experiment_results" },
 	}, function(result, err)
 		if err then self:_setError("Consent preview failed: " .. errorText(err)) return end
 		self.state.consentPreview = result
@@ -607,7 +672,13 @@ function Controller:_captureAndStart()
 		local fingerprint = type(result) == "table" and result.snapshotFingerprint or snapshot.fingerprint
 		self.state.status = "starting"
 		self.state.message = "Starting optimization"
-		self.rpc:Request("run.start", { snapshotFingerprint = fingerprint, objective = objective }, function(started, startErr)
+		local startParams = { snapshotFingerprint = fingerprint, objective = objective }
+		local report = self.state.mechanicReport
+		if type(report) == "table" and report.status == "verified"
+			and report.snapshotFingerprint == fingerprint and type(report.analysisFingerprint) == "string" then
+			startParams.mechanicAnalysisFingerprint = report.analysisFingerprint
+		end
+		self.rpc:Request("run.start", startParams, function(started, startErr)
 			if startErr then self:_setError("Optimization start failed: " .. errorText(startErr)) return end
 			self.state.runId = type(started) == "table" and started.runId or nil
 			self.state.status = "running"
@@ -643,6 +714,14 @@ function Controller:Start(objective)
 end
 
 function Controller:Cancel()
+	if self.state.status == "analyzingMechanics" and self.state.mechanicAnalysisId and self.rpc then
+		self.rpc:Request("mechanics.cancel", { analysisId = self.state.mechanicAnalysisId }, function(_, err)
+			if err then self:_setError("Mechanic cancel failed: " .. errorText(err)) return end
+			self.state.status = "cancelled"
+			self.state.message = "Mechanic analysis cancelled"
+		end, 10000)
+		return true
+	end
 	if not self.state.runId or not self.rpc then return false, "no active run" end
 	self.state.status = "cancelling"
 	self.state.message = "Cancelling"
@@ -651,6 +730,22 @@ function Controller:Cancel()
 		self.state.status = "cancelled"
 		self.state.message = "Cancelled; current frontier preserved"
 	end, 10000)
+	return true
+end
+
+function Controller:RetryProvider()
+	if not self.rpc or not self.state.runId or self.state.status ~= "awaitingProvider" then
+		return nil, "run is not awaiting Provider"
+	end
+	self.state.status = "running"
+	self.state.message = "Retrying LLM from checkpoint"
+	self.rpc:Request("run.resume", { runId = self.state.runId, decision = "retryProvider" }, function(result, err)
+		if err then self:_setError("Provider retry failed: " .. errorText(err)) return end
+		if type(result) == "table" and result.status == "awaitingProvider" then
+			self.state.status = "awaitingProvider"
+			self.state.message = "LLM still unavailable; Retry or Cancel"
+		end
+	end, 120000)
 	return true
 end
 

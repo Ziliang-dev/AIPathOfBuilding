@@ -1,9 +1,10 @@
 import type { BuildAction, ConditionEvidence, ModifierProjection, ScenarioSpec } from "../schemas.js";
+import type { MechanicExperimentResult } from "../mechanics/experiments.js";
 import type { MetricVector } from "../search/types.js";
 
 /** Frozen Lua worker evaluate payload. Keep secrets and account data outside it. */
 export interface PobWorkerEvaluatePayload<Action = BuildAction> {
-  readonly operation?: "evaluate" | "probe";
+  readonly operation?: "evaluate" | "probe" | "mechanic_experiment";
   readonly xml: string;
   readonly actions: readonly Action[];
   readonly scenarios: readonly ScenarioSpec[];
@@ -25,7 +26,7 @@ export interface WorkerEvaluation {
   readonly candidateId: string;
   readonly metricsByScenario: Readonly<Record<string, MetricVector>>;
   readonly diagnostics?: readonly string[];
-  readonly operation?: "evaluate" | "probe";
+  readonly operation?: "evaluate" | "probe" | "mechanic_experiment";
   readonly candidateFingerprint?: string;
   readonly candidateProjection?: ModifierProjection;
   readonly nativeProbeFingerprint?: string;
@@ -34,6 +35,7 @@ export interface WorkerEvaluation {
   readonly nativeEvidence?: unknown;
   readonly nativeEvidenceByScenario?: unknown;
   readonly resolvedEvidence?: readonly ConditionEvidence[];
+  readonly mechanicExperimentResult?: MechanicExperimentResult;
 }
 
 export interface WorkerContext {

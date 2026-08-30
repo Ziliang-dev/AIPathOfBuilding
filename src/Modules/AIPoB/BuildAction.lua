@@ -4,7 +4,7 @@ local ActorSeason = require("Modules.AIPoB.ActorSeason")
 local ItemImport = require("Modules.AIPoB.ItemImport")
 
 local BuildAction = {
-	SCHEMA_VERSION = 3,
+	SCHEMA_VERSION = 4,
 }
 
 local supportedKinds = {

@@ -27,6 +27,7 @@ import {
   type ConsentDataCategory,
   providerProfileWithDefaults,
   canonicalProviderBaseURL,
+  DEFAULT_CONSENT_DATA_CATEGORIES,
 } from "./types.js";
 
 export class ProviderConfigurationError extends Error {
@@ -203,7 +204,7 @@ export class ProviderProfileService {
     return {
       configured: true,
       credentialConfigured,
-      consent: await this.#consent.state(profile),
+      consent: await this.#consent.state(profile, DEFAULT_CONSENT_DATA_CATEGORIES),
       profile,
     };
   }

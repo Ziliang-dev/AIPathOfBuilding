@@ -19,6 +19,9 @@ import {
   RunResumeParamsSchema,
   RunStartParamsSchema,
   RunStreamParamsSchema,
+  MechanicsStartParamsSchema,
+  MechanicsStatusParamsSchema,
+  MechanicsCancelParamsSchema,
   TransactionResultParamsSchema,
   type RpcRequest,
 } from "../protocol.js";
@@ -78,6 +81,9 @@ const SUPPORTED_METHODS = new Set([
   "hello",
   "build.capture",
   "build.analyze",
+  "mechanics.start",
+  "mechanics.status",
+  "mechanics.cancel",
   "run.start",
   "run.stream",
   "run.cancel",
@@ -268,6 +274,12 @@ export class RpcRouter {
         return this.bind(this.controller.captureBuild, parseParams(BuildCaptureParamsSchema));
       case "build.analyze":
         return this.bind(this.controller.analyzeBuild, parseParams(BuildAnalyzeParamsSchema));
+      case "mechanics.start":
+        return this.bind(this.controller.startMechanicAnalysis, parseParams(MechanicsStartParamsSchema));
+      case "mechanics.status":
+        return this.bind(this.controller.mechanicAnalysisStatus, parseParams(MechanicsStatusParamsSchema));
+      case "mechanics.cancel":
+        return this.bind(this.controller.cancelMechanicAnalysis, parseParams(MechanicsCancelParamsSchema));
       case "run.start":
         return this.bind(this.controller.startRun, parseParams(RunStartParamsSchema));
       case "run.stream":

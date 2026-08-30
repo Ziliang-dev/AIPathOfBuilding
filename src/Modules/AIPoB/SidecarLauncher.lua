@@ -2,7 +2,7 @@ local json = require("dkjson")
 local sha = require("sha2")
 local Util = require("Modules.AIPoB.Util")
 
-local SidecarLauncher = { PROTOCOL_VERSION = 4 }
+local SidecarLauncher = { PROTOCOL_VERSION = 5 }
 SidecarLauncher.__index = SidecarLauncher
 
 local function exists(path)

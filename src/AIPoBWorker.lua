@@ -68,6 +68,7 @@ local Snapshot = require("Modules.AIPoB.Snapshot")
 local NativeLinkProbe = require("Modules.AIPoB.NativeLinkProbe")
 local NativeEvidence = require("Modules.AIPoB.NativeEvidence")
 local ModifierProjection = require("Modules.AIPoB.ModifierProjection")
+local MechanicExperiment = require("Modules.AIPoB.MechanicExperiment")
 
 local function finiteMetrics(metrics)
 	local result = { }
@@ -82,11 +83,21 @@ local function evaluate(job)
 	local payload = job.payload or { }
 	if type(payload) ~= "table" then error("worker job payload is invalid") end
 	local operation = payload.operation or "evaluate"
-	if operation ~= "evaluate" and operation ~= "probe" then error("unsupported worker operation: " .. tostring(operation)) end
+	if operation ~= "evaluate" and operation ~= "probe" and operation ~= "mechanic_experiment" then
+		error("unsupported worker operation: " .. tostring(operation))
+	end
 	local xml = payload.xml or payload.buildXml or job.xml
 	if type(xml) ~= "string" or xml == "" then error("worker job payload is missing build XML") end
 	local build = new("BuildSandbox"):BuildSandbox(xml, "AIPoB Worker")
 	if build.loadError then error(build.loadError) end
+	if operation == "mechanic_experiment" then
+		local result, experimentErr = MechanicExperiment.Run(build, payload.mechanicExperiment, payload.probeOptions)
+		if not result then error(experimentErr) end
+		return {
+			jobId = job.id, candidateId = job.candidateId, operation = operation,
+			metricsByScenario = { }, diagnostics = { }, mechanicExperimentResult = result,
+		}
+	end
 	local ordered, orderErr = BuildAction.Order(payload.actions or { })
 	if not ordered then error(orderErr) end
 	for _, action in ipairs(ordered) do

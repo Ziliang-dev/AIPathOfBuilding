@@ -83,11 +83,15 @@ With a build open in PoB:
 8. To search authenticated PoE Trade, enable **PoE Trade** and provide an exact
    league name. Trade requires a Budget.
 9. Choose locks. Class, ascendancy, and main skill are locked by default.
-10. Check **Confirm this objective before search**, then select **Start**.
+10. Grant the upgraded consent, then select **Analyze Build**. Resolve every
+    blocker before continuing.
+11. Check **Confirm this objective before search**, then select **Start**.
 
-The Planner displays separate `Run` and `Sidecar` states. The sidecar starts
-lazily when LLM setup or the first search needs it. Without a configured,
-consented provider, the run uses the deterministic domain schedule.
+The Planner displays separate mechanic-analysis, `Run`, and `Sidecar` states.
+The sidecar starts lazily when LLM setup, analysis, or Start needs it. Without a
+configured, consented, reachable Provider, analysis and Start are blocked. An
+exact cached mechanic report can skip re-analysis, but Start still requires the
+live model for PlanSearch, RefineSearch, and Explain.
 
 ## Configure Planner Chat
 

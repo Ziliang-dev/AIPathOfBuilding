@@ -23,6 +23,8 @@ export const ConsentDataCategorySchema = z.enum([
   "tool_outputs",
   "chat_messages",
   "mechanic_report",
+  "mechanic_facts",
+  "mechanic_experiment_results",
   "connection_probe",
 ]);
 export type ConsentDataCategory = z.infer<typeof ConsentDataCategorySchema>;
@@ -34,6 +36,8 @@ export const DEFAULT_CONSENT_DATA_CATEGORIES: readonly ConsentDataCategory[] = [
   "tool_outputs",
   "chat_messages",
   "mechanic_report",
+  "mechanic_facts",
+  "mechanic_experiment_results",
 ];
 
 export const ProviderProfileIdSchema = z

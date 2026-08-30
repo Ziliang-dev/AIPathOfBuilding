@@ -14,7 +14,7 @@ import {
 } from "../src/workflow/index.js";
 
 const objective: ObjectiveSpec = {
-  schemaVersion: 3,
+  schemaVersion: 4,
   primaryScenario: "mapping",
   scenarioWeights: { mapping: 0.55, standardBoss: 0.15, pinnacle: 0.15, uber: 0.15 },
   locks: { class: true, ascendancy: true, mainSkill: true, fields: [] },
@@ -25,7 +25,7 @@ const objective: ObjectiveSpec = {
 };
 
 const snapshot: BuildSnapshot = {
-  schemaVersion: 3,
+  schemaVersion: 4,
   mechanicProjection: emptyModifierProjection(),
   mechanicProjectionFingerprint: EMPTY_PROJECTION_FINGERPRINT,
   xml: "<PathOfBuilding/>",
@@ -46,7 +46,7 @@ const snapshot: BuildSnapshot = {
 };
 
 const candidate: Candidate = {
-  schemaVersion: 3,
+  schemaVersion: 4,
   id: "balanced-1",
   label: "Balanced",
   summary: "More damage without losing defence",

@@ -72,6 +72,8 @@ minimum context is:
 - [ADR 0003: Bind brokers, native proof, and provider consent to protocol v2](adr/0003-aipob-protocol-v2-broker-consent-boundary.md)
 - [ADR 0004: Authorize provider connection probes without granting data consent](adr/0004-provider-connection-probe.md)
 - [ADR 0005: Resolve provider compatibility before saving and hide the packaged sidecar](adr/0005-provider-compatibility-and-hidden-sidecar.md)
+- [ADR 0006: Keep modifier projection authored by PoB](adr/0006-pob-authored-modifier-projection.md)
+- [ADR 0007: Require LLM-led, PoB-verified mechanic understanding](adr/0007-llm-led-pob-verified-mechanic-understanding.md)
 
 ## Upstream Path of Building developer references
 

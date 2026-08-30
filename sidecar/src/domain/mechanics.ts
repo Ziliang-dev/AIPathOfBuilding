@@ -83,26 +83,29 @@ function sourceSkillLine(
   return undefined;
 }
 
-function configuredConditionFindings(snapshot: BuildSnapshot, projection: ModifierProjection): MechanicFinding[] {
+function configuredConditionFindings(snapshot: BuildSnapshot): MechanicFinding[] {
   const configEntry = snapshot.contentCatalog?.find(({ id }) => id === "pob:config");
   const claims = array(configEntry?.data.conditionClaims).map(record).filter((claim): claim is Record<string, unknown> => claim !== undefined);
-  const activeText = projection.items
-    .filter(({ active }) => active)
-    .flatMap(({ modifierLines }) => modifierLines.filter(({ active }) => active).map(({ rawText }) => rawText.toLowerCase()))
-    .join("\n");
+  const nativeEvidence = record(configEntry?.data.nativeEvidence);
+  const nativeClaims = array(nativeEvidence?.claims)
+    .map(record)
+    .filter((claim): claim is Record<string, unknown> => claim !== undefined);
   const findings: MechanicFinding[] = [];
   for (const claim of claims) {
     if (claim.sourceStatus !== "manual" || claim.current === undefined || claim.current === false) continue;
     const condition = typeof claim.condition === "string" ? claim.condition : "manual-condition";
     const label = typeof claim.label === "string" ? claim.label : condition;
-    const words = label.toLowerCase().match(/[a-z]{4,}/g) ?? [];
-    const critical = words.some((word) => activeText.includes(word));
+    const configKey = typeof claim.configKey === "string" ? claim.configKey : condition;
+    const exactNative = nativeClaims.find((native) =>
+      native.condition === condition || native.configKey === configKey);
+    const hasNativeSource = array(exactNative?.sources).length > 0;
+    if (hasNativeSource) continue;
     findings.push(finding({
-      severity: critical ? "blocker" : "warning",
+      severity: "warning",
       code: "manual_condition_unproven",
       message: `${label} is configured manually without native sustainable source evidence`,
-      critical,
-      evidence: [`config:${condition}`],
+      critical: false,
+      evidence: [`config:${configKey}`, "native-condition-source:missing"],
     }));
   }
   return findings;
@@ -246,7 +249,7 @@ export function analyzeBuildMechanics(snapshot: BuildSnapshot): BuildMechanicRep
       verifiedChains.push([skillNodeId]);
     }
   }
-  for (const condition of configuredConditionFindings(snapshot, projection)) addFindingOnce(findings, condition);
+  for (const condition of configuredConditionFindings(snapshot)) addFindingOnce(findings, condition);
 
   findings.sort((left, right) => left.id.localeCompare(right.id));
   const status = findings.some(({ severity }) => severity === "blocker")

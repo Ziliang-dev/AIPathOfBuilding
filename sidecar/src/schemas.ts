@@ -1,7 +1,7 @@
 import { z } from "zod";
 
-export const SCHEMA_VERSION = 3 as const;
-export const PROTOCOL_VERSION = 4 as const;
+export const SCHEMA_VERSION = 4 as const;
+export const PROTOCOL_VERSION = 5 as const;
 
 export const CapabilitySchema = z.enum([
   "nativeLinkProbe",
@@ -310,6 +310,218 @@ export const BuildSnapshotSchema = z.object({
   buildGraph: BuildGraphSchema.optional(),
 });
 export type BuildSnapshot = z.infer<typeof BuildSnapshotSchema>;
+
+export const MechanicContextSchema = z.enum(["weaponSet1", "weaponSet2"]);
+export type MechanicContext = z.infer<typeof MechanicContextSchema>;
+
+export const MechanicRelationSchema = z.enum([
+  "grants",
+  "requires",
+  "triggers",
+  "scales",
+  "consumes",
+  "conflicts",
+]);
+export type MechanicRelation = z.infer<typeof MechanicRelationSchema>;
+
+export const MechanicEffectStateSchema = z.enum([
+  "active",
+  "conditional",
+  "latent",
+  "redundant",
+  "conflicting",
+]);
+export type MechanicEffectState = z.infer<typeof MechanicEffectStateSchema>;
+
+export const MechanicFactProvenanceSchema = z.object({
+  kind: z.enum(["projection", "native_probe", "native_evidence", "catalog", "worker_observation"]),
+  sourceId: z.string().min(1).max(512),
+  fingerprint: z.string().min(1).max(512),
+  evidence: z.array(z.string().min(1).max(1024)).max(64).default([]),
+});
+
+export const MechanicFactSchema = z.object({
+  id: z.string().min(1).max(512),
+  context: MechanicContextSchema,
+  domain: z.enum(["skills", "gear", "tree", "config", "actor", "offence", "resource", "defence", "condition", "inventory"]),
+  kind: z.string().min(1).max(128),
+  name: z.string().min(1).max(2048).optional(),
+  active: z.boolean(),
+  provenance: z.array(MechanicFactProvenanceSchema).min(1).max(32),
+  data: z.record(z.string(), z.unknown()).default({}),
+  fingerprint: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+});
+export type MechanicFact = z.infer<typeof MechanicFactSchema>;
+
+export const MechanicSkillObservationSchema = z.object({
+  id: z.string().min(1).max(512),
+  name: z.string().min(1).max(512),
+  group: z.number().int().positive(),
+  enabled: z.boolean(),
+  includeInFullDps: z.boolean().default(false),
+  fromItem: z.boolean().default(false),
+  supports: z.array(z.object({
+    id: z.string().min(1).max(512),
+    name: z.string().min(1).max(512),
+    fromItem: z.boolean().default(false),
+  })).max(64).default([]),
+});
+
+export const MechanicObservationSchema = z.object({
+  context: MechanicContextSchema,
+  fingerprint: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+  projectionFingerprint: z.string().min(1),
+  nativeProbeFingerprint: z.string().min(1),
+  evidenceFingerprint: z.string().min(1),
+  metrics: MetricSetSchema,
+  skills: z.array(MechanicSkillObservationSchema).max(2048),
+  conditions: z.array(z.object({
+    id: z.string().min(1).max(512),
+    actor: z.string().min(1).max(128),
+    sources: z.array(z.string().min(1).max(512)).max(128).default([]),
+  })).max(4096),
+  activeItemIds: z.array(z.string().min(1).max(512)).max(100_000),
+  activeModifierIds: z.array(z.string().min(1).max(512)).max(100_000),
+  activePassiveIds: z.array(z.string().min(1).max(512)).max(100_000).default([]),
+  configValues: z.record(z.string(), z.unknown()).default({}),
+  resources: z.record(z.string(), z.number().finite()).default({}),
+  cooldowns: z.record(z.string(), z.number().finite()).default({}),
+  durations: z.record(z.string(), z.number().finite()).default({}),
+  contributions: z.record(z.string(), z.number().finite()).default({}),
+});
+export type MechanicObservation = z.infer<typeof MechanicObservationSchema>;
+
+export const MechanicObservationDeltaSchema = z.object({
+  fingerprint: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+  changed: z.boolean(),
+  contributionChanged: z.boolean(),
+  metricChanges: z.record(z.string(), z.object({
+    before: z.number().finite().optional(),
+    after: z.number().finite().optional(),
+    delta: z.number().finite().optional(),
+  })).default({}),
+  addedSkillIds: z.array(z.string()).default([]),
+  removedSkillIds: z.array(z.string()).default([]),
+  addedSupportIds: z.array(z.string()).default([]),
+  removedSupportIds: z.array(z.string()).default([]),
+  addedConditionIds: z.array(z.string()).default([]),
+  removedConditionIds: z.array(z.string()).default([]),
+  addedModifierIds: z.array(z.string()).default([]),
+  removedModifierIds: z.array(z.string()).default([]),
+  addedItemIds: z.array(z.string()).default([]),
+  removedItemIds: z.array(z.string()).default([]),
+  addedPassiveIds: z.array(z.string()).default([]),
+  removedPassiveIds: z.array(z.string()).default([]),
+  contributionChanges: z.record(z.string(), z.object({ before: z.number().optional(), after: z.number().optional() })).default({}),
+  resourceChanges: z.record(z.string(), z.object({ before: z.number().optional(), after: z.number().optional() })).default({}),
+  cooldownChanges: z.record(z.string(), z.object({ before: z.number().optional(), after: z.number().optional() })).default({}),
+  durationChanges: z.record(z.string(), z.object({ before: z.number().optional(), after: z.number().optional() })).default({}),
+});
+export type MechanicObservationDelta = z.infer<typeof MechanicObservationDeltaSchema>;
+
+export const MechanicFactBundleSchema = z.object({
+  schemaVersion: z.literal(SCHEMA_VERSION),
+  snapshotFingerprint: z.string().min(1),
+  projectionFingerprint: z.string().min(1),
+  engineVersion: z.string().min(1),
+  dataVersion: z.string().min(1),
+  ruleset: z.string().min(1),
+  contexts: z.array(MechanicContextSchema).length(2),
+  complete: z.boolean(),
+  missingScopes: z.array(z.string().min(1)).default([]),
+  truncatedScopes: z.array(z.string().min(1)).default([]),
+  entities: z.array(MechanicFactSchema).max(100_000),
+  observations: z.record(MechanicContextSchema, MechanicObservationSchema),
+  inventory: z.object({
+    inactiveItemSetIds: z.array(z.string()).default([]),
+    inactiveTreeSpecIds: z.array(z.string()).default([]),
+    inactiveSkillSetIds: z.array(z.string()).default([]),
+  }),
+  fingerprint: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+});
+export type MechanicFactBundle = z.infer<typeof MechanicFactBundleSchema>;
+
+export const MechanicClaimSchema = z.object({
+  id: z.string().min(1).max(512),
+  sourceId: z.string().min(1).max(512),
+  relation: MechanicRelationSchema,
+  targetId: z.string().min(1).max(512),
+  context: MechanicContextSchema,
+  scenario: ScenarioIdSchema.optional(),
+  statement: z.string().min(1).max(8_000),
+  evidenceIds: z.array(z.string().min(1).max(512)).max(128).default([]),
+  critical: z.boolean(),
+  ambiguous: z.boolean(),
+  effectState: MechanicEffectStateSchema,
+});
+export type MechanicClaim = z.infer<typeof MechanicClaimSchema>;
+
+export const MechanicProofSchema = z.object({
+  id: z.string().min(1).max(512),
+  claimId: z.string().min(1).max(512),
+  type: z.enum(["native_exact", "counterfactual"]),
+  status: z.enum(["proven", "disproved", "indeterminate"]),
+  context: MechanicContextSchema,
+  sourceFingerprint: z.string().min(1).max(512),
+  evidenceIds: z.array(z.string().min(1).max(1024)).max(256),
+  experimentId: z.string().min(1).max(512).optional(),
+  delta: MechanicObservationDeltaSchema.optional(),
+});
+export type MechanicProof = z.infer<typeof MechanicProofSchema>;
+
+export const MechanicCoverageEntrySchema = z.object({
+  context: MechanicContextSchema,
+  domain: MechanicFactSchema.shape.domain,
+  entityCount: z.number().int().nonnegative(),
+  inspectedCount: z.number().int().nonnegative(),
+  claimedCount: z.number().int().nonnegative(),
+  provenCount: z.number().int().nonnegative(),
+  missingEntityIds: z.array(z.string()).default([]),
+});
+
+export const VerifiedBuildMechanicReportSchema = z.object({
+  schemaVersion: z.literal(SCHEMA_VERSION),
+  status: z.enum(["verified", "blocked"]),
+  snapshotFingerprint: z.string().min(1),
+  projectionFingerprint: z.string().min(1),
+  factBundleFingerprint: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+  analysisFingerprint: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+  cacheKey: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+  contexts: z.array(MechanicContextSchema).length(2),
+  claims: z.array(MechanicClaimSchema).max(100_000),
+  proofs: z.array(MechanicProofSchema).max(100_000),
+  graph: z.object({
+    nodes: z.array(MechanicFactSchema).max(100_000),
+    edges: z.array(z.object({
+      id: z.string().min(1).max(512),
+      sourceId: z.string().min(1).max(512),
+      targetId: z.string().min(1).max(512),
+      relation: MechanicRelationSchema,
+      context: MechanicContextSchema,
+      scenario: ScenarioIdSchema.optional(),
+      claimId: z.string().min(1).max(512),
+      proofIds: z.array(z.string().min(1).max(512)).min(1),
+      effectState: MechanicEffectStateSchema,
+    })).max(100_000),
+  }),
+  coverage: z.array(MechanicCoverageEntrySchema),
+  findings: z.array(z.object({
+    id: z.string().min(1).max(512),
+    severity: z.enum(["info", "warning", "blocker"]),
+    code: z.string().min(1).max(256),
+    message: z.string().min(1).max(8_000),
+    claimId: z.string().min(1).max(512).optional(),
+    evidenceIds: z.array(z.string().min(1).max(1024)).max(256).default([]),
+  })).max(100_000),
+  blockers: z.array(z.string().min(1).max(8_000)).max(10_000),
+  summary: z.string().min(1).max(16_000),
+  llmSummary: z.string().min(1).max(32_000),
+  modelCalls: z.number().int().nonnegative(),
+  experimentCount: z.number().int().nonnegative(),
+  repairRounds: z.number().int().nonnegative(),
+  createdAt: z.string().datetime(),
+});
+export type VerifiedBuildMechanicReport = z.infer<typeof VerifiedBuildMechanicReportSchema>;
 
 export const MechanicFindingSchema = z.object({
   id: z.string().min(1),
@@ -620,6 +832,12 @@ export const OptimizationRunSchema = z.object({
   evaluations: z.number().int().nonnegative(),
   modelCalls: z.number().int().nonnegative(),
   refinementRounds: z.number().int().nonnegative(),
+  mechanicAnalysisFingerprint: z.string().regex(/^sha256:[a-f0-9]{64}$/).optional(),
+  awaitingProvider: z.object({
+    phase: z.enum(["PlanSearch", "RefineSearch", "Explain"]),
+    error: z.string().min(1),
+    retryable: z.boolean(),
+  }).optional(),
   startedAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
   stopReason: StopReasonSchema.optional(),

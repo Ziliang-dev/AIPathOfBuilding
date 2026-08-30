@@ -18,6 +18,7 @@ import {
   RunCancelParamsSchema,
   RunAwaitingApprovalNotificationSchema,
   RunAwaitingMechanicReviewNotificationSchema,
+  RunAwaitingProviderNotificationSchema,
   RunMechanicsReadyNotificationSchema,
   RunCompletedNotificationSchema,
   RunFailedNotificationSchema,
@@ -25,6 +26,12 @@ import {
   RunResumeParamsSchema,
   RunStartParamsSchema,
   RunStreamParamsSchema,
+  MechanicsStartParamsSchema,
+  MechanicsStatusParamsSchema,
+  MechanicsCancelParamsSchema,
+  MechanicsProgressNotificationSchema,
+  MechanicsCompletedNotificationSchema,
+  MechanicsFailedNotificationSchema,
   TransactionApplyNotificationSchema,
   TransactionResultParamsSchema,
 } from "../protocol.js";
@@ -34,6 +41,9 @@ export type RpcParams = Record<string, unknown>;
 export type HelloParams = z.infer<typeof HelloParamsSchema>;
 export type BuildCaptureParams = z.infer<typeof BuildCaptureParamsSchema>;
 export type BuildAnalyzeParams = z.infer<typeof BuildAnalyzeParamsSchema>;
+export type MechanicsStartParams = z.infer<typeof MechanicsStartParamsSchema>;
+export type MechanicsStatusParams = z.infer<typeof MechanicsStatusParamsSchema>;
+export type MechanicsCancelParams = z.infer<typeof MechanicsCancelParamsSchema>;
 export type RunStartParams = z.infer<typeof RunStartParamsSchema>;
 export type RunCancelParams = z.infer<typeof RunCancelParamsSchema>;
 export type RunStreamParams = z.infer<typeof RunStreamParamsSchema>;
@@ -55,19 +65,27 @@ export type RunNotificationMethod =
   | "run.progress"
   | "run.mechanicsReady"
   | "run.awaitingMechanicReview"
+  | "run.awaitingProvider"
   | "run.awaitingApproval"
   | "run.completed"
   | "run.failed"
-  | "transaction.apply";
+  | "transaction.apply"
+  | "mechanics.progress"
+  | "mechanics.completed"
+  | "mechanics.failed";
 
 export type RunNotification =
   | { method: "run.progress"; params: z.infer<typeof RunProgressNotificationSchema> }
   | { method: "run.mechanicsReady"; params: z.infer<typeof RunMechanicsReadyNotificationSchema> }
   | { method: "run.awaitingMechanicReview"; params: z.infer<typeof RunAwaitingMechanicReviewNotificationSchema> }
+  | { method: "run.awaitingProvider"; params: z.infer<typeof RunAwaitingProviderNotificationSchema> }
   | { method: "run.awaitingApproval"; params: z.infer<typeof RunAwaitingApprovalNotificationSchema> }
   | { method: "run.completed"; params: z.infer<typeof RunCompletedNotificationSchema> }
   | { method: "run.failed"; params: z.infer<typeof RunFailedNotificationSchema> }
-  | { method: "transaction.apply"; params: z.infer<typeof TransactionApplyNotificationSchema> };
+  | { method: "transaction.apply"; params: z.infer<typeof TransactionApplyNotificationSchema> }
+  | { method: "mechanics.progress"; params: z.infer<typeof MechanicsProgressNotificationSchema> }
+  | { method: "mechanics.completed"; params: z.infer<typeof MechanicsCompletedNotificationSchema> }
+  | { method: "mechanics.failed"; params: z.infer<typeof MechanicsFailedNotificationSchema> };
 
 export interface PlannerControllerContext {
   readonly requestId: string | number;
@@ -86,6 +104,9 @@ export interface PlannerController {
   hello(params: HelloParams, context: PlannerControllerContext): Promise<unknown> | unknown;
   captureBuild(params: BuildCaptureParams, context: PlannerControllerContext): Promise<unknown> | unknown;
   analyzeBuild(params: BuildAnalyzeParams, context: PlannerControllerContext): Promise<unknown> | unknown;
+  startMechanicAnalysis(params: MechanicsStartParams, context: PlannerControllerContext): Promise<unknown> | unknown;
+  mechanicAnalysisStatus(params: MechanicsStatusParams, context: PlannerControllerContext): Promise<unknown> | unknown;
+  cancelMechanicAnalysis(params: MechanicsCancelParams, context: PlannerControllerContext): Promise<unknown> | unknown;
   startRun(params: RunStartParams, context: PlannerControllerContext): Promise<unknown> | unknown;
   streamRun(params: RunStreamParams, context: PlannerControllerContext): Promise<unknown> | unknown;
   cancelRun(params: RunCancelParams, context: PlannerControllerContext): Promise<unknown> | unknown;

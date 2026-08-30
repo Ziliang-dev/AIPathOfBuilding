@@ -17,6 +17,33 @@ PoB calculation remains authoritative.
 5. Game-mechanic explanations may link to PoE Wiki, but a calculation dispute
    is resolved against PoB code and tests for the documented version.
 
+## Mechanic understanding rules
+
+- New understanding and optimization require a configured, consented, live LLM.
+  There is no deterministic fallback.
+- Required active scope is both weapon sets, every enabled and Full DPS skill,
+  supports, active equipment modifiers, allocated passives, Config, actors,
+  conditions, resources, cooldowns, durations, and defence observations.
+- Other saved Item Sets, Tree Specs, and Skill Sets are inventory only.
+- Model Claims may use only `grants`, `requires`, `triggers`, `scales`,
+  `consumes`, and `conflicts`. Local code recalculates criticality.
+- A relation reaching damage, survival, resource, skill-availability, or
+  condition-sustainability roots is critical. Partial/unknown provenance,
+  rotation, trigger, requirement, and consumption relations are also critical.
+- Every semantic Claim requires a proven `native_exact` or `counterfactual`
+  Proof. Critical or ambiguous Claims require the latter.
+- Counterfactual interventions are worker-only diagnostics. They cannot become
+  Build Actions, Candidates, Transactions, or active-Build mutations.
+- A zero-delta critical experiment, missing/truncated fact scope, invalid Proof,
+  contradiction, missing coverage, or exhausted limit blocks the report.
+- A changed native contribution with unchanged final output is retained as
+  proven `redundant`; it does not enter the active critical chain.
+- A blocked report cannot be manually overridden. Start accepts only an exact,
+  audited, verified report for the current cache identity.
+- The same model acts as analyst and critic through separate forced-tool phases.
+  Limits are 16 model calls, three repair rounds, 1024 experiments, and three
+  repeated identical tool calls.
+
 ## Objective rules
 
 - An Objective must contain at least one goal.
@@ -161,7 +188,8 @@ roadmap work.
 - Optional model discovery is bounded and non-authorizing. Manual model entry
   remains available when `/models` is missing or provider-specific.
 - Revocation prevents new provider calls and aborts matching active provider
-  work. Deterministic fallback remains valid.
+  work. New analysis and Start fail closed. A mid-run Provider failure pauses at
+  `awaitingProvider`; only Retry or Cancel is accepted.
 - Planner Chat text is ephemeral. Its output must pass the strict Objective Draft
   schema; unresolved metrics block use; applying a draft resets human
   confirmation. Chat never produces a Build Action.

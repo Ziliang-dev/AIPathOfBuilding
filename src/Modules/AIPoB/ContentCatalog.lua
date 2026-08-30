@@ -1,5 +1,6 @@
 local Util = require("Modules.AIPoB.Util")
 local ActorSeason = require("Modules.AIPoB.ActorSeason")
+local NativeEvidence = require("Modules.AIPoB.NativeEvidence")
 local NativeLinkProbe = require("Modules.AIPoB.NativeLinkProbe")
 
 local ContentCatalog = { SCHEMA_VERSION = 1 }
@@ -31,8 +32,11 @@ local function stringKeys(value)
 end
 
 local function exportSkills(build, limit)
-	local result = { groups = { }, availableGems = { }, availableGemCount = data and data.gems and 0 or nil, truncated = false }
+	local result = { groups = { }, availableGems = { }, availableGemCount = data and data.gems and 0 or nil,
+		currentGroupsTruncated = false, truncated = false }
+	local groupCount = 0
 	for index, group in ipairs(build.skillsTab and build.skillsTab.socketGroupList or { }) do
+		groupCount = groupCount + 1
 		local exported = {
 			index = index, label = group.label, slot = group.slot, enabled = group.enabled,
 			includeInFullDPS = group.includeInFullDPS, gems = { },
@@ -50,6 +54,7 @@ local function exportSkills(build, limit)
 		end
 		boundedInsert(result.groups, exported, limit)
 	end
+	result.currentGroupsTruncated = groupCount > #result.groups
 	if data and data.gems then
 		local count = 0
 		for _, id in ipairs(Util.sortedKeys(data.gems)) do
@@ -128,7 +133,18 @@ local function exportTree(build, limit)
 	}
 	for _, id in ipairs(Util.sortedKeys(spec and spec.allocNodes or { })) do
 		local node = spec.allocNodes[id]
-		boundedInsert(result.allocated, { id = id, name = node.dn or node.name, type = node.type, isTattoo = node.isTattoo == true, runegraft = node.runegraft }, limit)
+		local masteryEffectId = spec.masterySelections and spec.masterySelections[id]
+		local masteryEffect = masteryEffectId and spec.tree and spec.tree.masteryEffects and spec.tree.masteryEffects[masteryEffectId]
+		boundedInsert(result.allocated, {
+			id = id, name = node.dn or node.name, type = node.type,
+			stats = node.sd or node.stats or { },
+			isTattoo = node.isTattoo == true, runegraft = node.runegraft,
+			masteryEffectId = masteryEffectId, masteryStats = masteryEffect and masteryEffect.sd or { },
+			ascendancyName = node.ascendancyName, classStartIndex = node.classStartIndex,
+			isProxy = node.isProxy == true, proxyNodeId = node.proxyNode and node.proxyNode.id,
+			expansionJewel = node.expansionJewel == true, clusterJewelNodeId = node.clusterJewelNodeId,
+			jewelRadius = node.jewelRadius or node.radius,
+		}, limit)
 	end
 	for _, id in ipairs(Util.sortedKeys(spec and spec.masterySelections or { })) do
 		boundedInsert(result.masteries, { nodeId = id, effectId = spec.masterySelections[id] }, limit)
@@ -161,7 +177,8 @@ local function exportTree(build, limit)
 			end
 		end
 	end
-	result.truncated = #connectable > #result.connectable
+	result.allocatedTruncated = #(spec and Util.sortedKeys(spec.allocNodes or { }) or { }) > #result.allocated
+	result.truncated = #connectable > #result.connectable or result.allocatedTruncated
 	return result
 end
 
@@ -183,11 +200,12 @@ local function exportConfig(build, limit)
 	local values = { }
 	local conditionClaims = { }
 	local input = build.configTab and build.configTab.input or { }
+	local valueCount = 0
 	for _, key in ipairs(Util.sortedKeys(input)) do
-		if #values >= limit then break end
 		local value = input[key]
 		if type(value) == "string" or type(value) == "number" or type(value) == "boolean" then
-			table.insert(values, { name = key, value = value })
+			valueCount = valueCount + 1
+			boundedInsert(values, { name = key, value = value }, limit)
 		end
 	end
 	local options = require("Modules.ConfigOptions")
@@ -195,13 +213,6 @@ local function exportConfig(build, limit)
 	for _, option in ipairs(options) do
 		if type(option.var) == "string" then
 			claimCount = claimCount + 1
-			local lowerVar = option.var:lower()
-			local trigger = (option.var:find("Killed", 1, true) or lowerVar:find("onkill", 1, true)) and "onKill"
-				or option.var:find("Crit", 1, true) and "onCrit"
-				or option.var:find("Block", 1, true) and "onBlock"
-				or option.var:find("Hit", 1, true) and "onHit"
-				or option.var:find("Recently", 1, true) and "recently"
-				or lowerVar:find("flask", 1, true) and "flask" or nil
 			local current = input[option.var]
 			local default
 			if build.configTab and type(build.configTab.GetDefaultState) == "function" then
@@ -209,29 +220,25 @@ local function exportConfig(build, limit)
 				if ok then default = value end
 			end
 			local configured = current ~= nil and current ~= default
-			local category = lowerVar:find("flask", 1, true) and "flask"
-				or lowerVar:find("charge", 1, true) and "charge"
-				or (lowerVar:find("ailment", 1, true) or lowerVar:find("shock", 1, true)
-					or lowerVar:find("chill", 1, true) or lowerVar:find("ignite", 1, true)
-					or lowerVar:find("poison", 1, true) or lowerVar:find("bleed", 1, true)) and "ailment"
-				or lowerVar:find("curse", 1, true) and "curse"
-				or lowerVar:find("exposure", 1, true) and "exposure"
-				or lowerVar:find("buff", 1, true) and "buff" or "configuration"
 			boundedInsert(conditionClaims, {
 				condition = option.var, configKey = option.var, label = option.label,
 				current = current, value = option.type == "check" and true or current,
-				optionType = option.type, category = category,
+				optionType = option.type, category = option.category or option.section or "configuration",
 				requiresFlag = option.ifCond, implies = option.implyCond or option.implyCondList,
 				source = configured and "current-config" or nil,
 				sourceStatus = configured and "manual" or "unknown",
-				trigger = trigger, uptime = nil,
+				trigger = nil, uptime = nil,
 			}, limit)
 		end
 	end
+	local nativeEvidence = NativeEvidence.Extract(build, { })
 	return {
 		activeConfigSetId = build.configTab and build.configTab.activeConfigSetId,
 		values = values, conditionClaims = conditionClaims,
-		truncated = #values >= limit or claimCount > #conditionClaims,
+		nativeEvidence = nativeEvidence,
+		valuesTruncated = valueCount > #values,
+		conditionClaimsTruncated = claimCount > #conditionClaims,
+		truncated = valueCount > #values or claimCount > #conditionClaims,
 	}
 end
 

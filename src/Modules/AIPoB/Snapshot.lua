@@ -1,7 +1,7 @@
 local sha = require("sha2")
 
 local Snapshot = {
-	SCHEMA_VERSION = 3,
+	SCHEMA_VERSION = 4,
 }
 
 local gameplayOrder = { "Build", "Config", "Party", "Tree", "Items", "Skills" }

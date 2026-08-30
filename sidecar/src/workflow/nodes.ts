@@ -1,6 +1,7 @@
 import {
   BuildSnapshotSchema,
   BuildMechanicReportSchema,
+  VerifiedBuildMechanicReportSchema,
   CandidateSchema,
   ObjectiveSpecDraftSchema,
   ScenarioSpecSchema,
@@ -119,6 +120,18 @@ export interface WrappedNodeOptions {
   final?: boolean;
 }
 
+export class AwaitingProviderError extends Error {
+  readonly phase: string;
+  readonly retryable: boolean;
+
+  constructor(phase: string, message: string, retryable = true) {
+    super(message);
+    this.name = "AwaitingProviderError";
+    this.phase = phase;
+    this.retryable = retryable;
+  }
+}
+
 export function wrapNode(
   node: WorkflowNodeName,
   handler: WorkflowNodeHandler,
@@ -192,6 +205,7 @@ export function wrapNode(
       if (options.final === true) return finalize(projected, base, nowMs);
       return base;
     } catch (error) {
+      if (error instanceof AwaitingProviderError) throw error;
       const failed: WorkflowStateUpdate = {
         ...base,
         status: "failed",
@@ -230,7 +244,10 @@ function validateNodeUpdate(update: WorkflowNodeUpdate): WorkflowNodeUpdate {
     validated.scenarios = update.scenarios.map((scenario) => ScenarioSpecSchema.parse(scenario));
   }
   if (update.mechanicReport !== undefined) {
-    validated.mechanicReport = BuildMechanicReportSchema.parse(update.mechanicReport);
+    validated.mechanicReport = update.mechanicReport !== null && typeof update.mechanicReport === "object"
+      && "factBundleFingerprint" in update.mechanicReport
+      ? VerifiedBuildMechanicReportSchema.parse(update.mechanicReport)
+      : BuildMechanicReportSchema.parse(update.mechanicReport);
   }
   if (update.frontier !== undefined) {
     validated.frontier = update.frontier.map((candidate) => CandidateSchema.parse(candidate));

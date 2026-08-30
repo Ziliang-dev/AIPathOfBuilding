@@ -25,6 +25,9 @@ implements WorkerPool<PobWorkerEvaluatePayload<BuildAction>, WorkerEvaluation> {
     job: WorkerJob<PobWorkerEvaluatePayload<BuildAction>>,
     signal?: AbortSignal,
   ): Promise<WorkerEvaluation> {
+    if (job.payload.operation === "mechanic_experiment") {
+      return this.delegate.evaluate(job, signal);
+    }
     const probeRaw = await this.delegate.evaluate({
       ...job,
       id: `${job.id}:native-probe`,

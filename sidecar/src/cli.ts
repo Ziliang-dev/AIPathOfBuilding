@@ -6,6 +6,7 @@ import { parseArgs, type SidecarConfig } from "./config.js";
 import { DefaultPlannerController, type WorkerPoolFactory } from "./plannerController.js";
 import { RpcServer } from "./rpc/index.js";
 import { MetricSetSchema, PROTOCOL_VERSION } from "./schemas.js";
+import { MechanicExperimentResultSchema } from "./mechanics/index.js";
 import { WinCredClient } from "./credentials/index.js";
 import {
   ConsentManager,
@@ -26,7 +27,7 @@ import { createSqliteSaver } from "./workflow/index.js";
 const WorkerEvaluationSchema = z.object({
   jobId: z.string().min(1),
   candidateId: z.string().min(1),
-  operation: z.enum(["evaluate", "probe"]).optional(),
+  operation: z.enum(["evaluate", "probe", "mechanic_experiment"]).optional(),
   metricsByScenario: z.record(z.string(), MetricSetSchema).default({}),
   diagnostics: z.array(z.string()).optional(),
   candidateFingerprint: z.string().optional(),
@@ -35,6 +36,7 @@ const WorkerEvaluationSchema = z.object({
   nativeLinkProbe: z.unknown().optional(),
   nativeEvidence: z.unknown().optional(),
   nativeEvidenceByScenario: z.unknown().optional(),
+  mechanicExperimentResult: MechanicExperimentResultSchema.optional(),
 }).passthrough();
 
 interface RunningApplication {

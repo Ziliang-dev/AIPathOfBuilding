@@ -56,12 +56,14 @@ Select Apply and confirm the dialog. The planner verifies the captured build
 fingerprint and candidate metrics, applies the action graph as one transaction,
 and restores the prior build if an action or final verification fails.
 
-### Draft with a model
+### Understand and draft with a model
 
 Configure an OpenAI-compatible endpoint and grant first-send consent for its
-exact model and redacted payload. Planner Chat can draft a structured Objective;
-the user must review and confirm it. Without provider configuration or consent,
-the deterministic search path remains available.
+exact model and redacted payload. **Analyze Build** makes the model discover
+typed mechanic relations from local PoB facts, then proves critical relations
+with isolated PoB counterfactuals. Planner Chat can draft a structured
+Objective; the user must review and confirm it. Without provider configuration,
+consent, or connectivity, new analysis and Start are blocked.
 
 ### Search authenticated Trade
 

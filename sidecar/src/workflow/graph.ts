@@ -10,6 +10,7 @@ import { z } from "zod";
 import {
   BuildSnapshotSchema,
   BuildMechanicReportSchema,
+  VerifiedBuildMechanicReportSchema,
   ObjectiveSpecDraftSchema,
   OptimizationRunSchema,
   SCHEMA_VERSION,
@@ -150,6 +151,9 @@ export function toOptimizationRun(state: WorkflowState): OptimizationRun {
     evaluations: state.evaluations,
     modelCalls: state.modelCalls,
     refinementRounds: state.refinementRounds,
+    ...(state.mechanicReport !== undefined && "analysisFingerprint" in state.mechanicReport
+      ? { mechanicAnalysisFingerprint: state.mechanicReport.analysisFingerprint }
+      : {}),
     startedAt: new Date(state.startedAtMs).toISOString(),
     updatedAt: new Date(state.updatedAtMs).toISOString(),
     ...(state.stopReason === undefined ? {} : { stopReason: state.stopReason }),
@@ -171,7 +175,10 @@ function routeAfterMechanicGate(state: WorkflowState): "Inspect" | "FinalVerify"
 }
 
 function mechanicGateNode(state: WorkflowState): WorkflowStateUpdate {
-  const report = BuildMechanicReportSchema.parse(state.mechanicReport);
+  const report = state.mechanicReport !== null && typeof state.mechanicReport === "object"
+    && "factBundleFingerprint" in state.mechanicReport
+    ? VerifiedBuildMechanicReportSchema.parse(state.mechanicReport)
+    : BuildMechanicReportSchema.parse(state.mechanicReport);
   if (report.status !== "blocked") {
     return { phase: "MechanicGate", status: "running", trace: "MechanicGate" };
   }

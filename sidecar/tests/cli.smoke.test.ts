@@ -120,7 +120,7 @@ describe("packaged CLI", () => {
     await expect(stat(readyFile)).rejects.toThrow();
   }, 15_000);
 
-  it("runs capture/search/preview/reject and exits on owner disconnect", async () => {
+  it("captures then blocks Start without an LLM Provider and exits on owner disconnect", async () => {
     const directory = await mkdtemp(join(tmpdir(), "aipob-sidecar-smoke-"));
     temporaryDirectories.add(directory);
     const readyFile = join(directory, "ready.json");
@@ -145,7 +145,7 @@ describe("packaged CLI", () => {
     expect(hello).toMatchObject({ protocolVersion: PROTOCOL_VERSION });
 
     const snapshot = {
-      schemaVersion: 3,
+      schemaVersion: 4,
       mechanicProjection: emptyModifierProjection(),
       mechanicProjectionFingerprint: EMPTY_PROJECTION_FINGERPRINT,
       xml: "<PathOfBuilding><Build level=\"90\"/><Config/><Skills/><Items/><Tree/><Party/></PathOfBuilding>",
@@ -185,7 +185,7 @@ describe("packaged CLI", () => {
     const started = await client.request("run.start", {
       snapshotFingerprint: snapshot.fingerprint,
       objective: {
-        schemaVersion: 3,
+        schemaVersion: 4,
         primaryScenario: "mapping",
         scenarioWeights: { mapping: 0.55, standardBoss: 0.15, pinnacle: 0.15, uber: 0.15 },
         locks: { class: true, ascendancy: true, mainSkill: true, fields: [] },
@@ -198,26 +198,13 @@ describe("packaged CLI", () => {
         candidateSources: { currentBuild: true, uniques: false, targetRares: false, trade: false },
       },
     }) as { runId: string };
-    const awaiting = await client.notification("run.awaitingApproval", 15_000) as {
+    const failed = await client.notification("run.failed", 15_000) as {
       runId: string;
-      candidates: Array<{ id: string }>;
+      error: string;
     };
-    expect(awaiting.runId).toBe(started.runId);
-    expect(awaiting.candidates).toHaveLength(3);
-
-    const preview = await client.request("candidate.preview", {
-      runId: started.runId,
-      candidateId: awaiting.candidates[0]!.id,
-    }) as {
-      baseFingerprint: string;
-      scenarioMetrics: { mapping: { combinedDps: number } };
-      peakScenarioMetrics: { mapping: { combinedDps: number } };
-    };
-    expect(preview.baseFingerprint).toBe(snapshot.fingerprint);
-    expect(preview.peakScenarioMetrics.mapping.combinedDps)
-      .toBeGreaterThan(preview.scenarioMetrics.mapping.combinedDps);
-    const rejected = await client.request("run.resume", { runId: started.runId, decision: "reject" });
-    expect(rejected).toMatchObject({ status: "completed" });
+    expect(failed.runId).toBe(started.runId);
+    expect(failed.error).toMatch(/Provider configuration is unavailable/);
+    await expect(client.request("run.resume", { runId: started.runId, mode: "checkpoint" })).rejects.toThrow(/terminal/);
 
     client.close();
     await waitForExit(child, 10_000, errors);

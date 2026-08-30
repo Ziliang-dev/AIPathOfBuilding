@@ -13,6 +13,7 @@ import {
   type HighLevelToolName,
 } from "../llm/toolSchemas.js";
 import type { ParsedToolCall } from "../llm/types.js";
+import type { AgentToolDispatcher, AgentToolExecutionResult } from "./loop.js";
 
 export interface ReadonlyToolContext {
   readonly snapshot: BuildSnapshot;
@@ -32,12 +33,7 @@ export type ReadonlyToolHandlers = {
   readonly [TName in HighLevelToolName]?: ReadonlyToolHandler<TName>;
 };
 
-export interface ToolExecutionResult {
-  readonly toolCallId: string;
-  readonly name: HighLevelToolName;
-  readonly ok: boolean;
-  readonly output: unknown;
-}
+export type ToolExecutionResult = AgentToolExecutionResult<HighLevelToolName>;
 
 function safeError(error: unknown): string {
   if (error instanceof Error) {
@@ -46,7 +42,7 @@ function safeError(error: unknown): string {
   return "Tool execution failed";
 }
 
-export class ReadonlyToolDispatcher {
+export class ReadonlyToolDispatcher implements AgentToolDispatcher<HighLevelToolName, ReadonlyToolContext> {
   readonly #handlers: ReadonlyToolHandlers;
 
   constructor(handlers: ReadonlyToolHandlers) {

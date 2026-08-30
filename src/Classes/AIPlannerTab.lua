@@ -12,7 +12,7 @@ local s_format = string.format
 local t_concat = table.concat
 local t_insert = table.insert
 
-local SCHEMA_VERSION = 3
+local SCHEMA_VERSION = 4
 
 local scenarioList = {
 	{ id = "mapping", label = "Mapping" },
@@ -60,6 +60,8 @@ local terminalStatus = {
 	error = true,
 	cancelled = true,
 	canceled = true,
+	verified = true,
+	blocked = true,
 	awaitingApproval = true,
 	awaiting_approval = true,
 	preview = true,
@@ -69,6 +71,7 @@ local unresolvedRunStatus = {
 	awaitingApproval = true,
 	awaiting_approval = true,
 	awaitingMechanicReview = true,
+	awaitingProvider = true,
 	preview = true,
 }
 
@@ -157,6 +160,41 @@ local function formatPreview(preview)
 	return #entries > 0 and t_concat(entries, "\n") or safeText(preview.message)
 end
 
+local function formatMechanicReport(report)
+	if type(report) ~= "table" then return nil end
+	local claims = type(report.claims) == "table" and report.claims or { }
+	local proofs = type(report.proofs) == "table" and report.proofs or { }
+	local edges = type(report.graph) == "table" and type(report.graph.edges) == "table" and report.graph.edges or { }
+	local counterfactual, exact, nonActive = 0, 0, 0
+	for _, proof in ipairs(proofs) do
+		if proof.type == "counterfactual" then counterfactual = counterfactual + 1
+		elseif proof.type == "native_exact" then exact = exact + 1 end
+	end
+	for _, claim in ipairs(claims) do
+		if claim.effectState == "latent" or claim.effectState == "redundant" then nonActive = nonActive + 1 end
+	end
+	local lines = {
+		"Mechanics " .. safeText(report.status) .. ": " .. tostring(#claims) .. " claims; "
+			.. tostring(counterfactual) .. " counterfactual / " .. tostring(exact) .. " native proofs; "
+			.. tostring(nonActive) .. " latent or redundant.",
+	}
+	for _, context in ipairs({ "weaponSet1", "weaponSet2" }) do
+		local shown, chain = 0, { }
+		for _, edge in ipairs(edges) do
+			if edge.context == context and shown < 2 then
+				t_insert(chain, safeText(edge.sourceId).." "..safeText(edge.relation).." "..safeText(edge.targetId))
+				shown = shown + 1
+			end
+		end
+		t_insert(lines, context .. ": " .. (#chain > 0 and t_concat(chain, "; ") or "no verified semantic edge"))
+	end
+	for index, blocker in ipairs(report.blockers or { }) do
+		if index > 2 then break end
+		t_insert(lines, "BLOCKER: " .. safeText(blocker))
+	end
+	return t_concat(lines, "\n")
+end
+
 local function wrapText(text, width, maxLines)
 	local wrapped = main:WrapString(safeText(text), 14, m_max(width, 30))
 	if maxLines and #wrapped > maxLines then
@@ -241,16 +279,19 @@ function AIPlannerTabClass:AIPlannerTab(build)
 	end)
 	self.controls.start.enabled = function()
 		local status = self.state and self.state.status or "idle"
+		local provider = self.state and self.state.providerStatus
 		return self.controller ~= nil and self:HasActiveMainSkill() and self.controls.confirmed.state
+			and type(provider) == "table" and provider.consent == "granted"
 			and not self:IsBusy() and not unresolvedRunStatus[status]
 	end
 	self.controls.analyze = new("ButtonControl"):ButtonControl({"TOPLEFT",self,"TOPLEFT"}, {390, 274, 110, 22}, "Analyze Build", function()
 		self:ControllerCall("AnalyzeBuild")
 	end)
 	self.controls.analyze.enabled = function()
-		return self.controller ~= nil and not self:IsBusy()
+		local provider = self.state and self.state.providerStatus
+		return self.controller ~= nil and type(provider) == "table" and provider.consent == "granted" and not self:IsBusy()
 	end
-	self.controls.analyze.tooltipText = "Capture all PoB item modifier sections and inspect Build mechanics without mutation."
+	self.controls.analyze.tooltipText = "Run the LLM analyst and PoB proof loop for both weapon sets without mutating the active Build."
 	self.controls.start.tooltipText = function()
 		if not self:HasActiveMainSkill() then return "Import a build or add an active main skill before search." end
 		if not self.controls.confirmed.state then return "Confirm the structured objective before search." end
@@ -262,9 +303,17 @@ function AIPlannerTabClass:AIPlannerTab(build)
 	end)
 	self.controls.cancel.enabled = function()
 		local status = self.state and self.state.status
-		return self.controller ~= nil and self.state ~= nil and self.state.runId ~= nil
-			and (status == "running" or unresolvedRunStatus[status] == true)
+		return self.controller ~= nil and self.state ~= nil
+			and ((self.state.runId ~= nil and (status == "running" or unresolvedRunStatus[status] == true))
+				or (status == "analyzingMechanics" and self.state.mechanicAnalysisId ~= nil))
 	end
+	self.controls.retryProvider = new("ButtonControl"):ButtonControl({"LEFT",self.controls.cancel,"RIGHT"}, {10, 0, 90, 22}, "Retry LLM", function()
+		self:ControllerCall("RetryProvider")
+	end)
+	self.controls.retryProvider.enabled = function()
+		return self.controller ~= nil and self.state.status == "awaitingProvider"
+	end
+	self.controls.retryProvider.tooltipText = "Resume PlanSearch, RefineSearch, or Explain from the saved checkpoint."
 	self.controls.llmSetup = new("ButtonControl"):ButtonControl({"TOPLEFT",self,"TOPLEFT"}, {0, 10, 92, 20}, "LLM Setup", function() self:OpenProviderPopup() end)
 	self.controls.llmSetup.tooltipText = "Configure and test an OpenAI-compatible provider. Opening this starts the sidecar."
 	self.controls.llmConsent = new("ButtonControl"):ButtonControl({"LEFT",self.controls.llmSetup,"RIGHT"}, {8, 0, 92, 20}, "Consent", function() self:ConfirmProviderConsent() end)
@@ -1050,9 +1099,9 @@ function AIPlannerTabClass:Draw(viewPort, inputEvents)
 	end
 
 	local previewTop = self:GetCardsTop() + self:GetCardHeight() + 12
-	DrawString(self.x + 12, self.y + previewTop, "LEFT", 17, "VAR", "^7Preview Diff")
-	local previewText = "Select Preview on a candidate to calculate a verified, non-mutating diff."
-	previewText = formatPreview(self.state.preview) or previewText
+	DrawString(self.x + 12, self.y + previewTop, "LEFT", 17, "VAR", "^7Mechanic Proof / Preview Diff")
+	local previewText = "Analyze Build to create an LLM-reviewed, PoB-verified mechanic report."
+	previewText = formatPreview(self.state.preview) or formatMechanicReport(self.state.mechanicReport) or previewText
 	DrawString(self.x + 12, self.y + previewTop + 24, "LEFT", 14, "VAR", wrapText(previewText, self.width - 24, 6))
 
 	self:DrawControls(viewPort)

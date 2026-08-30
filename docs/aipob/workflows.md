@@ -22,18 +22,30 @@ the UI.
 Select **Confirm this objective before search**. The Start button remains
 disabled until confirmation. Any objective edit clears confirmation.
 
-### 3. Search
+### 3. Understand
+
+Select **Analyze Build**. The sidecar extracts complete facts for weapon sets 1
+and 2. The configured model pages and inspects active entities, submits typed
+Claims, and later critiques coverage. Local rules compile critical Claims into
+isolated PoB counterfactual experiments. The UI reports phase, entity coverage,
+model calls, experiments, Claims, Proofs, redundant sources, and blockers.
+
+An exact verified cached report may be reused. A blocked report cannot be
+overridden. Missing Provider configuration, current consent, or connectivity
+blocks new analysis.
+
+### 4. Search
 
 Select **Start**. PoB launches the sidecar on demand, performs the protocol
 handshake, captures the active Build, exports its current content catalog, and
 starts a run against the captured fingerprint.
 
-The controller always has a deterministic schedule. When an OpenAI-compatible
-provider is configured and consented, the model is injected into planning,
-refinement, explanation, and Planner Chat. Typed, Budget-scoped Trade queries
-may also run at the search barrier through PoB's authenticated broker.
+Start requires an exact audited `VerifiedBuildMechanicReport` and a live
+OpenAI-compatible Provider. It reuses or creates the report, then injects the
+model into planning, refinement, and explanation. Typed, Budget-scoped Trade
+queries may also run at the search barrier through PoB's authenticated broker.
 
-### 4. Compare
+### 5. Compare
 
 The run evaluates candidates against four Sustainable Scenarios and may also
 calculate four Peak profiles. The sidecar maintains a Pareto frontier and
@@ -43,14 +55,14 @@ The candidate card shows summary, primary-Scenario metrics, cost, and action
 count. Peak metrics remain secondary and do not satisfy Sustainable hard
 constraints.
 
-### 5. Preview
+### 6. Preview
 
 Select **Preview**. The sidecar loads the persisted verified Candidate and
 returns its typed action, cost, metric, Scenario, Peak, and evidence diff.
 Preview never invokes a worker or the Transaction module. Fresh worker
 re-evaluation occurs before Apply.
 
-### 6. Apply or leave unchanged
+### 7. Apply or leave unchanged
 
 Select **Apply** and confirm the dialog. The sidecar freshly verifies the
 candidate and hard constraints, then sends a `transaction.apply` notification.
@@ -87,9 +99,13 @@ Only the four Sustainable Scenarios are required for apply verification.
 
 ### Inspect, diagnose, and plan
 
-The handlers record snapshot, ruleset, catalog, graph, and missing-goal
-information. These artifacts guide deterministic and model-assisted planning.
-The model can only use typed read-only tools; it has no mutation or commit tool.
+Before the optimization graph, the Mechanic Understanding subgraph extracts
+complete facts, asks the model for typed Claims, validates coverage, runs local
+PoB proofs, asks the model for an independent critique, and repairs up to three
+times. The model sees only paged local facts and Proofs. It cannot generate an
+experiment mutation, Build Action, Candidate, Transaction, or raw Lua.
+
+The resulting verified report guides PlanSearch, RefineSearch, and Explain.
 Every provider request is redacted and blocked until consent matches the current
 endpoint, model, categories, policy, and payload.
 
@@ -148,7 +164,10 @@ fingerprint. The result reports whether rollback succeeded.
 ## Cancellation and recovery
 
 - A cancel request aborts pending startup, active workers, and the run.
+- Mechanic analysis has its own cancellable analysis ID and progress stream.
 - Cancelled, completed, and failed runs are terminal.
+- Provider failure during PlanSearch, RefineSearch, or Explain checkpoints the
+  run at `awaitingProvider`; the UI exposes only Retry LLM or Cancel.
 - A nonterminal persisted run can reconnect through `run.stream` and
   `run.resume`.
 - Restart recovery requires the persistent LangGraph checkpoint database.
@@ -169,10 +188,12 @@ The Deep preset currently defines these upper bounds:
 | Model calls | 16 |
 | No-improvement convergence rounds | 3 |
 | Duplicate tool-call limit | 3 |
+| Mechanic repair rounds | 3 |
+| Critical mechanic experiments | 1,024 |
 
-The deterministic fallback normally completes one bounded search pass. A
-consented provider can use the connected bounded refinement path. Richer
-multi-round refinement policy remains roadmap work.
+Mechanic analysis has no total wall-time SLA; individual Provider requests keep
+their timeout and the user may cancel. Reaching any limit without convergence
+creates a blocked report. Optimization never switches to deterministic fallback.
 
 See [Architecture](architecture.md) for module ownership and
 [Domain rules](domain-rules.md) for candidate invariants.

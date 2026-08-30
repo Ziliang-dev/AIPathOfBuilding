@@ -6,9 +6,7 @@ import {
 } from "../provider/compatibility.js";
 import { redactString, stringifyForModel } from "./redaction.js";
 import {
-  HIGH_LEVEL_TOOL_DEFINITIONS,
-  isHighLevelToolName,
-  parseToolArguments,
+  HIGH_LEVEL_TOOL_REGISTRY,
   ToolCallValidationError,
   type HighLevelToolName,
 } from "./toolSchemas.js";
@@ -17,6 +15,7 @@ import {
   ProviderConfigSchema,
   type DeterministicFallbackSignal,
   type ModelAdapter,
+  type ModelToolRegistry,
   type ModelTurnInput,
   type ModelTurnResult,
   type ParsedToolCall,
@@ -78,8 +77,10 @@ export interface ProviderCompletionTransport {
 /** Retained name for existing test and extension callers. */
 export type ChatCompletionTransport = ProviderCompletionTransport;
 
-export interface OpenAICompatibleAdapterOptions {
+export interface OpenAICompatibleAdapterOptions<TName extends string = HighLevelToolName> {
   readonly transport?: ProviderCompletionTransport;
+  readonly toolRegistry?: ModelToolRegistry<TName>;
+  readonly systemPolicy?: string;
 }
 
 const READ_ONLY_POLICY = [
@@ -91,11 +92,11 @@ const READ_ONLY_POLICY = [
   "Respond in the language used by the user's objective or chat unless explicitly requested otherwise.",
 ].join(" ");
 
-function fallback(
+function fallback<TName extends string = HighLevelToolName>(
   reason: DeterministicFallbackSignal["reason"],
   retryable: boolean,
   detail: string,
-): ModelTurnResult<HighLevelToolName> {
+): ModelTurnResult<TName> {
   return {
     kind: "fallback",
     signal: {
@@ -158,8 +159,8 @@ export function createOpenAICompatibleTransport(config: ProviderConfig): Provide
   };
 }
 
-function chatToolDefinitions(strict: boolean): readonly Record<string, unknown>[] {
-  return HIGH_LEVEL_TOOL_DEFINITIONS.map((tool) => ({
+function chatToolDefinitions<TName extends string>(registry: ModelToolRegistry<TName>, strict: boolean): readonly Record<string, unknown>[] {
+  return registry.definitions.map((tool) => ({
     type: "function",
     function: strict ? tool.function : {
       name: tool.function.name,
@@ -169,8 +170,8 @@ function chatToolDefinitions(strict: boolean): readonly Record<string, unknown>[
   }));
 }
 
-function responsesToolDefinitions(strict: boolean): readonly Record<string, unknown>[] {
-  return HIGH_LEVEL_TOOL_DEFINITIONS.map((tool) => ({
+function responsesToolDefinitions<TName extends string>(registry: ModelToolRegistry<TName>, strict: boolean): readonly Record<string, unknown>[] {
+  return registry.definitions.map((tool) => ({
     type: "function",
     name: tool.function.name,
     description: tool.function.description,
@@ -179,11 +180,22 @@ function responsesToolDefinitions(strict: boolean): readonly Record<string, unkn
   }));
 }
 
-function toolDefinitions(config: ProviderConfig): readonly Record<string, unknown>[] {
+function toolDefinitions<TName extends string>(config: ProviderConfig, registry: ModelToolRegistry<TName>): readonly Record<string, unknown>[] {
   const strict = config.providerKind === "openai";
   return config.apiMode === "responses"
-    ? responsesToolDefinitions(strict)
-    : chatToolDefinitions(strict);
+    ? responsesToolDefinitions(registry, strict)
+    : chatToolDefinitions(registry, strict);
+}
+
+function toolChoice<TName extends string>(
+  config: ProviderConfig,
+  registry: ModelToolRegistry<TName>,
+): unknown {
+  const choice = registry.toolChoice ?? "auto";
+  if (choice === "auto" || choice === "required") return choice;
+  return config.apiMode === "responses"
+    ? { type: "function", name: choice }
+    : { type: "function", function: { name: choice } };
 }
 
 function reasoningFields(config: ProviderConfig): Record<string, unknown> {
@@ -282,11 +294,14 @@ function providerErrorReason(error: unknown): {
   return { reason: "provider_unavailable", retryable: true, detail: "Unknown provider error" };
 }
 
-function parseToolCalls(calls: readonly z.infer<typeof ProviderToolCallSchema>[]): ParsedToolCall<HighLevelToolName>[] {
+function parseToolCalls<TName extends string>(
+  calls: readonly z.infer<typeof ProviderToolCallSchema>[],
+  registry: ModelToolRegistry<TName>,
+): ParsedToolCall<TName>[] {
   const ids = new Set<string>();
-  const toolCalls: ParsedToolCall<HighLevelToolName>[] = [];
+  const toolCalls: ParsedToolCall<TName>[] = [];
   for (const call of calls) {
-    if (!isHighLevelToolName(call.function.name)) {
+    if (!registry.isName(call.function.name)) {
       throw new ToolCallValidationError(`Forbidden or unknown tool: ${call.function.name}`);
     }
     if (ids.has(call.id)) throw new ToolCallValidationError(`Duplicate tool call id: ${call.id}`);
@@ -294,23 +309,27 @@ function parseToolCalls(calls: readonly z.infer<typeof ProviderToolCallSchema>[]
     toolCalls.push({
       id: call.id,
       name: call.function.name,
-      arguments: parseToolArguments(call.function.name, call.function.arguments),
+      arguments: registry.parseArguments(call.function.name, call.function.arguments),
       rawArguments: call.function.arguments,
     });
   }
   return toolCalls;
 }
 
-export class OpenAICompatibleAdapter implements ModelAdapter<HighLevelToolName> {
+export class OpenAICompatibleAdapter<TName extends string = HighLevelToolName> implements ModelAdapter<TName> {
   readonly #config: ProviderConfig;
   readonly #transport: ProviderCompletionTransport;
+  readonly #registry: ModelToolRegistry<TName>;
+  readonly #systemPolicy: string;
   readonly #reasoningByToolCall = new Map<string, string>();
   readonly #responsesContinuationByToolCall = new Map<string, readonly unknown[]>();
   #callsUsed = 0;
 
-  constructor(config: z.input<typeof ProviderConfigSchema>, options: OpenAICompatibleAdapterOptions = {}) {
+  constructor(config: z.input<typeof ProviderConfigSchema>, options: OpenAICompatibleAdapterOptions<TName> = {}) {
     this.#config = ProviderConfigSchema.parse(config);
     this.#transport = options.transport ?? createOpenAICompatibleTransport(this.#config);
+    this.#registry = options.toolRegistry ?? HIGH_LEVEL_TOOL_REGISTRY as unknown as ModelToolRegistry<TName>;
+    this.#systemPolicy = options.systemPolicy ?? READ_ONLY_POLICY;
   }
 
   get callsUsed(): number {
@@ -321,7 +340,7 @@ export class OpenAICompatibleAdapter implements ModelAdapter<HighLevelToolName> 
     return Math.max(0, this.#config.maxCalls - this.#callsUsed);
   }
 
-  async complete(input: ModelTurnInput, signal?: AbortSignal): Promise<ModelTurnResult<HighLevelToolName>> {
+  async complete(input: ModelTurnInput, signal?: AbortSignal): Promise<ModelTurnResult<TName>> {
     if (this.callsRemaining === 0) {
       return fallback("model_call_limit", false, "Configured model call limit reached");
     }
@@ -335,7 +354,7 @@ export class OpenAICompatibleAdapter implements ModelAdapter<HighLevelToolName> 
     const timeoutSignal = AbortSignal.timeout(this.#config.timeoutMs);
     const requestSignal = signal === undefined ? timeoutSignal : AbortSignal.any([signal, timeoutSignal]);
     const messages: ModelTurnInput["messages"] = [
-      { role: "system", content: READ_ONLY_POLICY },
+      { role: "system", content: this.#systemPolicy },
       ...parsedInput.data.messages,
       ...(parsedInput.data.context === undefined ? [] : [{
         role: "system" as const,
@@ -346,8 +365,8 @@ export class OpenAICompatibleAdapter implements ModelAdapter<HighLevelToolName> 
       ? {
           model: this.#config.model,
           input: messages.flatMap((message) => toResponsesInput(message, this.#responsesContinuationByToolCall)),
-          tools: toolDefinitions(this.#config),
-          tool_choice: "auto",
+          tools: toolDefinitions(this.#config, this.#registry),
+          tool_choice: toolChoice(this.#config, this.#registry),
           parallel_tool_calls: false,
           max_output_tokens: this.#config.maxOutputTokens,
           store: false,
@@ -356,8 +375,8 @@ export class OpenAICompatibleAdapter implements ModelAdapter<HighLevelToolName> 
       : {
           model: this.#config.model,
           messages: messages.map((message) => toChatMessage(message, this.#reasoningByToolCall)),
-          tools: toolDefinitions(this.#config),
-          tool_choice: "auto",
+          tools: toolDefinitions(this.#config, this.#registry),
+          tool_choice: toolChoice(this.#config, this.#registry),
           parallel_tool_calls: false,
           ...(this.#config.providerKind === "openai"
             ? { max_completion_tokens: this.#config.maxOutputTokens }
@@ -381,7 +400,7 @@ export class OpenAICompatibleAdapter implements ModelAdapter<HighLevelToolName> 
       : this.#parseChatResult(response);
   }
 
-  #parseChatResult(response: unknown): ModelTurnResult<HighLevelToolName> {
+  #parseChatResult(response: unknown): ModelTurnResult<TName> {
     const parsed = ChatCompletionResponseSchema.safeParse(response);
     if (!parsed.success) {
       return fallback("invalid_provider_response", false, `Malformed provider response: ${z.prettifyError(parsed.error)}`);
@@ -389,7 +408,7 @@ export class OpenAICompatibleAdapter implements ModelAdapter<HighLevelToolName> 
     const choice = parsed.data.choices[0];
     if (choice === undefined) return fallback("invalid_provider_response", false, "Provider response has no first choice");
     try {
-      const toolCalls = parseToolCalls(choice.message.tool_calls ?? []);
+      const toolCalls = parseToolCalls(choice.message.tool_calls ?? [], this.#registry);
       if (choice.message.reasoning_content !== undefined && choice.message.reasoning_content !== null) {
         for (const call of toolCalls) this.#reasoningByToolCall.set(call.id, choice.message.reasoning_content);
       }
@@ -407,7 +426,7 @@ export class OpenAICompatibleAdapter implements ModelAdapter<HighLevelToolName> 
     }
   }
 
-  #parseResponsesResult(response: unknown): ModelTurnResult<HighLevelToolName> {
+  #parseResponsesResult(response: unknown): ModelTurnResult<TName> {
     const parsed = ResponsesApiResponseSchema.safeParse(response);
     if (!parsed.success) {
       return fallback("invalid_provider_response", false, `Malformed provider response: ${z.prettifyError(parsed.error)}`);
@@ -436,7 +455,7 @@ export class OpenAICompatibleAdapter implements ModelAdapter<HighLevelToolName> 
       }
     }
     try {
-      const toolCalls = parseToolCalls(calls);
+      const toolCalls = parseToolCalls(calls, this.#registry);
       const usage = parsed.data.usage;
       return {
         kind: "message",

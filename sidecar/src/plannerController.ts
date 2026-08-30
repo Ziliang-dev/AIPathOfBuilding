@@ -5,6 +5,7 @@ import type {
   BuildAction,
   BuildSnapshot,
   BuildMechanicReport,
+  VerifiedBuildMechanicReport,
   Candidate,
   CandidateLabel,
   ConditionEvidence,
@@ -30,6 +31,7 @@ import {
   BuildActionSchema,
   ConditionEvidenceSchema,
   MechanicDiffSchema,
+  VerifiedBuildMechanicReportSchema,
   PROTOCOL_VERSION,
   SCHEMA_VERSION,
   normalizeObjectiveSpec,
@@ -43,6 +45,15 @@ import { JsonRpcError, JsonRpcErrorCode } from "./rpc/json-rpc.js";
 import { ReadonlyToolDispatcher, runReadonlyAgentLoop } from "./agent/index.js";
 import type { HighLevelToolName } from "./llm/toolSchemas.js";
 import type { ModelAdapter } from "./llm/types.js";
+import {
+  MECHANIC_TOOL_REGISTRY,
+  MechanicProviderError,
+  MechanicUnderstandingEngine,
+  PoolMechanicExperimentRunner,
+  type MechanicProgress,
+  type MechanicToolName,
+  type PobWorkerMechanicPayload,
+} from "./mechanics/index.js";
 import {
   ConsentGrantParamsSchema,
   ConsentPreviewParamsSchema,
@@ -63,10 +74,14 @@ import {
   RunStartParamsSchema,
   RunStreamParamsSchema,
   TransactionResultParamsSchema,
+  MechanicsStartParamsSchema,
+  MechanicsStatusParamsSchema,
+  MechanicsCancelParamsSchema,
 } from "./protocol.js";
 import {
   EphemeralPlannerChatService,
   type ConsentDataCategory,
+  DEFAULT_CONSENT_DATA_CATEGORIES,
   ProviderModelAdapterFactory,
   ProviderProfileService,
 } from "./provider/index.js";
@@ -97,9 +112,11 @@ import {
   workflowConfig,
   type WorkflowNodeContext,
   type WorkflowState,
+  AwaitingProviderError,
 } from "./workflow/index.js";
 
 type EvaluationPool = WorkerPool<PobWorkerEvaluatePayload<BuildAction>, WorkerEvaluation>;
+type MechanicPool = WorkerPool<PobWorkerMechanicPayload, WorkerEvaluation>;
 type WorkflowGraph = ReturnType<typeof createWorkflowGraph>;
 
 export type WorkerPoolFactory = (
@@ -116,8 +133,21 @@ interface ActiveRun {
   readonly providerController: AbortController;
   readonly providerId: string;
   readonly tradeAccess: TradeAccess;
+  readonly mechanicReport: VerifiedBuildMechanicReport;
   notify: PlannerControllerContext["notify"];
   cancelled: boolean;
+}
+
+interface ActiveMechanicAnalysis {
+  readonly id: string;
+  readonly snapshotFingerprint: string;
+  readonly controller: AbortController;
+  notify: PlannerControllerContext["notify"];
+  status: "running" | "completed" | "failed" | "cancelled";
+  progress?: MechanicProgress;
+  report?: VerifiedBuildMechanicReport;
+  error?: string;
+  retryable?: boolean;
 }
 
 interface TradeAccess {
@@ -130,7 +160,12 @@ interface PlannerControllerOptions {
   readonly checkpointer: BaseCheckpointSaver;
   readonly workerPoolFactory?: WorkerPoolFactory;
   readonly providerService?: ProviderProfileService;
-  readonly modelAdapterFactory?: ProviderModelAdapterFactory;
+  readonly modelAdapterFactory?: Pick<ProviderModelAdapterFactory, "create">;
+  readonly mechanicEngineFactory?: (
+    pool: MechanicPool,
+    runId: string,
+    onProgress?: (progress: MechanicProgress) => void,
+  ) => Promise<Pick<MechanicUnderstandingEngine, "understand">> | Pick<MechanicUnderstandingEngine, "understand">;
   readonly providerId?: string;
 }
 
@@ -144,7 +179,8 @@ export class DefaultPlannerController implements PlannerController {
   readonly #checkpointer: BaseCheckpointSaver;
   readonly #workerPoolFactory: WorkerPoolFactory;
   readonly #providerService: ProviderProfileService | undefined;
-  readonly #modelAdapterFactory: ProviderModelAdapterFactory | undefined;
+  readonly #modelAdapterFactory: Pick<ProviderModelAdapterFactory, "create"> | undefined;
+  readonly #mechanicEngineFactory: PlannerControllerOptions["mechanicEngineFactory"];
   readonly #providerId: string;
   readonly #pendingConsent = new Map<string, {
     consentKey: string;
@@ -161,6 +197,7 @@ export class DefaultPlannerController implements PlannerController {
     payloadHash: string;
   }>();
   readonly #active = new Map<string, ActiveRun>();
+  readonly #mechanicAnalyses = new Map<string, ActiveMechanicAnalysis>();
   readonly #pending = new Map<string, AbortController>();
   readonly #cancelled = new Set<string>();
   readonly #activations = new Map<string, Promise<ActiveRun>>();
@@ -177,6 +214,7 @@ export class DefaultPlannerController implements PlannerController {
     });
     this.#providerService = options.providerService;
     this.#modelAdapterFactory = options.modelAdapterFactory;
+    this.#mechanicEngineFactory = options.mechanicEngineFactory;
     this.#providerId = options.providerId ?? "openai";
   }
 
@@ -192,7 +230,7 @@ export class DefaultPlannerController implements PlannerController {
       capabilities: {
         workflowGraph: true,
         domainGraph: true,
-        deterministicFallback: true,
+        deterministicFallback: false,
         humanGatedTransactions: true,
         nativeLinkProbe: true,
         nativeEvidence: true,
@@ -431,6 +469,144 @@ export class DefaultPlannerController implements PlannerController {
     return analyzeBuildMechanics(snapshot);
   }
 
+  startMechanicAnalysis(params: RpcParams, context: PlannerControllerContext): unknown {
+    if (this.#closed) throw new JsonRpcError(JsonRpcErrorCode.InternalError, "Planner controller is closed");
+    const parsed = MechanicsStartParamsSchema.parse(params);
+    const snapshot = this.#store.getSnapshot(parsed.snapshotFingerprint);
+    if (snapshot === undefined) throw notFound(`Build snapshot not found: ${parsed.snapshotFingerprint}`);
+    if (this.#modelAdapterFactory === undefined || this.#providerService === undefined) throw providerUnavailable();
+    const analysisId = randomUUID();
+    const active: ActiveMechanicAnalysis = {
+      id: analysisId,
+      snapshotFingerprint: snapshot.fingerprint,
+      controller: new AbortController(),
+      notify: context.notify,
+      status: "running",
+    };
+    this.#mechanicAnalyses.set(analysisId, active);
+    this.#trackTask(this.#runMechanicAnalysis(active, snapshot, parsed.force));
+    return { analysisId, snapshotFingerprint: snapshot.fingerprint, status: "running" };
+  }
+
+  mechanicAnalysisStatus(params: RpcParams, context: PlannerControllerContext): unknown {
+    const { analysisId } = MechanicsStatusParamsSchema.parse(params);
+    const active = this.#mechanicAnalyses.get(analysisId);
+    if (active === undefined) throw notFound(`Mechanic analysis not found: ${analysisId}`);
+    active.notify = context.notify;
+    return {
+      analysisId,
+      snapshotFingerprint: active.snapshotFingerprint,
+      status: active.status,
+      ...(active.progress === undefined ? {} : { progress: active.progress }),
+      ...(active.report === undefined ? {} : { report: active.report }),
+      ...(active.error === undefined ? {} : { error: active.error, retryable: active.retryable ?? false }),
+    };
+  }
+
+  cancelMechanicAnalysis(params: RpcParams): unknown {
+    const { analysisId } = MechanicsCancelParamsSchema.parse(params);
+    const active = this.#mechanicAnalyses.get(analysisId);
+    if (active === undefined) throw notFound(`Mechanic analysis not found: ${analysisId}`);
+    if (active.status === "completed" || active.status === "failed" || active.status === "cancelled") {
+      return { analysisId, status: active.status };
+    }
+    active.status = "cancelled";
+    active.controller.abort(new Error("Mechanic analysis cancelled by user"));
+    return { analysisId, status: "cancelled" };
+  }
+
+  async #runMechanicAnalysis(
+    active: ActiveMechanicAnalysis,
+    snapshot: BuildSnapshot,
+    force: boolean,
+  ): Promise<void> {
+    let pool: EvaluationPool | undefined;
+    try {
+      pool = await this.#workerPoolFactory(snapshot, active.controller.signal);
+      this.#pools.add(pool);
+      const engine = await this.#createMechanicEngine(
+        pool as unknown as MechanicPool,
+        `mechanics:${active.id}`,
+        (next) => {
+          active.progress = next;
+          active.notify({
+            method: "mechanics.progress",
+            params: {
+              analysisId: active.id,
+              snapshotFingerprint: snapshot.fingerprint,
+              ...next,
+            },
+          });
+        },
+      );
+      const report = await engine.understand(snapshot, {
+        contexts: ["weaponSet1", "weaponSet2"],
+        force,
+      }, active.controller.signal);
+      if (active.status === "cancelled") return;
+      active.status = "completed";
+      active.report = report;
+      active.notify({
+        method: "mechanics.completed",
+        params: { analysisId: active.id, snapshotFingerprint: snapshot.fingerprint, report },
+      });
+    } catch (error) {
+      if (active.status === "cancelled" || active.controller.signal.aborted) return;
+      active.status = "failed";
+      const message = error instanceof Error ? error.message : String(error);
+      active.error = message;
+      active.retryable = error instanceof MechanicProviderError && error.retryable;
+      active.notify({
+        method: "mechanics.failed",
+        params: {
+          analysisId: active.id,
+          snapshotFingerprint: snapshot.fingerprint,
+          error: message,
+          retryable: active.retryable,
+        },
+      });
+    } finally {
+      if (pool !== undefined) {
+        this.#pools.delete(pool);
+        await pool.close();
+      }
+    }
+  }
+
+  async #createMechanicEngine(
+    pool: MechanicPool,
+    runId: string,
+    onProgress?: (progress: MechanicProgress) => void,
+  ): Promise<MechanicUnderstandingEngine> {
+    if (this.#mechanicEngineFactory !== undefined) {
+      return await this.#mechanicEngineFactory(pool, runId, onProgress) as MechanicUnderstandingEngine;
+    }
+    if (this.#modelAdapterFactory === undefined || this.#providerService === undefined) throw providerUnavailable();
+    const status = await this.#providerService.status(this.#providerId);
+    if (!status.configured || !status.credentialConfigured || status.profile === undefined) throw providerUnavailable();
+    if (status.consent !== "granted") {
+      throw new JsonRpcError(JsonRpcErrorCode.Conflict, "Provider consent is required for mechanic facts and experiment results");
+    }
+    const adapter = await this.#modelAdapterFactory.create<MechanicToolName>(this.#providerId, {
+      toolRegistry: MECHANIC_TOOL_REGISTRY,
+      dataCategories: DEFAULT_CONSENT_DATA_CATEGORIES,
+    });
+    return new MechanicUnderstandingEngine({
+      provider: adapter,
+      providerDescriptor: {
+        providerId: status.profile.providerId,
+        endpoint: status.profile.baseURL,
+        model: status.profile.model,
+        apiMode: status.profile.resolvedApiMode,
+        reasoningMode: status.profile.reasoningMode,
+      },
+      worker: new PoolMechanicExperimentRunner(pool, runId),
+      store: this.#store,
+      checkpointer: this.#checkpointer,
+      ...(onProgress === undefined ? {} : { onProgress }),
+    });
+  }
+
   startRun(params: RpcParams, context: PlannerControllerContext): unknown {
     if (this.#closed) throw new JsonRpcError(JsonRpcErrorCode.InternalError, "Planner controller is closed");
     this.#store.prune();
@@ -476,12 +652,15 @@ export class DefaultPlannerController implements PlannerController {
       evaluations: 0,
       modelCalls: 0,
       refinementRounds: 0,
+      ...(parsed.mechanicAnalysisFingerprint === undefined
+        ? {}
+        : { mechanicAnalysisFingerprint: parsed.mechanicAnalysisFingerprint }),
       startedAt: now,
       updatedAt: now,
     });
     this.#pending.set(runId, new AbortController());
     this.#operations.add(runId);
-    const task = this.#start(runId, snapshot, objective, context);
+    const task = this.#start(runId, snapshot, objective, context, parsed.mechanicAnalysisFingerprint);
     this.#trackTask(task);
     return {
       runId,
@@ -507,6 +686,8 @@ export class DefaultPlannerController implements PlannerController {
       candidates: run.selected,
       stopReason: run.stopReason,
       error: run.error,
+      awaitingProvider: run.awaitingProvider,
+      mechanicAnalysisFingerprint: run.mechanicAnalysisFingerprint,
     };
   }
 
@@ -552,12 +733,32 @@ export class DefaultPlannerController implements PlannerController {
     if (persisted.status === "completed" || persisted.status === "failed" || persisted.status === "cancelled") {
       throw new JsonRpcError(JsonRpcErrorCode.InvalidParams, `Run is terminal and cannot be resumed: ${persisted.status}`);
     }
+    if (persisted.awaitingProvider !== undefined) {
+      if (!("decision" in resume) || !["retryProvider", "cancelProvider"].includes(resume.decision)) {
+        throw new JsonRpcError(JsonRpcErrorCode.Conflict, "Run is awaiting Provider; only retryProvider or cancelProvider is allowed");
+      }
+      if (resume.decision === "cancelProvider") {
+        const cancelled: OptimizationRun = {
+          ...persisted,
+          status: "cancelled",
+          stopReason: "cancelled",
+          error: resume.reason ?? "Cancelled while awaiting Provider",
+          awaitingProvider: undefined,
+          updatedAt: new Date().toISOString(),
+        };
+        this.#store.saveRun(cancelled);
+        await this.#releaseActive(resume.runId);
+        return { runId: resume.runId, status: "cancelled" };
+      }
+    } else if ("decision" in resume && ["retryProvider", "cancelProvider"].includes(resume.decision)) {
+      throw new JsonRpcError(JsonRpcErrorCode.Conflict, "Run is not awaiting Provider");
+    }
     return this.#withRunOperation(resume.runId, async () => {
     const active = await this.#ensureActive(resume.runId, context.notify, context.signal, tradeAccessFrom(context));
     const operationSignal = AbortSignal.any([active.controller.signal, context.signal]);
     operationSignal.throwIfAborted();
     active.notify = context.notify;
-    if ("mode" in resume) {
+    if ("mode" in resume || ("decision" in resume && resume.decision === "retryProvider")) {
       let output: WorkflowState;
       try {
         output = await active.graph.invoke(
@@ -565,17 +766,22 @@ export class DefaultPlannerController implements PlannerController {
           workflowConfig(resume.runId, undefined, undefined, operationSignal),
         ) as WorkflowState;
       } catch (error) {
+        if (error instanceof AwaitingProviderError) {
+          await this.#awaitProvider(resume.runId, error, context.notify);
+          return { runId: resume.runId, status: "awaitingProvider", phase: error.phase, retryable: error.retryable };
+        }
         if (!operationSignal.aborted) await this.#failRun(resume.runId, error);
         throw error;
       }
       operationSignal.throwIfAborted();
       const run = toOptimizationRun(output);
-      if (output.mechanicReport?.status === "blocked") {
+      const verifiedMechanics = asVerifiedMechanicReport(output.mechanicReport);
+      if (verifiedMechanics?.status === "blocked") {
         const paused: OptimizationRun = { ...run, status: "paused", updatedAt: new Date().toISOString() };
         this.#store.saveRun(paused);
-        context.notify({ method: "run.mechanicsReady", params: { runId: run.id, report: output.mechanicReport } });
-        context.notify({ method: "run.awaitingMechanicReview", params: { runId: run.id, report: output.mechanicReport } });
-        return { runId: run.id, status: "paused", candidates: run.selected, mechanicReport: output.mechanicReport };
+        context.notify({ method: "run.mechanicsReady", params: { runId: run.id, report: verifiedMechanics } });
+        context.notify({ method: "run.awaitingMechanicReview", params: { runId: run.id, report: verifiedMechanics } });
+        return { runId: run.id, status: "paused", candidates: run.selected, mechanicReport: verifiedMechanics };
       }
       this.#store.saveRun(run);
       return { runId: run.id, status: run.status, candidates: run.selected };
@@ -612,6 +818,9 @@ export class DefaultPlannerController implements PlannerController {
       context.notify({ method: "run.completed", params: { runId: run.id, candidates: run.selected } });
       await this.#releaseActive(run.id);
       return { runId: run.id, status: run.status };
+    }
+    if (resume.decision !== "apply") {
+      throw new JsonRpcError(JsonRpcErrorCode.InvalidParams, `Unsupported resume decision: ${resume.decision}`);
     }
     const candidate = run.selected.find(({ id }) => id === resume.candidateId)
       ?? run.frontier.find(({ id }) => id === resume.candidateId);
@@ -731,6 +940,11 @@ export class DefaultPlannerController implements PlannerController {
       active.controller.abort(new Error("Planner controller closed"));
       active.pool.cancel(runId);
     }
+    for (const analysis of this.#mechanicAnalyses.values()) {
+      if (analysis.status !== "running") continue;
+      analysis.status = "cancelled";
+      analysis.controller.abort(new Error("Planner controller closed"));
+    }
     await Promise.allSettled([...this.#tasks]);
     this.#pending.clear();
     this.#cancelled.clear();
@@ -738,6 +952,7 @@ export class DefaultPlannerController implements PlannerController {
     await Promise.all([...this.#pools].map((pool) => pool.close()));
     this.#pools.clear();
     this.#active.clear();
+    this.#mechanicAnalyses.clear();
   }
 
   async #start(
@@ -745,6 +960,7 @@ export class DefaultPlannerController implements PlannerController {
     snapshot: BuildSnapshot,
     objective: ObjectiveSpec,
     context: PlannerControllerContext,
+    expectedMechanicFingerprint?: string,
   ): Promise<void> {
     const notify = context.notify;
     let startedActive: ActiveRun | undefined;
@@ -760,7 +976,15 @@ export class DefaultPlannerController implements PlannerController {
           message: "Starting isolated PoB workers",
         },
       });
-      const active = await this.#activate(runId, snapshot, objective, notify, undefined, tradeAccessFrom(context));
+      const active = await this.#activate(
+        runId,
+        snapshot,
+        objective,
+        notify,
+        undefined,
+        tradeAccessFrom(context),
+        expectedMechanicFingerprint,
+      );
       startedActive = active;
       this.#pending.delete(runId);
       if (active.controller.signal.aborted) {
@@ -778,12 +1002,13 @@ export class DefaultPlannerController implements PlannerController {
         return;
       }
       const run = toOptimizationRun(state);
-      if (state.mechanicReport !== undefined) {
-        notify({ method: "run.mechanicsReady", params: { runId, report: state.mechanicReport } });
-        if (state.mechanicReport.status === "blocked") {
+      const verifiedMechanics = asVerifiedMechanicReport(state.mechanicReport);
+      if (verifiedMechanics !== undefined) {
+        notify({ method: "run.mechanicsReady", params: { runId, report: verifiedMechanics } });
+        if (verifiedMechanics.status === "blocked") {
           const paused: OptimizationRun = { ...run, status: "paused", updatedAt: new Date().toISOString() };
           this.#store.saveRun(paused);
-          notify({ method: "run.awaitingMechanicReview", params: { runId, report: state.mechanicReport } });
+          notify({ method: "run.awaitingMechanicReview", params: { runId, report: verifiedMechanics } });
           return;
         }
       }
@@ -817,6 +1042,11 @@ export class DefaultPlannerController implements PlannerController {
         this.#cancelled.delete(runId);
         return;
       }
+      if (error instanceof AwaitingProviderError) {
+        await this.#awaitProvider(runId, error, notify);
+        this.#pending.delete(runId);
+        return;
+      }
       const message = error instanceof Error ? error.message : String(error);
       const persisted = this.#store.getRun(runId);
       if (persisted !== undefined) {
@@ -843,6 +1073,7 @@ export class DefaultPlannerController implements PlannerController {
     notify: PlannerControllerContext["notify"],
     requestSignal?: AbortSignal,
     tradeAccess?: TradeAccess,
+    expectedMechanicFingerprint?: string,
   ): Promise<ActiveRun> {
     const tradeBridge: TradeAccess = {
       requestTradeCatalog: tradeAccess?.requestTradeCatalog,
@@ -873,17 +1104,56 @@ export class DefaultPlannerController implements PlannerController {
       throw error;
     }
     const providerController = new AbortController();
-    let modelAdapter: ModelAdapter<HighLevelToolName> | undefined;
-    if (this.#modelAdapterFactory !== undefined) {
-      try {
-        modelAdapter = await this.#modelAdapterFactory.create(this.#providerId);
-      } catch {
-        modelAdapter = undefined;
+    let mechanicReport: VerifiedBuildMechanicReport;
+    let modelAdapter: ModelAdapter<HighLevelToolName>;
+    try {
+      const mechanicEngine = await this.#createMechanicEngine(
+        pool as unknown as MechanicPool,
+        `run:${runId}:mechanics`,
+        (progress) => notify({
+          method: "run.progress",
+          params: {
+            runId,
+            phase: `Mechanics:${progress.phase}`,
+            progress: Math.min(0.2, progress.progress * 0.2),
+            evaluations: 0,
+            frontierSize: 0,
+            message: `${progress.message}; entities=${progress.inspectedCount}/${progress.entityCount}; modelCalls=${progress.modelCalls}; experiments=${progress.experimentCount}`,
+          },
+        }),
+      );
+      mechanicReport = await mechanicEngine.understand(
+        snapshot,
+        { contexts: ["weaponSet1", "weaponSet2"] },
+        startupSignal,
+      );
+      if (mechanicReport.status !== "verified") {
+        throw new JsonRpcError(
+          JsonRpcErrorCode.Conflict,
+          "Verified mechanic report is blocked; optimization cannot start",
+          mechanicReport.blockers,
+        );
       }
+      if (expectedMechanicFingerprint !== undefined
+        && mechanicReport.analysisFingerprint !== expectedMechanicFingerprint) {
+        throw new JsonRpcError(
+          JsonRpcErrorCode.Conflict,
+          "Requested mechanic report fingerprint is stale or does not match the active Build",
+        );
+      }
+      notify({ method: "run.mechanicsReady", params: { runId, report: mechanicReport } });
+      if (this.#modelAdapterFactory === undefined) throw providerUnavailable();
+      modelAdapter = await this.#modelAdapterFactory.create<HighLevelToolName>(this.#providerId);
+    } catch (error) {
+      await pool.close();
+      if (this.#pending.get(runId) === controller) this.#pending.delete(runId);
+      throw error;
     }
     const graph = createWorkflowGraph({
       checkpointer: this.#checkpointer,
       nodes: {
+        analyzeMechanics: () => ({ mechanicReport }),
+        inspectMechanics: () => ({ mechanicReport }),
         inspect: (state) => ({
           artifacts: {
             inspection: {
@@ -963,6 +1233,7 @@ export class DefaultPlannerController implements PlannerController {
       providerController,
       providerId: this.#providerId,
       tradeAccess: tradeBridge,
+      mechanicReport,
       notify,
       cancelled: false,
     };
@@ -994,6 +1265,7 @@ export class DefaultPlannerController implements PlannerController {
     notify: PlannerControllerContext["notify"],
     requestSignal?: AbortSignal,
     tradeAccess?: TradeAccess,
+    expectedMechanicFingerprint?: string,
   ): Promise<ActiveRun> {
     const active = this.#active.get(runId);
     if (active !== undefined) {
@@ -1007,7 +1279,15 @@ export class DefaultPlannerController implements PlannerController {
       requestSignal?.throwIfAborted();
       return shared;
     }
-    const activation = this.#createActive(runId, snapshot, objective, notify, requestSignal, tradeAccess);
+    const activation = this.#createActive(
+      runId,
+      snapshot,
+      objective,
+      notify,
+      requestSignal,
+      tradeAccess,
+      expectedMechanicFingerprint,
+    );
     this.#activations.set(runId, activation);
     try {
       return await activation;
@@ -1048,6 +1328,34 @@ export class DefaultPlannerController implements PlannerController {
     await this.#releaseActive(runId);
   }
 
+  async #awaitProvider(
+    runId: string,
+    error: AwaitingProviderError,
+    notify: PlannerControllerContext["notify"],
+  ): Promise<void> {
+    const persisted = this.#store.getRun(runId);
+    if (persisted !== undefined) {
+      this.#store.saveRun({
+        ...persisted,
+        status: "paused",
+        awaitingProvider: { phase: error.phase as "PlanSearch" | "RefineSearch" | "Explain", error: error.message, retryable: error.retryable },
+        error: undefined,
+        updatedAt: new Date().toISOString(),
+      });
+    }
+    notify({
+      method: "run.awaitingProvider",
+      params: {
+        runId,
+        phase: error.phase as "PlanSearch" | "RefineSearch" | "Explain",
+        error: error.message,
+        retryable: error.retryable,
+      },
+    });
+    // Retry must rebuild the adapter so a repaired Provider profile/credential is used.
+    await this.#releaseActive(runId);
+  }
+
   async #ensureActive(
     runId: string,
     notify: PlannerControllerContext["notify"],
@@ -1067,7 +1375,15 @@ export class DefaultPlannerController implements PlannerController {
     }
     const snapshot = this.#store.getSnapshot(run.buildFingerprint);
     if (snapshot === undefined) throw notFound(`Build snapshot not found for run: ${runId}`);
-    return this.#activate(runId, snapshot, run.objective, notify, requestSignal, tradeAccess);
+    return this.#activate(
+      runId,
+      snapshot,
+      run.objective,
+      notify,
+      requestSignal,
+      tradeAccess,
+      run.mechanicAnalysisFingerprint,
+    );
   }
 
   async #verifyCandidateForApply(
@@ -1149,16 +1465,11 @@ export class DefaultPlannerController implements PlannerController {
   async #modelGuidance(
     state: Readonly<WorkflowState>,
     phase: "PlanSearch" | "RefineSearch" | "Explain",
-    adapter: ModelAdapter<HighLevelToolName> | undefined,
+    adapter: ModelAdapter<HighLevelToolName>,
     signal: AbortSignal,
   ) {
-    if (adapter === undefined || state.objective === undefined) {
-      return {
-        artifacts: { model: { phase, configured: false, mode: "deterministic_fallback" } },
-        usage: { evaluations: 0, modelCalls: 0 },
-        providerFallback: true,
-      };
-    }
+    if (state.objective === undefined) throw new Error("Confirmed objective is unavailable");
+    const mechanics = VerifiedBuildMechanicReportSchema.parse(state.mechanicReport);
     const dispatcher = new ReadonlyToolDispatcher({
       inspect_build: (_args, context) => ({
         fingerprint: context.snapshot.fingerprint,
@@ -1166,16 +1477,15 @@ export class DefaultPlannerController implements PlannerController {
         metrics: context.snapshot.metrics,
         catalogEntries: context.snapshot.contentCatalog?.length ?? 0,
         graph: context.snapshot.buildGraph,
-        mechanics: analyzeBuildMechanics(context.snapshot),
+        mechanics,
       }),
-      trace_mechanic: (args, context) => {
-        const report = analyzeBuildMechanics(context.snapshot);
-        const nodes = report.graph.nodes.filter(({ id }) => id === args.nodeId);
-        const edges = report.graph.edges.filter(({ from, to }) => from === args.nodeId || to === args.nodeId);
+      trace_mechanic: (args) => {
+        const nodes = mechanics.graph.nodes.filter(({ id }) => id === args.nodeId);
+        const edges = mechanics.graph.edges.filter(({ sourceId, targetId }) => sourceId === args.nodeId || targetId === args.nodeId);
         return { nodes, edges };
       },
-      list_findings: (args, context) => {
-        const findings = analyzeBuildMechanics(context.snapshot).findings;
+      list_findings: (args) => {
+        const findings = mechanics.findings;
         return args.severity === undefined ? findings : findings.filter(({ severity }) => severity === args.severity);
       },
       describe_modifier: (args, context) => {
@@ -1235,20 +1545,22 @@ export class DefaultPlannerController implements PlannerController {
         limits: { recursionLimit: 8, modelCallLimit: 4, wallTimeMs: 60_000 },
         signal,
       });
+      if (result.fallback !== undefined) {
+        throw new AwaitingProviderError(phase, result.fallback.detail, result.fallback.retryable);
+      }
       return {
         artifacts: {
           model: {
             phase,
             configured: true,
-            mode: result.fallback === undefined ? "provider" : "deterministic_fallback",
+            mode: "provider",
             content: result.content,
             stopReason: result.stopReason,
             toolCalls: result.toolCalls,
-            fallback: result.fallback,
           },
         },
         usage: { evaluations: 0, modelCalls: result.modelCalls },
-        providerFallback: result.fallback !== undefined,
+        providerFallback: false,
         toolCallFingerprint: canonicalHash({
           phase,
           toolResults: result.toolResults.map(({ name, ok }) => ({ name, ok })),
@@ -1256,18 +1568,12 @@ export class DefaultPlannerController implements PlannerController {
         }),
       };
     } catch (error) {
-      return {
-        artifacts: {
-          model: {
-            phase,
-            configured: true,
-            mode: "deterministic_fallback",
-            error: error instanceof Error ? error.message : "Provider failed",
-          },
-        },
-        usage: { evaluations: 0, modelCalls: 0 },
-        providerFallback: true,
-      };
+      if (error instanceof AwaitingProviderError) throw error;
+      throw new AwaitingProviderError(
+        phase,
+        error instanceof Error ? error.message : "Provider failed",
+        true,
+      );
     }
   }
 
@@ -1290,7 +1596,7 @@ export class DefaultPlannerController implements PlannerController {
         selected: [...state.selected],
         usage: { evaluations: 0, modelCalls: 0 },
         searchStopReason: "evaluation_limit" as const,
-        providerFallback: true,
+        providerFallback: false,
         toolCallFingerprint: canonicalHash({ runId, stopReason: "evaluation_limit" }),
       };
     }
@@ -1409,7 +1715,7 @@ export class DefaultPlannerController implements PlannerController {
       },
       artifacts: {
         search: { stopReason: result.stopReason, rounds: result.rounds },
-        provider: { configured: false, mode: "deterministic_fallback" },
+        provider: { configured: true, mode: "llm_guided_controller_search" },
         domainGraph: {
           nodes: domain.graph.toJSON().nodes.length,
           edges: domain.graph.toJSON().edges.length,
@@ -1423,7 +1729,7 @@ export class DefaultPlannerController implements PlannerController {
         },
       },
       searchStopReason: result.stopReason,
-      providerFallback: true,
+      providerFallback: false,
       toolCallFingerprint: canonicalHash({ runId, frontier: publicFrontier.map(({ id }) => id) }),
     };
   }
@@ -1928,4 +2234,10 @@ function providerUnavailable(): JsonRpcError {
     JsonRpcErrorCode.InternalError,
     "Provider configuration is unavailable; install the Windows Credential Manager helper",
   );
+}
+
+function asVerifiedMechanicReport(value: unknown): VerifiedBuildMechanicReport | undefined {
+  if (value === null || typeof value !== "object" || Array.isArray(value)
+    || !("factBundleFingerprint" in value)) return undefined;
+  return value as VerifiedBuildMechanicReport;
 }

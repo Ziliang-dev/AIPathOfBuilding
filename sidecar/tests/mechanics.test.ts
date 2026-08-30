@@ -6,7 +6,7 @@ const projectionFingerprint = `sha256:${"a".repeat(64)}`;
 
 function snapshot(legality: "valid" | "invalid" = "valid") {
   return BuildSnapshotSchema.parse({
-    schemaVersion: 3,
+    schemaVersion: 4,
     xml: "<PathOfBuilding/>",
     fingerprint: "vestigial-build",
     engineVersion: "test",
@@ -78,5 +78,33 @@ describe("Build mechanic analysis", () => {
     expect(report.findings).toContainEqual(expect.objectContaining({
       code: "vestigial_donor_mismatch", severity: "blocker", critical: true,
     }));
+  });
+
+  it("does not infer condition sources from English label substrings", () => {
+    const raw = structuredClone(snapshot()) as unknown as Record<string, unknown>;
+    const catalog = raw.contentCatalog as Array<Record<string, unknown>>;
+    catalog.push({
+      id: "pob:config",
+      domain: "config",
+      kind: "config",
+      data: {
+        conditionClaims: [{
+          condition: "conditionEnemyInStance",
+          configKey: "conditionEnemyInStance",
+          label: "Enemy Stance and Resistance",
+          current: true,
+          sourceStatus: "manual",
+        }],
+        nativeEvidence: { claims: [] },
+      },
+    });
+    const report = analyzeBuildMechanics(BuildSnapshotSchema.parse(raw));
+    expect(report.status).toBe("warning");
+    expect(report.findings).toContainEqual(expect.objectContaining({
+      code: "manual_condition_unproven",
+      severity: "warning",
+      critical: false,
+    }));
+    expect(report.findings).not.toContainEqual(expect.objectContaining({ severity: "blocker" }));
   });
 });

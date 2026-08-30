@@ -21,6 +21,9 @@ function createController(overrides: Partial<PlannerController> = {}): PlannerCo
     hello: async () => ({ ok: true }),
     captureBuild: async () => ({ captured: true }),
     analyzeBuild: async () => ({ status: "complete" }),
+    startMechanicAnalysis: async () => ({ analysisId: "mechanics-1", status: "running" }),
+    mechanicAnalysisStatus: async () => ({ analysisId: "mechanics-1", status: "running" }),
+    cancelMechanicAnalysis: async () => ({ analysisId: "mechanics-1", status: "cancelled" }),
     startRun: async () => ({ runId: "run-1" }),
     streamRun: async () => ({ status: "running" }),
     cancelRun: async () => ({ cancelled: true }),
@@ -241,7 +244,7 @@ describe("RpcServer", () => {
         request(7, "run.start", {
           snapshotFingerprint: "fingerprint",
           objective: {
-            schemaVersion: 3,
+            schemaVersion: 4,
             goals: [{ metric: "TotalDPS", direction: "maximize" }],
           },
         }),
@@ -276,7 +279,7 @@ describe("RpcServer", () => {
       [
         request(10, "build.capture", {
           snapshot: {
-            schemaVersion: 3,
+            schemaVersion: 4,
             mechanicProjection: emptyModifierProjection(),
             mechanicProjectionFingerprint: EMPTY_PROJECTION_FINGERPRINT,
             xml: "<PathOfBuilding/>",
@@ -425,7 +428,7 @@ describe("RPC Lua adapter normalization", () => {
     const input = {
       snapshotFingerprint: "fingerprint",
       objective: {
-        schemaVersion: 3,
+        schemaVersion: 4,
         primaryScenario: "guardian",
         scenarioWeights: { mapping: 0.55, boss: 0.15, guardian: 0.15, uberPinnacle: 0.15 },
         goals: {},

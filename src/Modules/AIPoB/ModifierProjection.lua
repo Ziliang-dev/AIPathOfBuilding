@@ -125,7 +125,11 @@ end
 local function activeSlot(tab, slotName, itemId)
 	local slot = tab.slots and tab.slots[slotName]
 	if not slot or tonumber(slot.selItemId) ~= tonumber(itemId) then return false end
-	if slot.inactive or slot.active == false then return false end
+	-- Only flasks/tinctures expose an activation control. Ordinary equipment
+	-- historically loads a missing XML `active` attribute as false, but that
+	-- field has no gameplay meaning for those slots and must not deactivate the
+	-- item in the modifier projection.
+	if slot.inactive or (slot.controls and slot.controls.activate and slot.active == false) then return false end
 	if slot.weaponSet then
 		local current = tab.activeItemSet and tab.activeItemSet.useSecondWeaponSet and 2 or 1
 		if slot.weaponSet ~= current then return false end

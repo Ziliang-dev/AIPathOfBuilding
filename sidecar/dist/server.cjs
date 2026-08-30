@@ -15573,13 +15573,13 @@ function escapeIfNeeded(value, pathSet = /* @__PURE__ */ new WeakSet()) {
     if (pathSet.has(value)) return createNotImplemented(value);
     if (isSerializableLike(value)) return value;
     pathSet.add(value);
-    const record4 = value;
-    if (needsEscaping(record4)) {
+    const record5 = value;
+    if (needsEscaping(record5)) {
       pathSet.delete(value);
-      return escapeObject(record4);
+      return escapeObject(record5);
     }
     const result = {};
-    for (const [key, val] of Object.entries(record4)) result[key] = escapeIfNeeded(val, pathSet);
+    for (const [key, val] of Object.entries(record5)) result[key] = escapeIfNeeded(val, pathSet);
     pathSet.delete(value);
     return result;
   }
@@ -15588,10 +15588,10 @@ function escapeIfNeeded(value, pathSet = /* @__PURE__ */ new WeakSet()) {
 }
 function unescapeValue(obj) {
   if (obj !== null && typeof obj === "object" && !Array.isArray(obj)) {
-    const record4 = obj;
-    if (isEscapedObject(record4)) return record4[LC_ESCAPED_KEY];
+    const record5 = obj;
+    if (isEscapedObject(record5)) return record5[LC_ESCAPED_KEY];
     const result = {};
-    for (const [key, value] of Object.entries(record4)) result[key] = unescapeValue(value);
+    for (const [key, value] of Object.entries(record5)) result[key] = unescapeValue(value);
     return result;
   }
   if (Array.isArray(obj)) return obj.map((item) => unescapeValue(item));
@@ -21563,15 +21563,15 @@ var require_eventemitter3 = __commonJS({
       this._eventsCount = 0;
     }
     EventEmitter.prototype.eventNames = function eventNames() {
-      var names = [], events, name;
-      if (this._eventsCount === 0) return names;
+      var names2 = [], events, name;
+      if (this._eventsCount === 0) return names2;
       for (name in events = this._events) {
-        if (has2.call(events, name)) names.push(prefix ? name.slice(1) : name);
+        if (has2.call(events, name)) names2.push(prefix ? name.slice(1) : name);
       }
       if (Object.getOwnPropertySymbols) {
-        return names.concat(Object.getOwnPropertySymbols(events));
+        return names2.concat(Object.getOwnPropertySymbols(events));
       }
-      return names;
+      return names2;
     };
     EventEmitter.prototype.listeners = function listeners(event) {
       var evt = prefix ? prefix + event : event, handlers = this._events[evt];
@@ -26219,17 +26219,17 @@ Context: ${errorContext}` : ""}`);
     return encodeString(res);
   }
 }
-function setReplace(replace2, val, k, parent) {
+function setReplace(replace3, val, k, parent) {
   var propertyDescriptor = Object.getOwnPropertyDescriptor(parent, k);
   if (propertyDescriptor.get !== void 0) {
     if (propertyDescriptor.configurable) {
-      Object.defineProperty(parent, k, { value: replace2 });
+      Object.defineProperty(parent, k, { value: replace3 });
       arr.push([parent, k, val, propertyDescriptor]);
     } else {
-      replacerStack.push([val, k, replace2]);
+      replacerStack.push([val, k, replace3]);
     }
   } else {
-    parent[k] = replace2;
+    parent[k] = replace3;
     arr.push([parent, k, val]);
   }
 }
@@ -27458,19 +27458,19 @@ var init_client2 = __esm({
        * authenticate (see `hasExplicitAuthHeader`), so those must survive.
        */
       get _sdkControlledHeaders() {
-        const names = /* @__PURE__ */ new Set();
+        const names2 = /* @__PURE__ */ new Set();
         if (this.apiKey !== void 0) {
-          names.add("x-api-key");
+          names2.add("x-api-key");
         } else {
           const profileAuthHeader = this.profileAuth?.currentAuthHeader();
           if (profileAuthHeader) {
-            names.add(profileAuthHeader.name.toLowerCase());
+            names2.add(profileAuthHeader.name.toLowerCase());
           }
         }
         if (this.workspaceId) {
-          names.add("x-tenant-id");
+          names2.add("x-tenant-id");
         }
-        return names;
+        return names2;
       }
       /**
        * Headers supplied by the caller, through either `config.headers` or
@@ -28766,7 +28766,7 @@ Context: ${context2}`);
        * @internal
        */
       async *_listRuns(props) {
-        const { projectId, projectName, parentRunId, traceId, referenceExampleId, startTime, executionOrder, isRoot, runType, error: error51, id, query, filter, traceFilter, treeFilter, limit: limit2, select, order } = props;
+        const { projectId, projectName, parentRunId, traceId, referenceExampleId, startTime, executionOrder, isRoot: isRoot2, runType, error: error51, id, query, filter, traceFilter, treeFilter, limit: limit2, select, order } = props;
         let projectIds = [];
         if (projectId) {
           projectIds = Array.isArray(projectId) ? projectId : [projectId];
@@ -28821,7 +28821,7 @@ Context: ${context2}`);
           limit: limit2,
           trace: traceId,
           select: select ? select : default_select,
-          is_root: isRoot,
+          is_root: isRoot2,
           order
         };
         if (body.select.includes("child_run_ids")) {
@@ -28898,7 +28898,7 @@ Context: ${context2}`);
       /** @deprecated Use `client.threads.listTraces()` instead. See https://docs.langchain.com/langsmith/smithdb-sdk-migration#threads-list-traces for the migration guide. Will be removed after Jan 31, 2027. */
       async *readThread(props) {
         warnOnce("readThread() is deprecated and will be removed after Jan 31, 2027. Use client.threads.listTraces() instead. See https://docs.langchain.com/langsmith/smithdb-sdk-migration#threads-list-traces for the migration guide.", { type: "DeprecationWarning", code: "LANGSMITH_DEPRECATED_READ_THREAD" });
-        const { threadId, projectId, projectName, isRoot = true, limit: limit2, filter: userFilter, order = "asc" } = props;
+        const { threadId, projectId, projectName, isRoot: isRoot2 = true, limit: limit2, filter: userFilter, order = "asc" } = props;
         if (!projectId && !projectName) {
           throw new Error("threadId requires projectId or projectName");
         }
@@ -28907,7 +28907,7 @@ Context: ${context2}`);
         yield* this._listRuns({
           projectId: projectId ?? void 0,
           projectName: projectName ?? void 0,
-          isRoot,
+          isRoot: isRoot2,
           limit: limit2,
           filter: combinedFilter,
           order
@@ -28916,7 +28916,7 @@ Context: ${context2}`);
       /** @deprecated Use `client.threads.query()` instead. See https://docs.langchain.com/langsmith/smithdb-sdk-migration#threads-query for the migration guide. Will be removed after Jan 31, 2027. */
       async listThreads(props) {
         warnOnce("listThreads() is deprecated and will be removed after Jan 31, 2027. Use client.threads.query() instead. See https://docs.langchain.com/langsmith/smithdb-sdk-migration#threads-query for the migration guide.", { type: "DeprecationWarning", code: "LANGSMITH_DEPRECATED_LIST_THREADS" });
-        const { projectId, projectName, limit: limit2, offset = 0, filter, startTime, isRoot = true } = props;
+        const { projectId, projectName, limit: limit2, offset = 0, filter, startTime, isRoot: isRoot2 = true } = props;
         if (!projectId && !projectName) {
           throw new Error("Either projectId or projectName must be provided");
         }
@@ -28952,7 +28952,7 @@ Context: ${context2}`);
         ];
         const bodyQuery = {
           session: [sessionId],
-          is_root: isRoot,
+          is_root: isRoot2,
           limit: 100,
           order: "desc",
           select: runSelect,
@@ -29016,7 +29016,7 @@ Context: ${context2}`);
         const withLimit = limit2 !== void 0 ? withOffset.slice(0, limit2) : withOffset;
         return withLimit;
       }
-      async getRunStats({ id, trace, parentRun, runType, projectNames, projectIds, referenceExampleIds, startTime, endTime, error: error51, query, filter, traceFilter, treeFilter, isRoot, dataSourceType }) {
+      async getRunStats({ id, trace, parentRun, runType, projectNames, projectIds, referenceExampleIds, startTime, endTime, error: error51, query, filter, traceFilter, treeFilter, isRoot: isRoot2, dataSourceType }) {
         let projectIds_ = projectIds || [];
         if (projectNames) {
           projectIds_ = [
@@ -29041,7 +29041,7 @@ Context: ${context2}`);
           filter,
           trace_filter: traceFilter,
           tree_filter: treeFilter,
-          is_root: isRoot,
+          is_root: isRoot2,
           data_source_type: dataSourceType
         };
         const filteredPayload = Object.fromEntries(Object.entries(payload).filter(([_, value]) => value !== void 0));
@@ -31411,13 +31411,13 @@ Message: ${Array.isArray(result.detail) ? result.detail.join("\n") : "Unspecifie
         assertPullPublicPromptAllowed(promptIdentifier, options?.dangerouslyPullPublicPrompt);
         const refreshFunc = this._fetchPromptFromApi.bind(this, promptIdentifier, options);
         if (!options?.skipCache && this._promptCache) {
-          const cacheKey = this._getPromptCacheKey(promptIdentifier, options?.includeModel);
-          const cached2 = this._promptCache.get(cacheKey, refreshFunc);
+          const cacheKey2 = this._getPromptCacheKey(promptIdentifier, options?.includeModel);
+          const cached2 = this._promptCache.get(cacheKey2, refreshFunc);
           if (cached2) {
             return cached2;
           }
           const result = await refreshFunc();
-          this._promptCache.set(cacheKey, result, refreshFunc);
+          this._promptCache.set(cacheKey2, result, refreshFunc);
           return result;
         }
         return this._fetchPromptFromApi(promptIdentifier, options);
@@ -34545,10 +34545,10 @@ function stringify4(obj, replacer, spacer, options) {
   }
   return res;
 }
-function setReplace2(replace2, val, k, parent) {
+function setReplace2(replace3, val, k, parent) {
   var propertyDescriptor = Object.getOwnPropertyDescriptor(parent, k);
   if (propertyDescriptor.get !== void 0) if (propertyDescriptor.configurable) {
-    Object.defineProperty(parent, k, { value: replace2 });
+    Object.defineProperty(parent, k, { value: replace3 });
     arr2.push([
       parent,
       k,
@@ -34558,10 +34558,10 @@ function setReplace2(replace2, val, k, parent) {
   } else replacerStack2.push([
     val,
     k,
-    replace2
+    replace3
   ]);
   else {
-    parent[k] = replace2;
+    parent[k] = replace3;
     arr2.push([
       parent,
       k,
@@ -42301,7 +42301,7 @@ var init_zodToJsonSchema = __esm({
     init_parseDef();
     zodToJsonSchema = (schema, options) => {
       const refs = getRefs(options);
-      let definitions = typeof options === "object" && options.definitions ? Object.entries(options.definitions).reduce((acc, [name2, schema2]) => ({
+      let definitions2 = typeof options === "object" && options.definitions ? Object.entries(options.definitions).reduce((acc, [name2, schema2]) => ({
         ...acc,
         [name2]: parseDef(schema2._def, {
           ...refs,
@@ -42324,8 +42324,8 @@ var init_zodToJsonSchema = __esm({
       const title = typeof options === "object" && options.name !== void 0 && options.nameStrategy === "title" ? options.name : void 0;
       if (title !== void 0) main2.title = title;
       if (refs.flags.hasReferencedOpenAiAnyType) {
-        if (!definitions) definitions = {};
-        if (!definitions[refs.openAiAnyTypeName]) definitions[refs.openAiAnyTypeName] = {
+        if (!definitions2) definitions2 = {};
+        if (!definitions2[refs.openAiAnyTypeName]) definitions2[refs.openAiAnyTypeName] = {
           type: [
             "string",
             "number",
@@ -42341,9 +42341,9 @@ var init_zodToJsonSchema = __esm({
           ].join("/") }
         };
       }
-      const combined = name === void 0 ? definitions ? {
+      const combined = name === void 0 ? definitions2 ? {
         ...main2,
-        [refs.definitionPath]: definitions
+        [refs.definitionPath]: definitions2
       } : main2 : {
         $ref: [
           ...refs.$refStrategy === "relative" ? [] : refs.basePath,
@@ -42351,7 +42351,7 @@ var init_zodToJsonSchema = __esm({
           name
         ].join("/"),
         [refs.definitionPath]: {
-          ...definitions,
+          ...definitions2,
           [name]: main2
         }
       };
@@ -50596,14 +50596,14 @@ function parseToolArgs(value) {
   }
 }
 function standardizeToolBlock(block) {
-  const record4 = block;
+  const record5 = block;
   if (block.type === "tool_call") return block;
   if (block.type !== "tool_call_chunk" && block.type !== "tool_use" && block.type !== "input_json_delta") return block;
-  const name = typeof record4.name === "string" ? record4.name : void 0;
+  const name = typeof record5.name === "string" ? record5.name : void 0;
   if (name == null) return block;
-  const args = record4.args ?? record4.input;
+  const args = record5.args ?? record5.input;
   return {
-    ...record4,
+    ...record5,
     type: "tool_call",
     name,
     args: parseToolArgs(args)
@@ -50946,16 +50946,16 @@ function extractImageBlocksFromToolOutputs(message) {
   const blocks2 = [];
   for (const entry of toolOutputs) {
     if (entry == null || typeof entry !== "object") continue;
-    const record4 = entry;
-    if (record4.type !== "image_generation_call") continue;
-    const data = typeof record4.result === "string" ? record4.result : void 0;
-    const url2 = typeof record4.url === "string" ? record4.url : void 0;
+    const record5 = entry;
+    if (record5.type !== "image_generation_call") continue;
+    const data = typeof record5.result === "string" ? record5.result : void 0;
+    const url2 = typeof record5.url === "string" ? record5.url : void 0;
     if (data == null && url2 == null) continue;
-    const outputFormat = typeof record4.output_format === "string" ? record4.output_format.toLowerCase() : void 0;
+    const outputFormat = typeof record5.output_format === "string" ? record5.output_format.toLowerCase() : void 0;
     const mimeType = (outputFormat != null ? MIME_TYPE_BY_IMAGE_FORMAT[outputFormat] : void 0) ?? "image/png";
     blocks2.push({
       type: "image",
-      ...typeof record4.id === "string" ? { id: record4.id } : {},
+      ...typeof record5.id === "string" ? { id: record5.id } : {},
       ...url2 != null ? { url: url2 } : {},
       ...data != null ? { data } : {},
       mimeType
@@ -50966,16 +50966,16 @@ function extractImageBlocksFromToolOutputs(message) {
 function getAudioPayload(message) {
   const audio = getAdditionalKwargs(message).audio;
   if (audio == null || typeof audio !== "object") return void 0;
-  const record4 = audio;
-  const data = typeof record4.data === "string" ? record4.data : void 0;
-  const url2 = typeof record4.url === "string" ? record4.url : void 0;
-  const transcript = typeof record4.transcript === "string" ? record4.transcript : void 0;
+  const record5 = audio;
+  const data = typeof record5.data === "string" ? record5.data : void 0;
+  const url2 = typeof record5.url === "string" ? record5.url : void 0;
+  const transcript = typeof record5.transcript === "string" ? record5.transcript : void 0;
   if (data == null && url2 == null && transcript == null) return void 0;
-  const explicitMimeType = typeof record4.mime_type === "string" ? record4.mime_type : typeof record4.mimeType === "string" ? record4.mimeType : void 0;
-  const format2 = typeof record4.format === "string" ? record4.format.toLowerCase() : void 0;
+  const explicitMimeType = typeof record5.mime_type === "string" ? record5.mime_type : typeof record5.mimeType === "string" ? record5.mimeType : void 0;
+  const format2 = typeof record5.format === "string" ? record5.format.toLowerCase() : void 0;
   const mimeType = explicitMimeType ?? (format2 != null ? MIME_TYPE_BY_AUDIO_FORMAT[format2] : void 0) ?? (data != null ? "audio/wav" : "audio/pcm");
   return {
-    ...typeof record4.id === "string" ? { id: record4.id } : {},
+    ...typeof record5.id === "string" ? { id: record5.id } : {},
     ...data != null ? { data } : {},
     ...url2 != null ? { url: url2 } : {},
     ...transcript != null ? { transcript } : {},
@@ -52980,16 +52980,16 @@ var init_mustache = __esm({
       if (cache2.hasOwnProperty(name)) {
         value = cache2[name];
       } else {
-        var context2 = this, intermediateValue, names, index2, lookupHit = false;
+        var context2 = this, intermediateValue, names2, index2, lookupHit = false;
         while (context2) {
           if (name.indexOf(".") > 0) {
             intermediateValue = context2.view;
-            names = name.split(".");
+            names2 = name.split(".");
             index2 = 0;
-            while (intermediateValue != null && index2 < names.length) {
-              if (index2 === names.length - 1)
-                lookupHit = hasProperty(intermediateValue, names[index2]) || primitiveHasOwnProperty(intermediateValue, names[index2]);
-              intermediateValue = intermediateValue[names[index2++]];
+            while (intermediateValue != null && index2 < names2.length) {
+              if (index2 === names2.length - 1)
+                lookupHit = hasProperty(intermediateValue, names2[index2]) || primitiveHasOwnProperty(intermediateValue, names2[index2]);
+              intermediateValue = intermediateValue[names2[index2++]];
             }
           } else {
             intermediateValue = context2.view[name];
@@ -53014,12 +53014,12 @@ var init_mustache = __esm({
     };
     Writer.prototype.parse = function parse6(template, tags) {
       var cache2 = this.templateCache;
-      var cacheKey = template + ":" + (tags || mustache.tags).join(":");
+      var cacheKey2 = template + ":" + (tags || mustache.tags).join(":");
       var isCacheEnabled = typeof cache2 !== "undefined";
-      var tokens = isCacheEnabled ? cache2.get(cacheKey) : void 0;
+      var tokens = isCacheEnabled ? cache2.get(cacheKey2) : void 0;
       if (tokens == void 0) {
         tokens = parseTemplate(template, tags);
-        isCacheEnabled && cache2.set(cacheKey, tokens);
+        isCacheEnabled && cache2.set(cacheKey2, tokens);
       }
       return tokens;
     };
@@ -53382,12 +53382,12 @@ var init_prompt = __esm({
       }
       static fromTemplate(template, options) {
         const { templateFormat = "f-string", ...rest } = options ?? {};
-        const names = /* @__PURE__ */ new Set();
+        const names2 = /* @__PURE__ */ new Set();
         parseTemplate2(template, templateFormat).forEach((node) => {
-          if (node.type === "variable") names.add(node.name);
+          if (node.type === "variable") names2.add(node.name);
         });
         return new PromptTemplate2({
-          inputVariables: [...names],
+          inputVariables: [...names2],
           templateFormat,
           template,
           ...rest
@@ -58090,10 +58090,10 @@ async function reviver(value) {
     path: [...path3, `${i}`],
     depth: depth + 1
   }, v)));
-  const record4 = value;
-  if (isEscapedObject(record4)) return unescapeValue(record4);
-  if ("lc" in record4 && "type" in record4 && "id" in record4 && record4.lc === 1 && record4.type === "secret") {
-    const [key] = record4.id;
+  const record5 = value;
+  if (isEscapedObject(record5)) return unescapeValue(record5);
+  if ("lc" in record5 && "type" in record5 && "id" in record5 && record5.lc === 1 && record5.type === "secret") {
+    const [key] = record5.id;
     if (key in secretsMap) return secretsMap[key];
     else if (secretsFromEnv) {
       const secretValueInEnv = getEnvironmentVariable(key);
@@ -58101,12 +58101,12 @@ async function reviver(value) {
     }
     throw new Error(`Missing secret "${key}" at ${pathStr}`);
   }
-  if ("lc" in record4 && "type" in record4 && "id" in record4 && record4.lc === 1 && record4.type === "not_implemented") {
-    const str = JSON.stringify(record4);
+  if ("lc" in record5 && "type" in record5 && "id" in record5 && record5.lc === 1 && record5.type === "not_implemented") {
+    const str = JSON.stringify(record5);
     throw new Error(`Trying to load an object that doesn't implement serialization: ${pathStr} -> ${str}`);
   }
-  if ("lc" in record4 && "type" in record4 && "id" in record4 && "kwargs" in record4 && record4.lc === 1 && record4.type === "constructor") {
-    const serialized = record4;
+  if ("lc" in record5 && "type" in record5 && "id" in record5 && "kwargs" in record5 && record5.lc === 1 && record5.type === "constructor") {
+    const serialized = record5;
     const str = JSON.stringify(serialized);
     const [name, ...namespaceReverse] = serialized.id.slice().reverse();
     const namespace = namespaceReverse.reverse();
@@ -58147,7 +58147,7 @@ async function reviver(value) {
     return instance;
   }
   const result = {};
-  for (const [key, val] of Object.entries(record4)) result[key] = await reviver.call({
+  for (const [key, val] of Object.entries(record5)) result[key] = await reviver.call({
     ...this,
     path: [...path3, key],
     depth: depth + 1
@@ -58194,42 +58194,42 @@ function isDeltaSnapshotRecord(value) {
 function isConstructorRecord(value) {
   return value.lc === 2 && value.type === "constructor";
 }
-function hasConstructorId(record4, name) {
-  return Array.isArray(record4.id) && record4.id.length === 1 && record4.id[0] === name;
+function hasConstructorId(record5, name) {
+  return Array.isArray(record5.id) && record5.id.length === 1 && record5.id[0] === name;
 }
-function hasNoMethod(record4) {
-  return record4.method === void 0 || record4.method === null;
+function hasNoMethod(record5) {
+  return record5.method === void 0 || record5.method === null;
 }
-function hasSingleArrayArg(record4) {
-  return Array.isArray(record4.args) && record4.args.length === 1 && Array.isArray(record4.args[0]);
+function hasSingleArrayArg(record5) {
+  return Array.isArray(record5.args) && record5.args.length === 1 && Array.isArray(record5.args[0]);
 }
 function isByteArray(value) {
   return value.every((item) => typeof item === "number" && Number.isInteger(item) && item >= 0 && item <= 255);
 }
-function reviveConstructorRecord(record4) {
-  if (hasConstructorId(record4, "Set") && hasNoMethod(record4)) {
-    if (!hasSingleArrayArg(record4)) return void 0;
-    return new Set(record4.args[0]);
+function reviveConstructorRecord(record5) {
+  if (hasConstructorId(record5, "Set") && hasNoMethod(record5)) {
+    if (!hasSingleArrayArg(record5)) return void 0;
+    return new Set(record5.args[0]);
   }
-  if (hasConstructorId(record4, "Map") && hasNoMethod(record4)) {
-    if (!hasSingleArrayArg(record4) || !record4.args[0].every((entry) => Array.isArray(entry) && entry.length === 2)) return;
-    return new Map(record4.args[0]);
+  if (hasConstructorId(record5, "Map") && hasNoMethod(record5)) {
+    if (!hasSingleArrayArg(record5) || !record5.args[0].every((entry) => Array.isArray(entry) && entry.length === 2)) return;
+    return new Map(record5.args[0]);
   }
-  if (hasConstructorId(record4, "RegExp") && hasNoMethod(record4)) {
-    if (!Array.isArray(record4.args) || record4.args.length !== 2 || typeof record4.args[0] !== "string" || typeof record4.args[1] !== "string") return;
+  if (hasConstructorId(record5, "RegExp") && hasNoMethod(record5)) {
+    if (!Array.isArray(record5.args) || record5.args.length !== 2 || typeof record5.args[0] !== "string" || typeof record5.args[1] !== "string") return;
     try {
-      return new RegExp(record4.args[0], record4.args[1]);
+      return new RegExp(record5.args[0], record5.args[1]);
     } catch {
       return;
     }
   }
-  if (hasConstructorId(record4, "Error") && hasNoMethod(record4)) {
-    if (!Array.isArray(record4.args) || record4.args.length !== 1 || typeof record4.args[0] !== "string") return;
-    return new Error(record4.args[0]);
+  if (hasConstructorId(record5, "Error") && hasNoMethod(record5)) {
+    if (!Array.isArray(record5.args) || record5.args.length !== 1 || typeof record5.args[0] !== "string") return;
+    return new Error(record5.args[0]);
   }
-  if (hasConstructorId(record4, "Uint8Array") && (hasNoMethod(record4) || record4.method === "from")) {
-    if (!hasSingleArrayArg(record4) || !isByteArray(record4.args[0])) return;
-    return new Uint8Array(record4.args[0]);
+  if (hasConstructorId(record5, "Uint8Array") && (hasNoMethod(record5) || record5.method === "from")) {
+    if (!hasSingleArrayArg(record5) || !isByteArray(record5.args[0])) return;
+    return new Uint8Array(record5.args[0]);
   }
 }
 async function _reviver(value) {
@@ -59125,13 +59125,13 @@ function normalizeObjectiveSpec(input) {
     }
   };
 }
-var SCHEMA_VERSION, PROTOCOL_VERSION, CapabilitySchema, ScenarioIdSchema, RankedScenarioIdSchema, ScenarioWeightsSchema, GoalSchema, HardConstraintSchema, ObjectiveSpecSchema, ObjectiveSpecDraftSchema, MetricSetSchema, ContentCatalogEntrySchema, ModifierResolutionSchema, ModifierParseStatusSchema, ItemLegalityStatusSchema, ModifierProvenanceSchema, ParsedModifierSchema, ModifierLineProjectionSchema, ItemLegalityFindingSchema, ItemLegalitySchema, ModifierItemProjectionSchema, ModifierProjectionSchema, BuildGraphSchema, BuildSnapshotSchema, MechanicFindingSchema, MechanicUnderstandingSchema, BuildMechanicReportSchema, MechanicDiffSchema, ScenarioSpecSchema, EvidenceStatusSchema, ConditionEvidenceSchema, ActionBaseSchema, TradePriceSchema, Sha256Schema, TradeStatFilterSchema, TradeCatalogQuerySchema, TradeCatalogItemSchema, TradeCatalogResultSchema, TradeCatalogCancelSchema, ImportAndEquipPayloadSchema, SecondaryAscendancyPayloadSchema, TreeOverridePayloadSchema, CatalogPartyBufferPayloadSchema, BuildActionSchema, CandidateLabelSchema, CandidateSchema, DeepLimitsSchema, SearchStopReasonSchema, StopReasonSchema, OptimizationRunSchema, TransactionResultSchema;
+var SCHEMA_VERSION, PROTOCOL_VERSION, CapabilitySchema, ScenarioIdSchema, RankedScenarioIdSchema, ScenarioWeightsSchema, GoalSchema, HardConstraintSchema, ObjectiveSpecSchema, ObjectiveSpecDraftSchema, MetricSetSchema, ContentCatalogEntrySchema, ModifierResolutionSchema, ModifierParseStatusSchema, ItemLegalityStatusSchema, ModifierProvenanceSchema, ParsedModifierSchema, ModifierLineProjectionSchema, ItemLegalityFindingSchema, ItemLegalitySchema, ModifierItemProjectionSchema, ModifierProjectionSchema, BuildGraphSchema, BuildSnapshotSchema, MechanicContextSchema, MechanicRelationSchema, MechanicEffectStateSchema, MechanicFactProvenanceSchema, MechanicFactSchema, MechanicSkillObservationSchema, MechanicObservationSchema, MechanicObservationDeltaSchema, MechanicFactBundleSchema, MechanicClaimSchema, MechanicProofSchema, MechanicCoverageEntrySchema, VerifiedBuildMechanicReportSchema, MechanicFindingSchema, MechanicUnderstandingSchema, BuildMechanicReportSchema, MechanicDiffSchema, ScenarioSpecSchema, EvidenceStatusSchema, ConditionEvidenceSchema, ActionBaseSchema, TradePriceSchema, Sha256Schema, TradeStatFilterSchema, TradeCatalogQuerySchema, TradeCatalogItemSchema, TradeCatalogResultSchema, TradeCatalogCancelSchema, ImportAndEquipPayloadSchema, SecondaryAscendancyPayloadSchema, TreeOverridePayloadSchema, CatalogPartyBufferPayloadSchema, BuildActionSchema, CandidateLabelSchema, CandidateSchema, DeepLimitsSchema, SearchStopReasonSchema, StopReasonSchema, OptimizationRunSchema, TransactionResultSchema;
 var init_schemas3 = __esm({
   "src/schemas.ts"() {
     "use strict";
     init_zod();
-    SCHEMA_VERSION = 3;
-    PROTOCOL_VERSION = 4;
+    SCHEMA_VERSION = 4;
+    PROTOCOL_VERSION = 5;
     CapabilitySchema = external_exports.enum([
       "nativeLinkProbe",
       "nativeEvidence",
@@ -59386,6 +59386,195 @@ var init_schemas3 = __esm({
       mechanicProjectionFingerprint: external_exports.string().regex(/^sha256:[a-f0-9]{64}$/),
       contentCatalog: external_exports.array(ContentCatalogEntrySchema).optional(),
       buildGraph: BuildGraphSchema.optional()
+    });
+    MechanicContextSchema = external_exports.enum(["weaponSet1", "weaponSet2"]);
+    MechanicRelationSchema = external_exports.enum([
+      "grants",
+      "requires",
+      "triggers",
+      "scales",
+      "consumes",
+      "conflicts"
+    ]);
+    MechanicEffectStateSchema = external_exports.enum([
+      "active",
+      "conditional",
+      "latent",
+      "redundant",
+      "conflicting"
+    ]);
+    MechanicFactProvenanceSchema = external_exports.object({
+      kind: external_exports.enum(["projection", "native_probe", "native_evidence", "catalog", "worker_observation"]),
+      sourceId: external_exports.string().min(1).max(512),
+      fingerprint: external_exports.string().min(1).max(512),
+      evidence: external_exports.array(external_exports.string().min(1).max(1024)).max(64).default([])
+    });
+    MechanicFactSchema = external_exports.object({
+      id: external_exports.string().min(1).max(512),
+      context: MechanicContextSchema,
+      domain: external_exports.enum(["skills", "gear", "tree", "config", "actor", "offence", "resource", "defence", "condition", "inventory"]),
+      kind: external_exports.string().min(1).max(128),
+      name: external_exports.string().min(1).max(2048).optional(),
+      active: external_exports.boolean(),
+      provenance: external_exports.array(MechanicFactProvenanceSchema).min(1).max(32),
+      data: external_exports.record(external_exports.string(), external_exports.unknown()).default({}),
+      fingerprint: external_exports.string().regex(/^sha256:[a-f0-9]{64}$/)
+    });
+    MechanicSkillObservationSchema = external_exports.object({
+      id: external_exports.string().min(1).max(512),
+      name: external_exports.string().min(1).max(512),
+      group: external_exports.number().int().positive(),
+      enabled: external_exports.boolean(),
+      includeInFullDps: external_exports.boolean().default(false),
+      fromItem: external_exports.boolean().default(false),
+      supports: external_exports.array(external_exports.object({
+        id: external_exports.string().min(1).max(512),
+        name: external_exports.string().min(1).max(512),
+        fromItem: external_exports.boolean().default(false)
+      })).max(64).default([])
+    });
+    MechanicObservationSchema = external_exports.object({
+      context: MechanicContextSchema,
+      fingerprint: external_exports.string().regex(/^sha256:[a-f0-9]{64}$/),
+      projectionFingerprint: external_exports.string().min(1),
+      nativeProbeFingerprint: external_exports.string().min(1),
+      evidenceFingerprint: external_exports.string().min(1),
+      metrics: MetricSetSchema,
+      skills: external_exports.array(MechanicSkillObservationSchema).max(2048),
+      conditions: external_exports.array(external_exports.object({
+        id: external_exports.string().min(1).max(512),
+        actor: external_exports.string().min(1).max(128),
+        sources: external_exports.array(external_exports.string().min(1).max(512)).max(128).default([])
+      })).max(4096),
+      activeItemIds: external_exports.array(external_exports.string().min(1).max(512)).max(1e5),
+      activeModifierIds: external_exports.array(external_exports.string().min(1).max(512)).max(1e5),
+      activePassiveIds: external_exports.array(external_exports.string().min(1).max(512)).max(1e5).default([]),
+      configValues: external_exports.record(external_exports.string(), external_exports.unknown()).default({}),
+      resources: external_exports.record(external_exports.string(), external_exports.number().finite()).default({}),
+      cooldowns: external_exports.record(external_exports.string(), external_exports.number().finite()).default({}),
+      durations: external_exports.record(external_exports.string(), external_exports.number().finite()).default({}),
+      contributions: external_exports.record(external_exports.string(), external_exports.number().finite()).default({})
+    });
+    MechanicObservationDeltaSchema = external_exports.object({
+      fingerprint: external_exports.string().regex(/^sha256:[a-f0-9]{64}$/),
+      changed: external_exports.boolean(),
+      contributionChanged: external_exports.boolean(),
+      metricChanges: external_exports.record(external_exports.string(), external_exports.object({
+        before: external_exports.number().finite().optional(),
+        after: external_exports.number().finite().optional(),
+        delta: external_exports.number().finite().optional()
+      })).default({}),
+      addedSkillIds: external_exports.array(external_exports.string()).default([]),
+      removedSkillIds: external_exports.array(external_exports.string()).default([]),
+      addedSupportIds: external_exports.array(external_exports.string()).default([]),
+      removedSupportIds: external_exports.array(external_exports.string()).default([]),
+      addedConditionIds: external_exports.array(external_exports.string()).default([]),
+      removedConditionIds: external_exports.array(external_exports.string()).default([]),
+      addedModifierIds: external_exports.array(external_exports.string()).default([]),
+      removedModifierIds: external_exports.array(external_exports.string()).default([]),
+      addedItemIds: external_exports.array(external_exports.string()).default([]),
+      removedItemIds: external_exports.array(external_exports.string()).default([]),
+      addedPassiveIds: external_exports.array(external_exports.string()).default([]),
+      removedPassiveIds: external_exports.array(external_exports.string()).default([]),
+      contributionChanges: external_exports.record(external_exports.string(), external_exports.object({ before: external_exports.number().optional(), after: external_exports.number().optional() })).default({}),
+      resourceChanges: external_exports.record(external_exports.string(), external_exports.object({ before: external_exports.number().optional(), after: external_exports.number().optional() })).default({}),
+      cooldownChanges: external_exports.record(external_exports.string(), external_exports.object({ before: external_exports.number().optional(), after: external_exports.number().optional() })).default({}),
+      durationChanges: external_exports.record(external_exports.string(), external_exports.object({ before: external_exports.number().optional(), after: external_exports.number().optional() })).default({})
+    });
+    MechanicFactBundleSchema = external_exports.object({
+      schemaVersion: external_exports.literal(SCHEMA_VERSION),
+      snapshotFingerprint: external_exports.string().min(1),
+      projectionFingerprint: external_exports.string().min(1),
+      engineVersion: external_exports.string().min(1),
+      dataVersion: external_exports.string().min(1),
+      ruleset: external_exports.string().min(1),
+      contexts: external_exports.array(MechanicContextSchema).length(2),
+      complete: external_exports.boolean(),
+      missingScopes: external_exports.array(external_exports.string().min(1)).default([]),
+      truncatedScopes: external_exports.array(external_exports.string().min(1)).default([]),
+      entities: external_exports.array(MechanicFactSchema).max(1e5),
+      observations: external_exports.record(MechanicContextSchema, MechanicObservationSchema),
+      inventory: external_exports.object({
+        inactiveItemSetIds: external_exports.array(external_exports.string()).default([]),
+        inactiveTreeSpecIds: external_exports.array(external_exports.string()).default([]),
+        inactiveSkillSetIds: external_exports.array(external_exports.string()).default([])
+      }),
+      fingerprint: external_exports.string().regex(/^sha256:[a-f0-9]{64}$/)
+    });
+    MechanicClaimSchema = external_exports.object({
+      id: external_exports.string().min(1).max(512),
+      sourceId: external_exports.string().min(1).max(512),
+      relation: MechanicRelationSchema,
+      targetId: external_exports.string().min(1).max(512),
+      context: MechanicContextSchema,
+      scenario: ScenarioIdSchema.optional(),
+      statement: external_exports.string().min(1).max(8e3),
+      evidenceIds: external_exports.array(external_exports.string().min(1).max(512)).max(128).default([]),
+      critical: external_exports.boolean(),
+      ambiguous: external_exports.boolean(),
+      effectState: MechanicEffectStateSchema
+    });
+    MechanicProofSchema = external_exports.object({
+      id: external_exports.string().min(1).max(512),
+      claimId: external_exports.string().min(1).max(512),
+      type: external_exports.enum(["native_exact", "counterfactual"]),
+      status: external_exports.enum(["proven", "disproved", "indeterminate"]),
+      context: MechanicContextSchema,
+      sourceFingerprint: external_exports.string().min(1).max(512),
+      evidenceIds: external_exports.array(external_exports.string().min(1).max(1024)).max(256),
+      experimentId: external_exports.string().min(1).max(512).optional(),
+      delta: MechanicObservationDeltaSchema.optional()
+    });
+    MechanicCoverageEntrySchema = external_exports.object({
+      context: MechanicContextSchema,
+      domain: MechanicFactSchema.shape.domain,
+      entityCount: external_exports.number().int().nonnegative(),
+      inspectedCount: external_exports.number().int().nonnegative(),
+      claimedCount: external_exports.number().int().nonnegative(),
+      provenCount: external_exports.number().int().nonnegative(),
+      missingEntityIds: external_exports.array(external_exports.string()).default([])
+    });
+    VerifiedBuildMechanicReportSchema = external_exports.object({
+      schemaVersion: external_exports.literal(SCHEMA_VERSION),
+      status: external_exports.enum(["verified", "blocked"]),
+      snapshotFingerprint: external_exports.string().min(1),
+      projectionFingerprint: external_exports.string().min(1),
+      factBundleFingerprint: external_exports.string().regex(/^sha256:[a-f0-9]{64}$/),
+      analysisFingerprint: external_exports.string().regex(/^sha256:[a-f0-9]{64}$/),
+      cacheKey: external_exports.string().regex(/^sha256:[a-f0-9]{64}$/),
+      contexts: external_exports.array(MechanicContextSchema).length(2),
+      claims: external_exports.array(MechanicClaimSchema).max(1e5),
+      proofs: external_exports.array(MechanicProofSchema).max(1e5),
+      graph: external_exports.object({
+        nodes: external_exports.array(MechanicFactSchema).max(1e5),
+        edges: external_exports.array(external_exports.object({
+          id: external_exports.string().min(1).max(512),
+          sourceId: external_exports.string().min(1).max(512),
+          targetId: external_exports.string().min(1).max(512),
+          relation: MechanicRelationSchema,
+          context: MechanicContextSchema,
+          scenario: ScenarioIdSchema.optional(),
+          claimId: external_exports.string().min(1).max(512),
+          proofIds: external_exports.array(external_exports.string().min(1).max(512)).min(1),
+          effectState: MechanicEffectStateSchema
+        })).max(1e5)
+      }),
+      coverage: external_exports.array(MechanicCoverageEntrySchema),
+      findings: external_exports.array(external_exports.object({
+        id: external_exports.string().min(1).max(512),
+        severity: external_exports.enum(["info", "warning", "blocker"]),
+        code: external_exports.string().min(1).max(256),
+        message: external_exports.string().min(1).max(8e3),
+        claimId: external_exports.string().min(1).max(512).optional(),
+        evidenceIds: external_exports.array(external_exports.string().min(1).max(1024)).max(256).default([])
+      })).max(1e5),
+      blockers: external_exports.array(external_exports.string().min(1).max(8e3)).max(1e4),
+      summary: external_exports.string().min(1).max(16e3),
+      llmSummary: external_exports.string().min(1).max(32e3),
+      modelCalls: external_exports.number().int().nonnegative(),
+      experimentCount: external_exports.number().int().nonnegative(),
+      repairRounds: external_exports.number().int().nonnegative(),
+      createdAt: external_exports.string().datetime()
     });
     MechanicFindingSchema = external_exports.object({
       id: external_exports.string().min(1),
@@ -59657,6 +59846,12 @@ var init_schemas3 = __esm({
       evaluations: external_exports.number().int().nonnegative(),
       modelCalls: external_exports.number().int().nonnegative(),
       refinementRounds: external_exports.number().int().nonnegative(),
+      mechanicAnalysisFingerprint: external_exports.string().regex(/^sha256:[a-f0-9]{64}$/).optional(),
+      awaitingProvider: external_exports.object({
+        phase: external_exports.enum(["PlanSearch", "RefineSearch", "Explain"]),
+        error: external_exports.string().min(1),
+        retryable: external_exports.boolean()
+      }).optional(),
       startedAt: external_exports.string().datetime(),
       updatedAt: external_exports.string().datetime(),
       stopReason: StopReasonSchema.optional(),
@@ -61258,9 +61453,9 @@ function unwrapMessagesPayload(payload) {
   if (!Array.isArray(payload) || payload.length !== 2) return { data: payload };
   const [data, metadata] = payload;
   if (metadata == null || typeof metadata !== "object") return { data: payload };
-  const record4 = metadata;
-  const node = typeof record4.langgraph_node === "string" ? record4.langgraph_node : void 0;
-  const runId = typeof record4.run_id === "string" ? record4.run_id : void 0;
+  const record5 = metadata;
+  const node = typeof record5.langgraph_node === "string" ? record5.langgraph_node : void 0;
+  const runId = typeof record5.run_id === "string" ? record5.run_id : void 0;
   return {
     data: runId != null && data != null && typeof data === "object" ? {
       ...data,
@@ -62210,9 +62405,9 @@ function createLifecycleTransformer(options = {}) {
 // node_modules/.pnpm/@langchain+langgraph@1.4.13_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3___zod@4.4.3/node_modules/@langchain/langgraph/dist/stream/transformers/messages.js
 init_stream2();
 function getMessageStreamKey(data) {
-  const record4 = data;
-  if (typeof record4.run_id === "string") return `run:${record4.run_id}`;
-  if (data.event === "message-start" && typeof record4.id === "string") return `message:${record4.id}`;
+  const record5 = data;
+  if (typeof record5.run_id === "string") return `run:${record5.run_id}`;
+  if (data.event === "message-start" && typeof record5.id === "string") return `message:${record5.id}`;
   return "__default__";
 }
 function createMessagesTransformer(path3, nodeFilter) {
@@ -68668,9 +68863,9 @@ var NamedBarrierValue = class NamedBarrierValue2 extends BaseChannel {
   lc_graph_name = "NamedBarrierValue";
   names;
   seen;
-  constructor(names) {
+  constructor(names2) {
     super();
-    this.names = names;
+    this.names = names2;
     this.seen = /* @__PURE__ */ new Set();
   }
   fromCheckpoint(checkpoint) {
@@ -68710,9 +68905,9 @@ var NamedBarrierValueAfterFinish = class NamedBarrierValueAfterFinish2 extends B
   names;
   seen;
   finished;
-  constructor(names) {
+  constructor(names2) {
     super();
-    this.names = names;
+    this.names = names2;
     this.seen = /* @__PURE__ */ new Set();
     this.finished = false;
   }
@@ -69084,8 +69279,8 @@ var SchemaMetaRegistry = class {
   */
   getExtendedChannelSchemas(schema, effects) {
     if (Object.keys(effects).length === 0) return schema;
-    const cacheKey = Object.entries(effects).filter(([, v]) => v === true).sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => `${k}:${v}`).join("|");
-    const cache2 = this._extensionCache.get(cacheKey) ?? /* @__PURE__ */ new Map();
+    const cacheKey2 = Object.entries(effects).filter(([, v]) => v === true).sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => `${k}:${v}`).join("|");
+    const cache2 = this._extensionCache.get(cacheKey2) ?? /* @__PURE__ */ new Map();
     if (cache2.has(schema)) return cache2.get(schema);
     let modifiedSchema = schema;
     if (effects.withReducerSchema || effects.withJsonSchemaExtrasAsDescription) {
@@ -69107,7 +69302,7 @@ var SchemaMetaRegistry = class {
     }
     if (effects.asPartial) modifiedSchema = interopZodObjectPartial(modifiedSchema);
     cache2.set(schema, modifiedSchema);
-    this._extensionCache.set(cacheKey, cache2);
+    this._extensionCache.set(cacheKey2, cache2);
     return modifiedSchema;
   }
 };
@@ -70364,24 +70559,24 @@ function nativeClaims(value) {
 }
 function actorRecords(entry) {
   const data = entry.data;
-  const records = Array.isArray(data.actors) ? data.actors.flatMap((value) => {
+  const records2 = Array.isArray(data.actors) ? data.actors.flatMap((value) => {
     const parsed = record2(value);
     return parsed === void 0 ? [] : [parsed];
   }) : [];
-  if (data.player === true) records.push({ id: "actor:player", kind: "player", source: "Build" });
-  if (data.minions === true) records.push({ id: "actor:minion", kind: "minion", source: "Skills" });
+  if (data.player === true) records2.push({ id: "actor:player", kind: "player", source: "Build" });
+  if (data.minions === true) records2.push({ id: "actor:minion", kind: "minion", source: "Skills" });
   if (Array.isArray(data.minions)) {
     for (const value of data.minions) {
       const parsed = record2(value);
-      if (parsed !== void 0) records.push(parsed);
-      else if (text(value) !== void 0) records.push({ id: `actor:minion:${value}`, kind: "minion", minionId: value });
+      if (parsed !== void 0) records2.push(parsed);
+      else if (text(value) !== void 0) records2.push({ id: `actor:minion:${value}`, kind: "minion", minionId: value });
     }
   }
   if (Array.isArray(data.spectres)) {
     for (const value of data.spectres) {
       const parsed = record2(value);
-      if (parsed !== void 0) records.push(parsed);
-      else if (text(value) !== void 0) records.push({
+      if (parsed !== void 0) records2.push(parsed);
+      else if (text(value) !== void 0) records2.push({
         id: `actor:spectre:${value}`,
         kind: "spectre",
         spectreId: value
@@ -70391,7 +70586,7 @@ function actorRecords(entry) {
   if (Array.isArray(data.animateGuardian)) {
     for (const value of data.animateGuardian) {
       const parsed = record2(value);
-      if (parsed !== void 0) records.push({ ...parsed, kind: "animateGuardian" });
+      if (parsed !== void 0) records2.push({ ...parsed, kind: "animateGuardian" });
     }
   }
   const party = record2(data.party);
@@ -70399,7 +70594,7 @@ function actorRecords(entry) {
     for (const buffer of Object.keys(party).sort()) {
       const value = party[buffer];
       const parsed = record2(value);
-      records.push({
+      records2.push({
         ...parsed ?? {},
         id: `actor:party:${buffer}`,
         kind: "party",
@@ -70408,7 +70603,7 @@ function actorRecords(entry) {
       });
     }
   }
-  return records;
+  return records2;
 }
 function actorAdapter() {
   return {
@@ -70507,7 +70702,7 @@ function pactAdapter() {
       const existingNodeIds = new Set(context2.graph.nodes.map((node) => node.id));
       for (const entry of sourceEntries(context2, ["skills", "identity", "actor"])) {
         const season = seasonObject(entry);
-        const records = [
+        const records2 = [
           ...Array.isArray(entry.data.pacts) ? entry.data.pacts : [],
           ...Array.isArray(season.pacts) ? season.pacts : []
         ];
@@ -70518,7 +70713,7 @@ function pactAdapter() {
             for (const gem of parsed.gems) {
               const value = record2(gem);
               const name = text(value?.name) ?? text(value?.nameSpec);
-              if (name?.toLowerCase().startsWith("pact of ")) records.push({
+              if (name?.toLowerCase().startsWith("pact of ")) records2.push({
                 ...value,
                 id: name,
                 name,
@@ -70527,7 +70722,7 @@ function pactAdapter() {
             }
           }
         }
-        for (const value of records) {
+        for (const value of records2) {
           const pact = record2(value);
           const rawId = pact && (identifier(pact.id) ?? text(pact.name));
           const id = rawId?.startsWith("season:pact:") ? rawId.slice("season:pact:".length) : rawId;
@@ -70580,11 +70775,11 @@ function passiveAdapter() {
 }
 function equipmentAdapter() {
   const equipmentRecords = (entry) => {
-    const records = [];
+    const records2 = [];
     if (Array.isArray(entry.data.items)) {
       for (const value of entry.data.items) {
         const item = record2(value);
-        if (item !== void 0) records.push(item);
+        if (item !== void 0) records2.push(item);
       }
     }
     const seasonalItems = record2(seasonObject(entry).items);
@@ -70593,7 +70788,7 @@ function equipmentAdapter() {
         if (!Array.isArray(values)) continue;
         for (const value of values) {
           const item = record2(value);
-          if (item !== void 0) records.push({
+          if (item !== void 0) records2.push({
             ...item,
             type: item.type ?? (bucket === "grafts" ? "Graft" : bucket === "tinctures" ? "Tincture" : void 0),
             foulborn: item.foulborn === true || bucket === "foulborn"
@@ -70601,7 +70796,7 @@ function equipmentAdapter() {
         }
       }
     }
-    return records;
+    return records2;
   };
   return {
     id: "equipment-seasonal",
@@ -71130,23 +71325,26 @@ function sourceSkillLine(projection, skill) {
   }
   return void 0;
 }
-function configuredConditionFindings(snapshot, projection) {
+function configuredConditionFindings(snapshot) {
   const configEntry = snapshot.contentCatalog?.find(({ id }) => id === "pob:config");
   const claims = array2(configEntry?.data.conditionClaims).map(record3).filter((claim) => claim !== void 0);
-  const activeText = projection.items.filter(({ active }) => active).flatMap(({ modifierLines }) => modifierLines.filter(({ active }) => active).map(({ rawText }) => rawText.toLowerCase())).join("\n");
+  const nativeEvidence = record3(configEntry?.data.nativeEvidence);
+  const nativeClaims2 = array2(nativeEvidence?.claims).map(record3).filter((claim) => claim !== void 0);
   const findings = [];
   for (const claim of claims) {
     if (claim.sourceStatus !== "manual" || claim.current === void 0 || claim.current === false) continue;
     const condition = typeof claim.condition === "string" ? claim.condition : "manual-condition";
     const label = typeof claim.label === "string" ? claim.label : condition;
-    const words = label.toLowerCase().match(/[a-z]{4,}/g) ?? [];
-    const critical = words.some((word) => activeText.includes(word));
+    const configKey = typeof claim.configKey === "string" ? claim.configKey : condition;
+    const exactNative = nativeClaims2.find((native) => native.condition === condition || native.configKey === configKey);
+    const hasNativeSource = array2(exactNative?.sources).length > 0;
+    if (hasNativeSource) continue;
     findings.push(finding({
-      severity: critical ? "blocker" : "warning",
+      severity: "warning",
       code: "manual_condition_unproven",
       message: `${label} is configured manually without native sustainable source evidence`,
-      critical,
-      evidence: [`config:${condition}`]
+      critical: false,
+      evidence: [`config:${configKey}`, "native-condition-source:missing"]
     }));
   }
   return findings;
@@ -71287,7 +71485,7 @@ function analyzeBuildMechanics(snapshot) {
       verifiedChains.push([skillNodeId]);
     }
   }
-  for (const condition of configuredConditionFindings(snapshot, projection)) addFindingOnce(findings, condition);
+  for (const condition of configuredConditionFindings(snapshot)) addFindingOnce(findings, condition);
   findings.sort((left, right) => left.id.localeCompare(right.id));
   const status = findings.some(({ severity }) => severity === "blocker") ? "blocked" : findings.some(({ severity }) => severity === "warning") ? "warning" : "complete";
   const graphJson = graph.toJSON();
@@ -71608,6 +71806,9 @@ var RpcRequestSchema = external_exports.object({
     "hello",
     "build.capture",
     "build.analyze",
+    "mechanics.start",
+    "mechanics.status",
+    "mechanics.cancel",
     "run.start",
     "run.stream",
     "run.cancel",
@@ -71666,10 +71867,14 @@ var RpcNotificationSchema = external_exports.object({
     "run.progress",
     "run.mechanicsReady",
     "run.awaitingMechanicReview",
+    "run.awaitingProvider",
     "run.awaitingApproval",
     "run.completed",
     "run.failed",
-    "transaction.apply"
+    "transaction.apply",
+    "mechanics.progress",
+    "mechanics.completed",
+    "mechanics.failed"
   ]),
   params: external_exports.unknown(),
   protocolVersion: external_exports.literal(PROTOCOL_VERSION)
@@ -71681,9 +71886,17 @@ var HelloParamsSchema = external_exports.object({
 });
 var BuildCaptureParamsSchema = external_exports.object({ snapshot: BuildSnapshotSchema });
 var BuildAnalyzeParamsSchema = external_exports.object({ snapshotFingerprint: external_exports.string().min(1) });
+var MechanicsStartParamsSchema = external_exports.object({
+  snapshotFingerprint: external_exports.string().min(1),
+  contexts: external_exports.tuple([external_exports.literal("weaponSet1"), external_exports.literal("weaponSet2")]).default(["weaponSet1", "weaponSet2"]),
+  force: external_exports.boolean().default(false)
+});
+var MechanicsStatusParamsSchema = external_exports.object({ analysisId: external_exports.string().min(1) });
+var MechanicsCancelParamsSchema = external_exports.object({ analysisId: external_exports.string().min(1) });
 var RunStartParamsSchema = external_exports.object({
   snapshotFingerprint: external_exports.string().min(1),
-  objective: ObjectiveSpecSchema
+  objective: ObjectiveSpecSchema,
+  mechanicAnalysisFingerprint: external_exports.string().regex(/^sha256:[a-f0-9]{64}$/).optional()
 });
 var RunCancelParamsSchema = external_exports.object({ runId: external_exports.string().min(1) });
 var RunStreamParamsSchema = external_exports.object({ runId: external_exports.string().min(1) });
@@ -71693,6 +71906,8 @@ var RunResumeParamsSchema = external_exports.union([
     external_exports.object({ runId: external_exports.string().min(1), decision: external_exports.literal("reject") })
   ]),
   external_exports.object({ runId: external_exports.string().min(1), decision: external_exports.literal("cancel"), reason: external_exports.string().optional() }),
+  external_exports.object({ runId: external_exports.string().min(1), decision: external_exports.literal("retryProvider") }),
+  external_exports.object({ runId: external_exports.string().min(1), decision: external_exports.literal("cancelProvider"), reason: external_exports.string().optional() }),
   external_exports.object({ runId: external_exports.string().min(1), mode: external_exports.literal("checkpoint") })
 ]);
 var CandidatePreviewParamsSchema = external_exports.object({ runId: external_exports.string().min(1), candidateId: external_exports.string().min(1) });
@@ -71741,8 +71956,10 @@ var ConsentPreviewParamsSchema = external_exports.object({
     "metrics",
     "tool_outputs",
     "chat_messages",
-    "mechanic_report"
-  ])).max(6).default([])
+    "mechanic_report",
+    "mechanic_facts",
+    "mechanic_experiment_results"
+  ])).max(8).default([])
 });
 var ConsentGrantParamsSchema = external_exports.object({
   providerId: ProviderIdSchema,
@@ -71770,10 +71987,39 @@ var RunAwaitingApprovalNotificationSchema = external_exports.object({
 });
 var RunMechanicsReadyNotificationSchema = external_exports.object({
   runId: external_exports.string().min(1),
-  report: BuildMechanicReportSchema
+  report: VerifiedBuildMechanicReportSchema
+});
+var RunAwaitingProviderNotificationSchema = external_exports.object({
+  runId: external_exports.string().min(1),
+  phase: external_exports.enum(["PlanSearch", "RefineSearch", "Explain"]),
+  error: external_exports.string().min(1),
+  retryable: external_exports.boolean()
 });
 var RunCompletedNotificationSchema = external_exports.object({ runId: external_exports.string().min(1), candidates: external_exports.array(CandidateSchema) });
 var RunFailedNotificationSchema = external_exports.object({ runId: external_exports.string().min(1), error: external_exports.string().min(1) });
+var MechanicsProgressNotificationSchema = external_exports.object({
+  analysisId: external_exports.string().min(1),
+  snapshotFingerprint: external_exports.string().min(1),
+  phase: external_exports.string().min(1),
+  progress: external_exports.number().min(0).max(1),
+  entityCount: external_exports.number().int().nonnegative(),
+  inspectedCount: external_exports.number().int().nonnegative(),
+  modelCalls: external_exports.number().int().nonnegative(),
+  experimentCount: external_exports.number().int().nonnegative(),
+  repairRounds: external_exports.number().int().nonnegative(),
+  message: external_exports.string().min(1)
+});
+var MechanicsCompletedNotificationSchema = external_exports.object({
+  analysisId: external_exports.string().min(1),
+  snapshotFingerprint: external_exports.string().min(1),
+  report: VerifiedBuildMechanicReportSchema
+});
+var MechanicsFailedNotificationSchema = external_exports.object({
+  analysisId: external_exports.string().min(1),
+  snapshotFingerprint: external_exports.string().min(1),
+  error: external_exports.string().min(1),
+  retryable: external_exports.boolean().default(false)
+});
 var TransactionApplyNotificationSchema = external_exports.object({
   runId: external_exports.string().min(1),
   candidateId: external_exports.string().min(1),
@@ -72025,6 +72271,9 @@ function stopped(stopReason, content, messages, initialAdapterCalls, adapter, to
   };
 }
 async function runReadonlyAgentLoop(options) {
+  return runAgentLoop(options);
+}
+async function runAgentLoop(options) {
   const limits = resolveLimits(options.limits);
   const parsedMessages = options.messages.map((message) => AgentMessageSchema.parse(message));
   const messages = [...parsedMessages];
@@ -72067,7 +72316,7 @@ async function runReadonlyAgentLoop(options) {
     let turn;
     try {
       turn = await options.adapter.complete(
-        { messages, context: options.context },
+        { messages, context: options.modelContext ?? options.context },
         options.signal
       );
     } catch (error51) {
@@ -72142,6 +72391,16 @@ async function runReadonlyAgentLoop(options) {
         toolCallId: call3.id,
         content: stringifyForModel({ ok: result.ok, output: result.output })
       });
+      if (options.stopAfterTool?.(result, options.context) === true) {
+        return stopped(
+          "completed",
+          lastContent,
+          messages,
+          initialAdapterCalls,
+          options.adapter,
+          toolResults
+        );
+      }
       const signature = duplicateSignature(call3, result);
       duplicateState = duplicateState?.signature === signature ? { signature, repeats: duplicateState.repeats + 1 } : { signature, repeats: 1 };
       if (duplicateState.repeats >= limits.duplicateCallLimit) {
@@ -72337,6 +72596,12 @@ function parseToolArguments(name, rawArguments) {
   }
   return parsed.data;
 }
+var HIGH_LEVEL_TOOL_REGISTRY = Object.freeze({
+  definitions: HIGH_LEVEL_TOOL_DEFINITIONS,
+  toolChoice: "auto",
+  isName: isHighLevelToolName,
+  parseArguments: parseToolArguments
+});
 
 // src/agent/readonlyTools.ts
 function safeError(error51) {
@@ -72393,6 +72658,1489 @@ var ReadonlyToolDispatcher = class {
         output: redactForModel({ error: "tool_failed", detail: safeError(error51) })
       };
     }
+  }
+};
+
+// src/mechanics/engine.ts
+init_schemas3();
+
+// src/mechanics/experiments.ts
+init_zod();
+init_schemas3();
+var MechanicInterventionSchema = external_exports.discriminatedUnion("kind", [
+  external_exports.object({
+    kind: external_exports.literal("suppress_item_modifier"),
+    itemId: external_exports.union([external_exports.string(), external_exports.number()]),
+    section: external_exports.string().min(1),
+    ordinal: external_exports.number().int().positive()
+  }).strict(),
+  external_exports.object({
+    kind: external_exports.literal("suppress_skill_effect"),
+    group: external_exports.number().int().positive(),
+    gem: external_exports.number().int().positive().optional()
+  }).strict(),
+  external_exports.object({
+    kind: external_exports.literal("suppress_support"),
+    group: external_exports.number().int().positive(),
+    gem: external_exports.number().int().positive()
+  }).strict(),
+  external_exports.object({ kind: external_exports.literal("suppress_passive_source"), nodeId: external_exports.number().int().positive() }).strict(),
+  external_exports.object({ kind: external_exports.literal("suppress_config_source"), configKey: external_exports.string().min(1).max(512) }).strict(),
+  external_exports.object({ kind: external_exports.literal("suppress_actor_buff"), buffer: external_exports.string().min(1).max(128) }).strict(),
+  external_exports.object({ kind: external_exports.literal("switch_weapon_set"), context: MechanicContextSchema }).strict()
+]);
+var MechanicExperimentSchema = external_exports.object({
+  id: external_exports.string().min(1).max(512),
+  claimId: external_exports.string().min(1).max(512).optional(),
+  context: MechanicContextSchema,
+  intervention: MechanicInterventionSchema.optional()
+}).strict();
+var MechanicExperimentResultSchema = external_exports.object({
+  experimentId: external_exports.string().min(1),
+  claimId: external_exports.string().min(1).optional(),
+  context: MechanicContextSchema,
+  baseline: MechanicObservationSchema,
+  diagnostic: MechanicObservationSchema
+});
+var PoolMechanicExperimentRunner = class {
+  #pool;
+  #runId;
+  constructor(pool, runId) {
+    this.#pool = pool;
+    this.#runId = runId;
+  }
+  async observe(snapshot, context2, signal) {
+    const [result] = await this.run(snapshot, [{ id: `observe:${context2}`, context: context2 }], signal);
+    if (result === void 0) throw new Error(`PoB worker returned no ${context2} mechanic observation`);
+    return result.baseline;
+  }
+  async run(snapshot, experiments, signal) {
+    const jobs = experiments.map((rawExperiment) => {
+      const experiment = MechanicExperimentSchema.parse(rawExperiment);
+      return {
+        id: `${this.#runId}:${experiment.id}`,
+        runId: this.#runId,
+        candidateId: experiment.claimId ?? experiment.id,
+        buildFingerprint: snapshot.fingerprint,
+        scenarios: [],
+        payload: {
+          operation: "mechanic_experiment",
+          xml: snapshot.xml,
+          actions: [],
+          scenarios: [],
+          evidence: [],
+          mechanicExperiment: experiment
+        }
+      };
+    });
+    const evaluations = await this.#pool.evaluateBatch(jobs, signal);
+    return evaluations.map((evaluation) => {
+      if (evaluation.mechanicExperimentResult === void 0) {
+        throw new Error(`PoB worker omitted mechanic experiment result for ${evaluation.jobId}`);
+      }
+      return MechanicExperimentResultSchema.parse(evaluation.mechanicExperimentResult);
+    });
+  }
+};
+function stringSetDelta(before, after) {
+  const beforeSet = new Set(before);
+  const afterSet = new Set(after);
+  return {
+    added: [...afterSet].filter((value) => !beforeSet.has(value)).sort(),
+    removed: [...beforeSet].filter((value) => !afterSet.has(value)).sort()
+  };
+}
+function numericChanges(before, after) {
+  const result = {};
+  for (const key of [.../* @__PURE__ */ new Set([...Object.keys(before), ...Object.keys(after)])].sort()) {
+    const left = before[key];
+    const right = after[key];
+    if (left === right) continue;
+    result[key] = {
+      ...left === void 0 ? {} : { before: left },
+      ...right === void 0 ? {} : { after: right },
+      ...left === void 0 || right === void 0 ? {} : { delta: right - left }
+    };
+  }
+  return result;
+}
+function diffMechanicObservations(baseline, diagnostic) {
+  const skillDelta = stringSetDelta(baseline.skills.map(({ id }) => id), diagnostic.skills.map(({ id }) => id));
+  const supportDelta = stringSetDelta(
+    baseline.skills.flatMap(({ supports }) => supports.map(({ id }) => id)),
+    diagnostic.skills.flatMap(({ supports }) => supports.map(({ id }) => id))
+  );
+  const conditionDelta = stringSetDelta(baseline.conditions.map(({ id }) => id), diagnostic.conditions.map(({ id }) => id));
+  const modifierDelta = stringSetDelta(baseline.activeModifierIds, diagnostic.activeModifierIds);
+  const itemDelta = stringSetDelta(baseline.activeItemIds, diagnostic.activeItemIds);
+  const passiveDelta = stringSetDelta(baseline.activePassiveIds, diagnostic.activePassiveIds);
+  const metricChanges = numericChanges(baseline.metrics, diagnostic.metrics);
+  const resourceChanges = numericChanges(baseline.resources, diagnostic.resources);
+  const cooldownChanges = numericChanges(baseline.cooldowns, diagnostic.cooldowns);
+  const durationChanges = numericChanges(baseline.durations, diagnostic.durations);
+  const contributionChanges = numericChanges(baseline.contributions, diagnostic.contributions);
+  const contributionChanged = supportDelta.added.length + supportDelta.removed.length + conditionDelta.added.length + conditionDelta.removed.length + modifierDelta.added.length + modifierDelta.removed.length + skillDelta.added.length + skillDelta.removed.length + itemDelta.added.length + itemDelta.removed.length + passiveDelta.added.length + passiveDelta.removed.length + Object.keys(contributionChanges).length > 0;
+  const changed = contributionChanged || skillDelta.added.length + skillDelta.removed.length > 0 || Object.keys(metricChanges).length + Object.keys(resourceChanges).length + Object.keys(cooldownChanges).length + Object.keys(durationChanges).length > 0;
+  const withoutFingerprint = {
+    changed,
+    contributionChanged,
+    metricChanges,
+    addedSkillIds: skillDelta.added,
+    removedSkillIds: skillDelta.removed,
+    addedSupportIds: supportDelta.added,
+    removedSupportIds: supportDelta.removed,
+    addedConditionIds: conditionDelta.added,
+    removedConditionIds: conditionDelta.removed,
+    addedModifierIds: modifierDelta.added,
+    removedModifierIds: modifierDelta.removed,
+    addedItemIds: itemDelta.added,
+    removedItemIds: itemDelta.removed,
+    addedPassiveIds: passiveDelta.added,
+    removedPassiveIds: passiveDelta.removed,
+    contributionChanges,
+    resourceChanges,
+    cooldownChanges,
+    durationChanges
+  };
+  return MechanicObservationDeltaSchema.parse({
+    ...withoutFingerprint,
+    fingerprint: `sha256:${canonicalHash(withoutFingerprint)}`
+  });
+}
+function compileMechanicExperiments(facts, claims) {
+  const entities = new Map(facts.entities.map((entity) => [entity.id, entity]));
+  return claims.map((claim) => {
+    const source = entities.get(claim.sourceId);
+    if (source === void 0) return { claim, exactEvidenceIds: [] };
+    const data = source.data;
+    let intervention;
+    if (source.kind === "modifierLine") {
+      const { itemId, section, ordinal } = data;
+      if ((typeof itemId === "string" || typeof itemId === "number") && typeof section === "string" && typeof ordinal === "number") {
+        intervention = { kind: "suppress_item_modifier", itemId, section, ordinal };
+      }
+    } else if (source.kind === "support") {
+      const sourceModifier = typeof data.sourceModifier === "object" && data.sourceModifier !== null ? data.sourceModifier : void 0;
+      if ((typeof sourceModifier?.itemId === "string" || typeof sourceModifier?.itemId === "number") && typeof sourceModifier.section === "string" && typeof sourceModifier.ordinal === "number") {
+        intervention = {
+          kind: "suppress_item_modifier",
+          itemId: sourceModifier.itemId,
+          section: sourceModifier.section,
+          ordinal: sourceModifier.ordinal
+        };
+      } else {
+        const { group, gem } = data;
+        if (typeof group === "number" && typeof gem === "number") intervention = { kind: "suppress_support", group, gem };
+      }
+    } else if (source.kind === "skill") {
+      const sourceModifier = typeof data.sourceModifier === "object" && data.sourceModifier !== null ? data.sourceModifier : void 0;
+      if ((typeof sourceModifier?.itemId === "string" || typeof sourceModifier?.itemId === "number") && typeof sourceModifier.section === "string" && typeof sourceModifier.ordinal === "number") {
+        intervention = {
+          kind: "suppress_item_modifier",
+          itemId: sourceModifier.itemId,
+          section: sourceModifier.section,
+          ordinal: sourceModifier.ordinal
+        };
+      } else {
+        const { group, gem } = data;
+        if (typeof group === "number") intervention = {
+          kind: "suppress_skill_effect",
+          group,
+          ...typeof gem === "number" ? { gem } : {}
+        };
+      }
+    } else if (source.kind === "passive") {
+      if (typeof data.nodeId === "number") intervention = { kind: "suppress_passive_source", nodeId: data.nodeId };
+    } else if (source.kind === "config") {
+      if (typeof data.configKey === "string") intervention = { kind: "suppress_config_source", configKey: data.configKey };
+    } else if (source.kind === "actorBuff") {
+      if (typeof data.buffer === "string") intervention = { kind: "suppress_actor_buff", buffer: data.buffer };
+    }
+    const needsCounterfactual = claim.critical || claim.ambiguous;
+    return {
+      claim,
+      exactEvidenceIds: source.provenance.flatMap(({ evidence: evidence2, sourceId }) => [sourceId, ...evidence2]),
+      ...needsCounterfactual && intervention !== void 0 ? {
+        experiment: { id: `experiment:${claim.id}`, claimId: claim.id, context: claim.context, intervention }
+      } : {}
+    };
+  });
+}
+
+// src/mechanics/facts.ts
+init_schemas3();
+function record4(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value) ? value : void 0;
+}
+function records(value) {
+  return Array.isArray(value) ? value.map(record4).filter((entry) => entry !== void 0) : [];
+}
+function scopedId(context2, raw) {
+  return `${context2}:${raw}`;
+}
+function fact(input) {
+  return MechanicFactSchema.parse({ ...input, fingerprint: `sha256:${canonicalHash(input)}` });
+}
+function catalog(snapshot, id) {
+  return snapshot.contentCatalog?.find((entry) => entry.id === id)?.data;
+}
+function provenance(kind, sourceId, fingerprint, evidence2 = []) {
+  return [{ kind, sourceId, fingerprint, evidence: [...evidence2] }];
+}
+function projectionFacts(snapshot, context2, observation) {
+  const facts = [];
+  const activeItems = new Set(observation.activeItemIds);
+  const activeLines = new Set(observation.activeModifierIds);
+  for (const item of snapshot.mechanicProjection.items) {
+    const itemId = scopedId(context2, `item:${item.id}`);
+    facts.push(fact({
+      id: itemId,
+      context: context2,
+      domain: "gear",
+      kind: "item",
+      ...item.name === void 0 ? {} : { name: item.name },
+      active: activeItems.has(item.id),
+      provenance: provenance("projection", `item:${item.id}`, snapshot.mechanicProjection.fingerprint, [
+        `legality:${item.legality.status}`,
+        ...item.references.map(({ itemSetId, slot }) => `item-set:${itemSetId}:${slot}`)
+      ]),
+      data: {
+        itemId: item.id,
+        baseName: item.baseName,
+        type: item.type,
+        rarity: item.rarity,
+        legality: item.legality,
+        state: item.state,
+        references: item.references
+      }
+    }));
+    for (const line of item.modifierLines) {
+      const id = scopedId(context2, line.id);
+      facts.push(fact({
+        id,
+        context: context2,
+        domain: "gear",
+        kind: "modifierLine",
+        name: line.rawText,
+        active: activeLines.has(line.id),
+        provenance: provenance("projection", line.id, snapshot.mechanicProjection.fingerprint, [
+          `parse:${line.parseStatus}`,
+          ...line.provenance.evidence
+        ]),
+        data: {
+          itemEntityId: itemId,
+          itemId: item.id,
+          section: line.section,
+          ordinal: line.ordinal,
+          parseStatus: line.parseStatus,
+          disabled: line.disabled,
+          flags: line.flags,
+          modTags: line.modTags,
+          parsedMods: line.parsedMods,
+          modifierProvenance: line.provenance
+        }
+      }));
+      for (const [index2, parsed] of line.parsedMods.entries()) {
+        facts.push(fact({
+          id: `${id}:parsed:${index2 + 1}`,
+          context: context2,
+          domain: "gear",
+          kind: "parsedModifier",
+          name: parsed.name,
+          active: activeLines.has(line.id),
+          provenance: provenance("projection", `${line.id}:parsed:${index2 + 1}`, snapshot.mechanicProjection.fingerprint, [
+            `classification:${parsed.classification}`
+          ]),
+          data: { modifierLineEntityId: id, ...parsed }
+        }));
+      }
+    }
+  }
+  return facts;
+}
+function skillFacts(snapshot, context2, observation) {
+  const facts = [];
+  const skillsCatalog = catalog(snapshot, "pob:skills");
+  const nativeProbe = record4(skillsCatalog?.nativeLinkProbe);
+  const groups = records(nativeProbe?.groups);
+  const projectedGrant = (names2, id, displayName) => {
+    for (const item of snapshot.mechanicProjection.items) {
+      if (!item.active) continue;
+      for (const line of item.modifierLines) {
+        if (!line.active) continue;
+        for (const parsed of line.parsedMods) {
+          const value = record4(parsed.value);
+          const skillId = String(value?.skillId ?? value?.id ?? "");
+          const skillName = String(value?.skillName ?? value?.name ?? "");
+          if (names2.includes(parsed.name) && (skillId === id || displayName !== void 0 && skillName === displayName)) {
+            return { itemId: item.id, lineId: line.id, section: line.section, ordinal: line.ordinal };
+          }
+        }
+      }
+    }
+    return void 0;
+  };
+  for (const observed of observation.skills) {
+    const group = groups.find((entry) => entry.index === observed.group);
+    const gems = records(group?.gems);
+    const activeGem = gems.find((entry) => entry.support !== true && entry.enabled !== false);
+    const skillGrant = observed.fromItem ? projectedGrant(["ExtraSkill", "ExtraSkillMod"], observed.id, observed.name) : void 0;
+    const skillId = scopedId(context2, `skill:${observed.id}`);
+    facts.push(fact({
+      id: skillId,
+      context: context2,
+      domain: "skills",
+      kind: "skill",
+      name: observed.name,
+      active: observed.enabled,
+      provenance: [
+        ...provenance("native_probe", `group:${observed.group}:skill:${observed.id}`, observation.nativeProbeFingerprint, [
+          `group:${observed.group}`,
+          observed.includeInFullDps ? "full-dps:true" : "full-dps:false"
+        ]),
+        ...skillGrant === void 0 ? [] : provenance("projection", skillGrant.lineId, snapshot.mechanicProjection.fingerprint, [skillGrant.lineId])
+      ],
+      data: {
+        group: observed.group,
+        ...typeof activeGem?.index === "number" ? { gem: activeGem.index } : {},
+        includeInFullDps: observed.includeInFullDps,
+        fromItem: observed.fromItem,
+        ...skillGrant === void 0 ? {} : { sourceModifier: skillGrant }
+      }
+    }));
+    for (const support of observed.supports) {
+      const supportGem = gems.find((entry) => entry.grantedEffectId === support.id && entry.support === true);
+      const supportGrant = support.fromItem ? projectedGrant(["ExtraSupport", "ExtraSupportMod"], support.id, support.name) : void 0;
+      facts.push(fact({
+        id: scopedId(context2, `support:${observed.group}:${observed.id}:${support.id}`),
+        context: context2,
+        domain: "skills",
+        kind: "support",
+        name: support.name,
+        active: true,
+        provenance: [
+          ...provenance("native_probe", `group:${observed.group}:support:${support.id}`, observation.nativeProbeFingerprint, [
+            `supports:${skillId}`,
+            support.fromItem ? "from-item:true" : "from-item:false"
+          ]),
+          ...supportGrant === void 0 ? [] : provenance("projection", supportGrant.lineId, snapshot.mechanicProjection.fingerprint, [supportGrant.lineId])
+        ],
+        data: {
+          group: observed.group,
+          ...typeof supportGem?.index === "number" ? { gem: supportGem.index } : {},
+          grantedEffectId: support.id,
+          supportedSkillEntityId: skillId,
+          fromItem: support.fromItem,
+          ...supportGrant === void 0 ? {} : { sourceModifier: supportGrant }
+        }
+      }));
+    }
+  }
+  return facts;
+}
+function treeFacts(snapshot, context2, observation) {
+  const tree = catalog(snapshot, "pob:tree");
+  const allocated = records(tree?.allocated);
+  const active = new Set(observation.activePassiveIds);
+  return allocated.map((node) => {
+    const nodeId = typeof node.id === "number" || typeof node.id === "string" ? node.id : "unknown";
+    return fact({
+      id: scopedId(context2, `passive:${nodeId}`),
+      context: context2,
+      domain: "tree",
+      kind: "passive",
+      ...typeof node.name === "string" ? { name: node.name } : {},
+      active: active.has(String(nodeId)),
+      provenance: provenance("catalog", `passive:${nodeId}`, observation.fingerprint, ["allocated-passive"]),
+      data: { ...node, nodeId }
+    });
+  });
+}
+function configFacts(snapshot, context2, observation) {
+  const config2 = catalog(snapshot, "pob:config");
+  const claims = records(config2?.conditionClaims);
+  const nativeConditions = new Map(observation.conditions.map((condition) => [condition.id.split(":").slice(1).join(":"), condition]));
+  const facts = [];
+  for (const [configKey, value] of Object.entries(observation.configValues).sort(([left], [right]) => left.localeCompare(right))) {
+    const claim = claims.find((entry) => entry.configKey === configKey || entry.condition === configKey);
+    const native = nativeConditions.get(configKey);
+    facts.push(fact({
+      id: scopedId(context2, `config:${configKey}`),
+      context: context2,
+      domain: "config",
+      kind: "config",
+      name: typeof claim?.label === "string" ? claim.label : configKey,
+      active: claim === void 0 || claim.sourceStatus === "manual",
+      provenance: provenance(
+        native === void 0 ? "catalog" : "native_evidence",
+        `config:${configKey}`,
+        native === void 0 ? observation.fingerprint : observation.evidenceFingerprint,
+        native?.sources ?? ["manual-config"]
+      ),
+      data: { configKey, value, ...claim === void 0 ? {} : { claim }, nativeSources: native?.sources ?? [] }
+    }));
+  }
+  for (const condition of observation.conditions) {
+    facts.push(fact({
+      id: scopedId(context2, `condition:${condition.id}`),
+      context: context2,
+      domain: "condition",
+      kind: "condition",
+      name: condition.id,
+      active: true,
+      provenance: provenance("native_evidence", `condition:${condition.id}`, observation.evidenceFingerprint, condition.sources),
+      data: { actor: condition.actor, sources: condition.sources }
+    }));
+  }
+  return facts;
+}
+function actorFacts(snapshot, context2, observation) {
+  const actors = catalog(snapshot, "pob:actors");
+  const projection = record4(actors?.actorSeason);
+  const actorList = records(projection?.actors);
+  const season = record4(projection?.season) ?? {};
+  const meaningful = (value) => {
+    if (Array.isArray(value)) return value.some(meaningful);
+    if (value !== null && typeof value === "object") return Object.values(value).some(meaningful);
+    if (typeof value === "boolean") return value;
+    if (typeof value === "number") return value !== 0;
+    if (typeof value === "string") return value.length > 0;
+    return false;
+  };
+  const facts = actorList.map((actor, index2) => fact({
+    id: scopedId(context2, `actor:${String(actor.id ?? actor.kind ?? index2 + 1)}`),
+    context: context2,
+    domain: "actor",
+    kind: actor.kind === "party" ? "actorBuff" : "actor",
+    ...typeof actor.name === "string" ? { name: actor.name } : {},
+    active: actor.kind === "party" ? actor.active === true : actor.active !== false,
+    provenance: provenance("catalog", `actor:${index2 + 1}`, observation.fingerprint, ["actor-season-projection"]),
+    data: actor
+  }));
+  for (const [key, value] of Object.entries(season).sort(([left], [right]) => left.localeCompare(right))) {
+    if (value === void 0 || typeof value === "function" || typeof value === "symbol" || typeof value === "bigint") continue;
+    facts.push(fact({
+      id: scopedId(context2, `season:${key}`),
+      context: context2,
+      domain: "actor",
+      kind: "seasonMechanic",
+      name: key,
+      active: meaningful(value),
+      provenance: provenance("catalog", `season:${key}`, observation.fingerprint, [snapshot.ruleset]),
+      data: { value }
+    }));
+  }
+  return facts;
+}
+function numericFacts(context2, observation, values, kind, domain2) {
+  return Object.entries(values).sort(([left], [right]) => left.localeCompare(right)).map(([name, value]) => fact({
+    id: scopedId(context2, `${kind}:${name}`),
+    context: context2,
+    domain: domain2,
+    kind,
+    name,
+    active: true,
+    provenance: provenance("worker_observation", `${kind}:${name}`, observation.fingerprint, [`value:${value}`]),
+    data: { value }
+  }));
+}
+var OFFENCE_METRICS = /* @__PURE__ */ new Set([
+  "FullDPS",
+  "CombinedDPS",
+  "TotalDPS",
+  "TotalDot",
+  "Speed",
+  "fullDps",
+  "combinedDps",
+  "totalDps",
+  "totalDot",
+  "speed"
+]);
+function metricFacts(context2, observation) {
+  const offence = {};
+  const defence = {};
+  for (const [name, value] of Object.entries(observation.metrics)) {
+    (OFFENCE_METRICS.has(name) ? offence : defence)[name] = value;
+  }
+  return [
+    ...numericFacts(context2, observation, offence, "metric", "offence"),
+    ...numericFacts(context2, observation, defence, "metric", "defence")
+  ];
+}
+function inventory(snapshot) {
+  const loadouts = catalog(snapshot, "pob:loadouts");
+  const activeItem = String(loadouts?.activeItemSetId ?? "");
+  const activeTree = String(loadouts?.activeTreeSpecId ?? "");
+  const activeSkill = String(loadouts?.activeSkillSetId ?? "");
+  const stringIds = (value) => Array.isArray(value) ? value.map(String) : [];
+  return {
+    inactiveItemSetIds: stringIds(loadouts?.itemSetIds).filter((id) => id !== activeItem),
+    inactiveTreeSpecIds: stringIds(loadouts?.treeSpecIds).filter((id) => id !== activeTree),
+    inactiveSkillSetIds: stringIds(loadouts?.skillSetIds).filter((id) => id !== activeSkill)
+  };
+}
+function extractMechanicFacts(snapshot, observations) {
+  const requiredCatalogs = ["pob:skills", "pob:items", "pob:tree", "pob:actors", "pob:config", "pob:loadouts"];
+  const available = new Set(snapshot.contentCatalog?.map(({ id }) => id) ?? []);
+  const missingScopes = requiredCatalogs.filter((id) => !available.has(id));
+  const truncatedScopes = [];
+  if (catalog(snapshot, "pob:skills")?.currentGroupsTruncated === true) truncatedScopes.push("pob:skills:current-groups");
+  if (catalog(snapshot, "pob:tree")?.allocatedTruncated === true) truncatedScopes.push("pob:tree:allocated");
+  if (record4(catalog(snapshot, "pob:actors")?.actorSeason)?.truncated === true) truncatedScopes.push("pob:actors:active");
+  if (catalog(snapshot, "pob:config")?.valuesTruncated === true) truncatedScopes.push("pob:config:values");
+  if (catalog(snapshot, "pob:config")?.conditionClaimsTruncated === true) truncatedScopes.push("pob:config:claims");
+  if (catalog(snapshot, "pob:loadouts")?.truncated === true) truncatedScopes.push("pob:loadouts");
+  const nativeProbe = record4(catalog(snapshot, "pob:skills")?.nativeLinkProbe);
+  if (nativeProbe?.complete !== true || nativeProbe.truncated === true) truncatedScopes.push("pob:skills:native-link-probe");
+  if (snapshot.mechanicProjection.fingerprint !== snapshot.mechanicProjectionFingerprint) {
+    missingScopes.push("modifier-projection-fingerprint");
+  }
+  const contexts = ["weaponSet1", "weaponSet2"];
+  const entities = contexts.flatMap((context2) => {
+    const observation = observations[context2];
+    return [
+      ...projectionFacts(snapshot, context2, observation),
+      ...skillFacts(snapshot, context2, observation),
+      ...treeFacts(snapshot, context2, observation),
+      ...configFacts(snapshot, context2, observation),
+      ...actorFacts(snapshot, context2, observation),
+      ...metricFacts(context2, observation),
+      ...numericFacts(context2, observation, observation.resources, "resource", "resource"),
+      ...numericFacts(context2, observation, observation.cooldowns, "cooldown", "resource"),
+      ...numericFacts(context2, observation, observation.durations, "duration", "resource")
+    ];
+  }).sort((left, right) => left.id.localeCompare(right.id));
+  const duplicate = entities.find((entity, index2) => index2 > 0 && entities[index2 - 1]?.id === entity.id);
+  if (duplicate !== void 0) missingScopes.push(`duplicate-entity:${duplicate.id}`);
+  const withoutFingerprint = {
+    schemaVersion: SCHEMA_VERSION,
+    snapshotFingerprint: snapshot.fingerprint,
+    projectionFingerprint: snapshot.mechanicProjection.fingerprint,
+    engineVersion: snapshot.engineVersion,
+    dataVersion: snapshot.dataVersion,
+    ruleset: snapshot.ruleset,
+    contexts,
+    complete: missingScopes.length === 0 && truncatedScopes.length === 0,
+    missingScopes: [...new Set(missingScopes)].sort(),
+    truncatedScopes: [...new Set(truncatedScopes)].sort(),
+    entities,
+    observations,
+    inventory: inventory(snapshot)
+  };
+  return MechanicFactBundleSchema.parse({
+    ...withoutFingerprint,
+    fingerprint: `sha256:${canonicalHash(withoutFingerprint)}`
+  });
+}
+function compactFactManifest(bundle) {
+  const counts = /* @__PURE__ */ new Map();
+  for (const entity of bundle.entities) {
+    const key = `${entity.context}:${entity.domain}:${entity.kind}`;
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  return {
+    snapshotFingerprint: bundle.snapshotFingerprint,
+    factBundleFingerprint: bundle.fingerprint,
+    contexts: bundle.contexts,
+    complete: bundle.complete,
+    missingScopes: bundle.missingScopes,
+    truncatedScopes: bundle.truncatedScopes,
+    entityCount: bundle.entities.length,
+    counts: Object.fromEntries([...counts].sort(([left], [right]) => left.localeCompare(right))),
+    inventory: bundle.inventory
+  };
+}
+
+// src/mechanics/tools.ts
+init_zod();
+init_schemas3();
+var IdentifierSchema2 = external_exports.string().min(1).max(512);
+var DomainSchema2 = external_exports.enum([
+  "skills",
+  "gear",
+  "tree",
+  "config",
+  "actor",
+  "offence",
+  "resource",
+  "defence",
+  "condition",
+  "inventory"
+]);
+var ClaimInputSchema = external_exports.object({
+  sourceId: IdentifierSchema2,
+  relation: MechanicRelationSchema,
+  targetId: IdentifierSchema2,
+  context: MechanicContextSchema,
+  scenario: ScenarioIdSchema.optional(),
+  statement: external_exports.string().min(1).max(8e3),
+  evidenceIds: external_exports.array(IdentifierSchema2).max(128).default([])
+}).strict();
+var ReviewSchema = external_exports.object({
+  verdict: external_exports.enum(["complete", "repair"]),
+  missingEntityIds: external_exports.array(IdentifierSchema2).max(1e4).default([]),
+  conflictingClaimIds: external_exports.array(IdentifierSchema2).max(1e4).default([]),
+  invalidProofIds: external_exports.array(IdentifierSchema2).max(1e4).default([]),
+  summary: external_exports.string().min(1).max(32e3)
+}).strict();
+var MECHANIC_TOOL_SCHEMAS = {
+  list_mechanic_entities: external_exports.object({
+    context: MechanicContextSchema.optional(),
+    domains: external_exports.array(DomainSchema2).max(10).optional(),
+    cursor: external_exports.number().int().nonnegative().default(0),
+    limit: external_exports.number().int().min(1).max(200).default(100)
+  }).strict(),
+  inspect_mechanic_entity: external_exports.object({
+    entityIds: external_exports.array(IdentifierSchema2).min(1).max(100)
+  }).strict(),
+  submit_mechanic_claims: external_exports.object({
+    claims: external_exports.array(ClaimInputSchema).max(1e4),
+    complete: external_exports.boolean()
+  }).strict(),
+  inspect_mechanic_proofs: external_exports.object({
+    claimIds: external_exports.array(IdentifierSchema2).max(100).optional(),
+    cursor: external_exports.number().int().nonnegative().default(0),
+    limit: external_exports.number().int().min(1).max(200).default(100)
+  }).strict(),
+  submit_mechanic_review: ReviewSchema
+};
+var TOOL_DESCRIPTIONS2 = {
+  list_mechanic_entities: "Page through the compact manifest of PoB-authored mechanic entities.",
+  inspect_mechanic_entity: "Inspect detailed local PoB facts and provenance for selected entities.",
+  submit_mechanic_claims: "Submit the typed mechanism claims discovered from inspected local facts.",
+  inspect_mechanic_proofs: "Inspect native and counterfactual proofs produced by local PoB workers.",
+  submit_mechanic_review: "Submit the final coverage/proof critique and identify required repairs."
+};
+function strictProviderSchema2(source) {
+  if (source === null || typeof source !== "object" || Array.isArray(source)) return {};
+  const schema = source;
+  if (schema.type === "object") {
+    const sourceProperties = schema.properties !== null && typeof schema.properties === "object" ? schema.properties : {};
+    const originallyRequired = new Set(Array.isArray(schema.required) ? schema.required : []);
+    const properties = Object.fromEntries(Object.entries(sourceProperties).map(([name, property]) => {
+      const converted = strictProviderSchema2(property);
+      return [name, originallyRequired.has(name) ? converted : { anyOf: [converted, { type: "null" }] }];
+    }));
+    return { type: "object", properties, required: Object.keys(properties), additionalProperties: false };
+  }
+  if (schema.type === "array") return { type: "array", items: strictProviderSchema2(schema.items) };
+  if (Array.isArray(schema.anyOf)) return { anyOf: schema.anyOf.map(strictProviderSchema2) };
+  const output = {};
+  if (typeof schema.type === "string") output.type = schema.type;
+  if (Array.isArray(schema.enum)) output.enum = schema.enum;
+  return output;
+}
+var names = Object.keys(MECHANIC_TOOL_SCHEMAS);
+var definitions = Object.freeze(names.map((name) => ({
+  type: "function",
+  function: {
+    name,
+    description: TOOL_DESCRIPTIONS2[name],
+    strict: true,
+    parameters: strictProviderSchema2(MECHANIC_TOOL_SCHEMAS[name].toJSONSchema({ target: "draft-07" }))
+  }
+})));
+var RAW_ARGUMENT_LIMIT_BYTES2 = 512 * 1024;
+function isMechanicToolName(value) {
+  return Object.hasOwn(MECHANIC_TOOL_SCHEMAS, value);
+}
+function parseArguments(name, rawArguments) {
+  if (Buffer.byteLength(rawArguments, "utf8") > RAW_ARGUMENT_LIMIT_BYTES2) {
+    throw new Error(`Tool arguments exceed ${RAW_ARGUMENT_LIMIT_BYTES2} bytes`);
+  }
+  let decoded;
+  try {
+    decoded = JSON.parse(rawArguments);
+  } catch {
+    throw new Error(`Invalid JSON arguments for ${name}`);
+  }
+  const normalized = decoded !== null && typeof decoded === "object" && !Array.isArray(decoded) ? Object.fromEntries(Object.entries(decoded).filter(([, value]) => value !== null)) : decoded;
+  const parsed = MECHANIC_TOOL_SCHEMAS[name].safeParse(normalized);
+  if (!parsed.success) throw new Error(`Invalid arguments for ${name}: ${external_exports.prettifyError(parsed.error)}`);
+  return parsed.data;
+}
+var MECHANIC_TOOL_REGISTRY = Object.freeze({
+  definitions,
+  toolChoice: "required",
+  isName: isMechanicToolName,
+  parseArguments
+});
+function errorResult(call3, error51) {
+  return { toolCallId: call3.id, name: call3.name, ok: false, output: { error: error51 } };
+}
+var MechanicToolDispatcher = class {
+  async execute(call3, session) {
+    const parsed = MECHANIC_TOOL_SCHEMAS[call3.name].safeParse(call3.arguments);
+    if (!parsed.success) return errorResult(call3, "invalid_arguments");
+    const entityById = new Map(session.facts.entities.map((entity) => [entity.id, entity]));
+    let output;
+    switch (call3.name) {
+      case "list_mechanic_entities": {
+        const args = MECHANIC_TOOL_SCHEMAS.list_mechanic_entities.parse(call3.arguments);
+        const domains = args.domains === void 0 ? void 0 : new Set(args.domains);
+        const filtered = session.facts.entities.filter((entity) => (args.context === void 0 || entity.context === args.context) && (domains === void 0 || domains.has(entity.domain)));
+        const page = filtered.slice(args.cursor, args.cursor + args.limit);
+        output = {
+          total: filtered.length,
+          cursor: args.cursor,
+          nextCursor: args.cursor + page.length < filtered.length ? args.cursor + page.length : void 0,
+          entities: page.map(({ id, context: context2, domain: domain2, kind, name, active, fingerprint }) => ({
+            id,
+            context: context2,
+            domain: domain2,
+            kind,
+            name,
+            active,
+            fingerprint
+          }))
+        };
+        break;
+      }
+      case "inspect_mechanic_entity": {
+        const args = MECHANIC_TOOL_SCHEMAS.inspect_mechanic_entity.parse(call3.arguments);
+        const missing = args.entityIds.filter((id) => !entityById.has(id));
+        if (missing.length > 0) return errorResult(call3, `unknown_entities:${missing.join(",")}`);
+        for (const id of args.entityIds) session.inspectedEntityIds.add(id);
+        output = args.entityIds.map((id) => entityById.get(id));
+        break;
+      }
+      case "submit_mechanic_claims": {
+        if (session.phase === "critic") return errorResult(call3, "tool_not_allowed_in_critic_phase");
+        const args = MECHANIC_TOOL_SCHEMAS.submit_mechanic_claims.parse(call3.arguments);
+        const unknown2 = args.claims.flatMap((claim) => [claim.sourceId, claim.targetId]).filter((id) => !entityById.has(id));
+        if (unknown2.length > 0) return errorResult(call3, `unknown_entities:${[...new Set(unknown2)].join(",")}`);
+        const invalidContext = args.claims.find((claim) => entityById.get(claim.sourceId)?.context !== claim.context || entityById.get(claim.targetId)?.context !== claim.context);
+        if (invalidContext !== void 0) return errorResult(call3, "claim_context_mismatch");
+        if (args.claims.some((claim) => claim.sourceId === claim.targetId)) return errorResult(call3, "self_relation_forbidden");
+        const knownEvidence = new Set(session.facts.entities.flatMap((entity) => [
+          entity.id,
+          entity.fingerprint,
+          ...entity.provenance.flatMap(({ sourceId, fingerprint, evidence: evidence2 }) => [sourceId, fingerprint, ...evidence2])
+        ]));
+        const unknownEvidence = args.claims.flatMap(({ evidenceIds }) => evidenceIds).filter((id) => !knownEvidence.has(id));
+        if (unknownEvidence.length > 0) {
+          return errorResult(call3, `unknown_evidence:${[...new Set(unknownEvidence)].join(",")}`);
+        }
+        session.submittedClaims = args.claims;
+        session.claimsComplete = args.complete;
+        output = { accepted: args.claims.length, complete: args.complete };
+        break;
+      }
+      case "inspect_mechanic_proofs": {
+        const args = MECHANIC_TOOL_SCHEMAS.inspect_mechanic_proofs.parse(call3.arguments);
+        const requested = args.claimIds === void 0 ? void 0 : new Set(args.claimIds);
+        const filtered = session.proofs.filter((proof) => requested === void 0 || requested.has(proof.claimId));
+        const page = filtered.slice(args.cursor, args.cursor + args.limit);
+        output = {
+          total: filtered.length,
+          cursor: args.cursor,
+          nextCursor: args.cursor + page.length < filtered.length ? args.cursor + page.length : void 0,
+          proofs: page
+        };
+        break;
+      }
+      case "submit_mechanic_review": {
+        if (session.phase !== "critic") return errorResult(call3, "tool_only_allowed_in_critic_phase");
+        const review = ReviewSchema.parse(call3.arguments);
+        const knownClaims = new Set(session.existingClaims.map(({ id }) => id));
+        const knownProofs = new Set(session.proofs.map(({ id }) => id));
+        if (review.missingEntityIds.some((id) => !entityById.has(id))) return errorResult(call3, "review_unknown_entity");
+        if (review.conflictingClaimIds.some((id) => !knownClaims.has(id))) return errorResult(call3, "review_unknown_claim");
+        if (review.invalidProofIds.some((id) => !knownProofs.has(id))) return errorResult(call3, "review_unknown_proof");
+        session.review = review;
+        output = { accepted: true, verdict: review.verdict };
+        break;
+      }
+    }
+    return { toolCallId: call3.id, name: call3.name, ok: true, output: redactForModel(output) };
+  }
+};
+
+// src/mechanics/engine.ts
+var UNDERSTANDING_ENGINE_VERSION = "1";
+var MECHANIC_PROMPT_VERSION = "1";
+var MECHANIC_TOOL_SCHEMA_VERSION = "1";
+var STANDARD_MECHANIC_SCENARIO_MATRIX = [
+  "current",
+  "mapping:sustainable",
+  "standardBoss:sustainable",
+  "pinnacle:sustainable",
+  "uber:sustainable",
+  "mapping:peak",
+  "standardBoss:peak",
+  "pinnacle:peak",
+  "uber:peak"
+];
+var MechanicProviderError = class extends Error {
+  retryable;
+  constructor(message, retryable) {
+    super(message);
+    this.name = "MechanicProviderError";
+    this.retryable = retryable;
+  }
+};
+function replace(defaultValue) {
+  return Annotation({ reducer: (_current, update) => update, default: defaultValue });
+}
+var MechanicStateAnnotation = Annotation.Root({
+  snapshot: Annotation(),
+  options: Annotation(),
+  facts: replace(() => void 0),
+  submittedClaims: replace(() => []),
+  claims: replace(() => []),
+  compiled: replace(() => []),
+  experimentResults: replace(() => []),
+  proofs: replace(() => []),
+  coverage: replace(() => []),
+  inspectedEntityIds: replace(() => []),
+  blockers: replace(() => []),
+  warnings: replace(() => []),
+  review: replace(() => void 0),
+  report: replace(() => void 0),
+  modelCalls: replace(() => 0),
+  experimentCount: replace(() => 0),
+  repairRounds: replace(() => 0),
+  phase: replace(() => "idle"),
+  trace: Annotation({ reducer: (current, update) => current.concat(update), default: () => [] })
+});
+var MECHANIC_ANALYST_POLICY = [
+  "You are the analyst inside AIPathOfBuilding's mechanic-understanding loop.",
+  "Use only the supplied local PoB fact tools; never use network knowledge or infer unsupported game rules.",
+  "Inspect the complete active Build for both weapon contexts: every enabled skill and Full DPS skill, supports, equipment modifiers, allocated passives, config, actors, resources, defences, conditions, triggers, auras, curses and rotations.",
+  "Inactive saved item/tree/skill sets are inventory only.",
+  "Submit typed claims only with grants/requires/triggers/scales/consumes/conflicts.",
+  "You cannot request mutations. Finish by calling submit_mechanic_claims with the complete replacement claim set."
+].join(" ");
+var MECHANIC_CRITIC_POLICY = [
+  "You are the critic inside AIPathOfBuilding's mechanic-understanding loop.",
+  "Use only supplied local facts, claims and PoB proofs.",
+  "Audit both weapon contexts for missing entities, contradictions, invalid proofs and unsupported critical chains.",
+  "Never accept prose as proof. Finish by calling submit_mechanic_review."
+].join(" ");
+function errorText(error51) {
+  return error51 instanceof Error ? error51.message : String(error51);
+}
+function progress(dependencies, state, phase, value, message) {
+  dependencies.onProgress?.({
+    phase,
+    progress: value,
+    entityCount: state.facts?.entities.length ?? 0,
+    inspectedCount: state.inspectedEntityIds.length,
+    modelCalls: state.modelCalls,
+    experimentCount: state.experimentCount,
+    repairRounds: state.repairRounds,
+    message
+  });
+}
+function cacheKey(snapshot, facts, descriptor) {
+  return `sha256:${canonicalHash({
+    namespace: "mechanic-understanding:v4",
+    build: snapshot.fingerprint,
+    projection: snapshot.mechanicProjectionFingerprint,
+    factBundle: facts.fingerprint,
+    engine: snapshot.engineVersion,
+    data: snapshot.dataVersion,
+    ruleset: snapshot.ruleset,
+    contexts: facts.contexts,
+    scenarios: STANDARD_MECHANIC_SCENARIO_MATRIX,
+    understandingEngine: UNDERSTANDING_ENGINE_VERSION,
+    prompt: MECHANIC_PROMPT_VERSION,
+    tools: MECHANIC_TOOL_SCHEMA_VERSION,
+    provider: descriptor
+  })}`;
+}
+function checkpointThreadId(snapshot, options, descriptor) {
+  return `mechanics:${canonicalHash({
+    namespace: "mechanic-understanding-checkpoint:v4",
+    build: snapshot.fingerprint,
+    projection: snapshot.mechanicProjectionFingerprint,
+    engine: snapshot.engineVersion,
+    data: snapshot.dataVersion,
+    ruleset: snapshot.ruleset,
+    contexts: options.contexts,
+    understandingEngine: UNDERSTANDING_ENGINE_VERSION,
+    prompt: MECHANIC_PROMPT_VERSION,
+    tools: MECHANIC_TOOL_SCHEMA_VERSION,
+    provider: descriptor
+  })}`;
+}
+function isRoot(entity) {
+  if (entity === void 0 || !entity.active) return false;
+  return entity.kind === "metric" || entity.kind === "resource" || entity.kind === "cooldown" || entity.kind === "duration" || entity.kind === "skill" || entity.kind === "condition";
+}
+function localCriticality(claim, facts, rawClaims) {
+  if (claim.relation === "triggers" || claim.relation === "consumes" || claim.relation === "requires") return true;
+  const source = facts.get(claim.sourceId);
+  if (source?.kind === "config") {
+    const nativeSources = source.data.nativeSources;
+    if (!Array.isArray(nativeSources) || nativeSources.length === 0) return true;
+  }
+  if (source?.kind === "modifierLine" && (source.data.parseStatus === "partial" || source.data.parseStatus === "unknown")) return true;
+  if (claim.scenario !== void 0) return true;
+  const outgoing = /* @__PURE__ */ new Map();
+  for (const entry of rawClaims) {
+    const targets = outgoing.get(entry.sourceId) ?? [];
+    targets.push(entry.targetId);
+    outgoing.set(entry.sourceId, targets);
+  }
+  const pending = [claim.targetId];
+  const seen = /* @__PURE__ */ new Set();
+  while (pending.length > 0) {
+    const current = pending.pop();
+    if (current === void 0 || seen.has(current)) continue;
+    seen.add(current);
+    if (isRoot(facts.get(current))) return true;
+    pending.push(...outgoing.get(current) ?? []);
+  }
+  return false;
+}
+function isAmbiguous(claim, source) {
+  if (source === void 0 || claim.evidenceIds.length === 0) return true;
+  if (source.kind === "modifierLine") {
+    if (source.data.parseStatus === "partial" || source.data.parseStatus === "unknown") return true;
+    const modifierProvenance = source.data.modifierProvenance;
+    if (modifierProvenance !== null && typeof modifierProvenance === "object" && !Array.isArray(modifierProvenance) && modifierProvenance.resolution !== "exact") return true;
+  }
+  return claim.relation === "triggers" || claim.relation === "consumes";
+}
+function normalizeClaims(facts, inputs) {
+  const entities = new Map(facts.entities.map((entity) => [entity.id, entity]));
+  const seen = /* @__PURE__ */ new Set();
+  const claims = [];
+  for (const input of inputs) {
+    const signature = canonicalHash(input);
+    if (seen.has(signature)) continue;
+    seen.add(signature);
+    const critical = localCriticality(input, entities, inputs);
+    const ambiguous = isAmbiguous(input, entities.get(input.sourceId));
+    const source = entities.get(input.sourceId);
+    claims.push(MechanicClaimSchema.parse({
+      ...input,
+      id: `claim:${signature.slice(0, 32)}`,
+      critical,
+      ambiguous,
+      effectState: input.relation === "conflicts" ? "conflicting" : input.scenario !== void 0 || input.relation === "requires" || input.relation === "triggers" ? "conditional" : source?.active === true ? "active" : "latent"
+    }));
+  }
+  return claims.sort((left, right) => left.id.localeCompare(right.id));
+}
+function requiredClaimEntity(entity) {
+  return entity.active && [
+    "modifierLine",
+    "skill",
+    "support",
+    "passive",
+    "config",
+    "condition",
+    "actorBuff",
+    "seasonMechanic"
+  ].includes(entity.kind);
+}
+function validateCoverage(facts, claims, inspectedEntityIds) {
+  const inspected = new Set(inspectedEntityIds);
+  const claimed = new Set(claims.flatMap(({ sourceId, targetId }) => [sourceId, targetId]));
+  const proven = /* @__PURE__ */ new Set();
+  const blockers = [];
+  const warnings = [];
+  const coverage = [];
+  for (const context2 of facts.contexts) {
+    for (const domain2 of ["skills", "gear", "tree", "config", "actor", "offence", "resource", "defence", "condition", "inventory"]) {
+      const entities = facts.entities.filter((entity) => entity.context === context2 && entity.domain === domain2 && entity.active);
+      const required2 = entities.filter(requiredClaimEntity);
+      const missingInspection = required2.filter(({ id }) => !inspected.has(id)).map(({ id }) => id);
+      const missingClaims = required2.filter(({ id }) => !claimed.has(id)).map(({ id }) => id);
+      for (const id of missingInspection) blockers.push(`LLM did not inspect required entity ${id}`);
+      for (const id of missingClaims) blockers.push(`LLM submitted no mechanism claim for required entity ${id}`);
+      coverage.push({
+        context: context2,
+        domain: domain2,
+        entityCount: entities.length,
+        inspectedCount: entities.filter(({ id }) => inspected.has(id)).length,
+        claimedCount: entities.filter(({ id }) => claimed.has(id)).length,
+        provenCount: entities.filter(({ id }) => proven.has(id)).length,
+        missingEntityIds: [.../* @__PURE__ */ new Set([...missingInspection, ...missingClaims])].sort()
+      });
+    }
+  }
+  const pairRelations = /* @__PURE__ */ new Map();
+  for (const claim of claims) {
+    const key = `${claim.context}:${claim.sourceId}:${claim.targetId}`;
+    const relations = pairRelations.get(key) ?? /* @__PURE__ */ new Set();
+    relations.add(claim.relation);
+    pairRelations.set(key, relations);
+  }
+  for (const [key, relations] of pairRelations) {
+    if (relations.has("conflicts") && relations.size > 1) blockers.push(`Contradictory relations for ${key}`);
+  }
+  if (claims.length === 0) blockers.push("LLM submitted no mechanic claims");
+  if (!facts.complete) blockers.push(...facts.missingScopes.map((scope) => `Required PoB fact scope missing: ${scope}`));
+  blockers.push(...facts.truncatedScopes.map((scope) => `Required PoB fact scope truncated: ${scope}`));
+  return { claims, coverage, blockers: [...new Set(blockers)].sort(), warnings };
+}
+function sourceIsExact(source) {
+  if (source === void 0 || source.provenance.length === 0) return false;
+  if (source.kind === "modifierLine") {
+    if (source.data.parseStatus !== "parsed") return false;
+    const value = source.data.modifierProvenance;
+    return value !== null && typeof value === "object" && !Array.isArray(value) && value.resolution === "exact";
+  }
+  if (source.kind === "parsedModifier") return source.data.classification !== "unknown";
+  return source.provenance.every(({ kind }) => kind !== "projection" || source.active);
+}
+function verifyClaims(facts, compiled, results) {
+  const entities = new Map(facts.entities.map((entity) => [entity.id, entity]));
+  const resultByClaim = new Map(results.filter(({ claimId }) => claimId !== void 0).map((result) => [result.claimId, result]));
+  const proofs = [];
+  const claims = [];
+  const blockers = [];
+  const warnings = [];
+  for (const entry of compiled) {
+    let claim = entry.claim;
+    if (entry.experiment !== void 0) {
+      const result = resultByClaim.get(claim.id);
+      if (result === void 0) {
+        blockers.push(`Critical claim ${claim.id} has no counterfactual result`);
+        proofs.push(MechanicProofSchema.parse({
+          id: `proof:${claim.id}:counterfactual`,
+          claimId: claim.id,
+          type: "counterfactual",
+          status: "indeterminate",
+          context: claim.context,
+          sourceFingerprint: facts.fingerprint,
+          evidenceIds: [],
+          experimentId: entry.experiment.id
+        }));
+      } else {
+        const delta = diffMechanicObservations(result.baseline, result.diagnostic);
+        const finalMetricChanged = Object.keys(delta.metricChanges).length > 0 || Object.keys(delta.resourceChanges).length > 0 || Object.keys(delta.cooldownChanges).length > 0 || Object.keys(delta.durationChanges).length > 0;
+        const status = delta.changed ? "proven" : "indeterminate";
+        if (!delta.changed) blockers.push(`Counterfactual produced zero contribution delta for critical claim ${claim.id}`);
+        if (delta.contributionChanged && !finalMetricChanged) {
+          claim = MechanicClaimSchema.parse({ ...claim, effectState: "redundant" });
+          warnings.push(`Claim ${claim.id} is structurally proven but redundant in current outputs`);
+        }
+        proofs.push(MechanicProofSchema.parse({
+          id: `proof:${claim.id}:counterfactual`,
+          claimId: claim.id,
+          type: "counterfactual",
+          status,
+          context: claim.context,
+          sourceFingerprint: result.diagnostic.fingerprint,
+          evidenceIds: [result.baseline.fingerprint, result.diagnostic.fingerprint],
+          experimentId: result.experimentId,
+          delta
+        }));
+      }
+    } else if (claim.critical || claim.ambiguous) {
+      blockers.push(`Critical or ambiguous claim ${claim.id} has no compilable diagnostic intervention`);
+      proofs.push(MechanicProofSchema.parse({
+        id: `proof:${claim.id}:counterfactual`,
+        claimId: claim.id,
+        type: "counterfactual",
+        status: "indeterminate",
+        context: claim.context,
+        sourceFingerprint: facts.fingerprint,
+        evidenceIds: entry.exactEvidenceIds
+      }));
+    } else {
+      const exact = sourceIsExact(entities.get(claim.sourceId)) && entry.exactEvidenceIds.length > 0;
+      if (!exact) blockers.push(`Noncritical claim ${claim.id} lacks exact native provenance`);
+      proofs.push(MechanicProofSchema.parse({
+        id: `proof:${claim.id}:native`,
+        claimId: claim.id,
+        type: "native_exact",
+        status: exact ? "proven" : "indeterminate",
+        context: claim.context,
+        sourceFingerprint: entities.get(claim.sourceId)?.fingerprint ?? facts.fingerprint,
+        evidenceIds: entry.exactEvidenceIds
+      }));
+    }
+    claims.push(claim);
+  }
+  return { claims, proofs, blockers: [...new Set(blockers)].sort(), warnings: [...new Set(warnings)].sort() };
+}
+async function callAnalyst(dependencies, state, phase, signal) {
+  const facts = state.facts;
+  if (facts === void 0) throw new Error("Mechanic facts are unavailable");
+  const inspected = new Set(state.inspectedEntityIds);
+  const session = {
+    phase,
+    facts,
+    proofs: state.proofs,
+    existingClaims: state.claims,
+    inspectedEntityIds: inspected
+  };
+  const remaining = Math.max(0, (dependencies.maxModelCalls ?? 16) - state.modelCalls);
+  if (remaining === 0) return { claims: [], inspected: [...inspected], modelCalls: 0 };
+  const dispatcher = new MechanicToolDispatcher();
+  const result = await runAgentLoop({
+    adapter: dependencies.provider,
+    dispatcher,
+    messages: [
+      { role: "system", content: MECHANIC_ANALYST_POLICY },
+      {
+        role: "user",
+        content: phase === "analyst" ? "Discover the complete Build mechanism model. Page and inspect all required active entities in both contexts, then submit the complete typed claim set." : `Repair the complete claim set. Replace it after addressing these blockers and critic findings: ${JSON.stringify({ blockers: state.blockers, review: state.review })}`
+      }
+    ],
+    context: session,
+    modelContext: {
+      phase,
+      manifest: compactFactManifest(facts),
+      existingClaimCount: state.claims.length,
+      proofCount: state.proofs.length,
+      repairRound: state.repairRounds
+    },
+    limits: {
+      recursionLimit: Math.max(1, remaining),
+      modelCallLimit: remaining,
+      duplicateCallLimit: dependencies.duplicateCallLimit ?? 3,
+      wallTimeMs: Number.MAX_SAFE_INTEGER
+    },
+    signal,
+    stopAfterTool: (_toolResult, current) => current.submittedClaims !== void 0
+  });
+  if (result.fallback !== void 0) {
+    throw new MechanicProviderError(result.fallback.detail, result.fallback.retryable);
+  }
+  if (session.submittedClaims === void 0 || session.claimsComplete !== true) {
+    return { claims: [], inspected: [...inspected].sort(), modelCalls: result.modelCalls };
+  }
+  return { claims: session.submittedClaims, inspected: [...inspected].sort(), modelCalls: result.modelCalls };
+}
+async function callCritic(dependencies, state, signal) {
+  const facts = state.facts;
+  if (facts === void 0) throw new Error("Mechanic facts are unavailable");
+  const session = {
+    phase: "critic",
+    facts,
+    proofs: state.proofs,
+    existingClaims: state.claims,
+    inspectedEntityIds: new Set(state.inspectedEntityIds)
+  };
+  const remaining = Math.max(0, (dependencies.maxModelCalls ?? 16) - state.modelCalls);
+  if (remaining === 0) return { modelCalls: 0 };
+  const result = await runAgentLoop({
+    adapter: dependencies.provider,
+    dispatcher: new MechanicToolDispatcher(),
+    messages: [
+      { role: "system", content: MECHANIC_CRITIC_POLICY },
+      {
+        role: "user",
+        content: "Audit claim coverage and every proof. Inspect proof details as needed, then submit complete or repair with exact IDs."
+      }
+    ],
+    context: session,
+    modelContext: {
+      phase: "critic",
+      manifest: compactFactManifest(facts),
+      claims: state.claims,
+      coverage: state.coverage,
+      proofSummary: state.proofs.map(({ id, claimId, type, status }) => ({ id, claimId, type, status })),
+      localBlockers: state.blockers
+    },
+    limits: {
+      recursionLimit: Math.max(1, remaining),
+      modelCallLimit: remaining,
+      duplicateCallLimit: dependencies.duplicateCallLimit ?? 3,
+      wallTimeMs: Number.MAX_SAFE_INTEGER
+    },
+    signal,
+    stopAfterTool: (_toolResult, current) => current.review !== void 0
+  });
+  if (result.fallback !== void 0) throw new MechanicProviderError(result.fallback.detail, result.fallback.retryable);
+  return {
+    ...session.review === void 0 ? {} : { review: session.review },
+    modelCalls: result.modelCalls
+  };
+}
+function updateCoverageWithProofs(facts, coverage, claims, proofs) {
+  const provenClaims = new Set(proofs.filter(({ status }) => status === "proven").map(({ claimId }) => claimId));
+  const provenEntities = new Set(claims.filter(({ id }) => provenClaims.has(id)).flatMap(({ sourceId, targetId }) => [sourceId, targetId]));
+  return coverage.map((entry) => ({
+    ...entry,
+    provenCount: facts.entities.filter((entity) => entity.context === entry.context && entity.domain === entry.domain && entity.active && provenEntities.has(entity.id)).length
+  }));
+}
+function reportFinding(message, severity) {
+  return {
+    id: `finding:${canonicalHash({ message, severity }).slice(0, 32)}`,
+    severity,
+    code: severity === "blocker" ? "mechanic_verification_blocked" : "mechanic_verification_warning",
+    message,
+    evidenceIds: []
+  };
+}
+function auditMechanicReport(raw) {
+  const report = VerifiedBuildMechanicReportSchema.parse(raw);
+  const proofById = new Map(report.proofs.map((proof) => [proof.id, proof]));
+  const provenClaims = new Set(report.proofs.filter(({ status }) => status === "proven").map(({ claimId }) => claimId));
+  const claimIds = new Set(report.claims.map(({ id }) => id));
+  const auditBlockers = [];
+  for (const claim of report.claims) {
+    if (!provenClaims.has(claim.id)) auditBlockers.push(`Claim ${claim.id} has no valid proven proof`);
+  }
+  for (const edge of report.graph.edges) {
+    if (!claimIds.has(edge.claimId)) auditBlockers.push(`Semantic edge ${edge.id} references unknown claim ${edge.claimId}`);
+    for (const proofId of edge.proofIds) {
+      const proof = proofById.get(proofId);
+      if (proof === void 0 || proof.claimId !== edge.claimId || proof.status !== "proven") {
+        auditBlockers.push(`Semantic edge ${edge.id} references invalid proof ${proofId}`);
+      }
+    }
+  }
+  if (auditBlockers.length === 0) return report;
+  const blockers = [.../* @__PURE__ */ new Set([...report.blockers, ...auditBlockers])].sort();
+  const audited = {
+    ...report,
+    status: "blocked",
+    blockers,
+    findings: [
+      ...report.findings,
+      ...auditBlockers.map((message) => reportFinding(message, "blocker"))
+    ],
+    graph: {
+      ...report.graph,
+      edges: report.graph.edges.filter((edge) => edge.proofIds.every((proofId) => {
+        const proof = proofById.get(proofId);
+        return proof !== void 0 && proof.claimId === edge.claimId && proof.status === "proven";
+      }))
+    },
+    summary: `blocked: ${report.claims.length} claims, ${report.proofs.filter(({ status }) => status === "proven").length} proven, ${blockers.length} blockers`
+  };
+  return VerifiedBuildMechanicReportSchema.parse({
+    ...audited,
+    analysisFingerprint: `sha256:${canonicalHash({ ...audited, analysisFingerprint: void 0, createdAt: void 0 })}`
+  });
+}
+function finalizeReport(dependencies, state) {
+  const facts = state.facts;
+  if (facts === void 0) throw new Error("Mechanic facts are unavailable");
+  const criticBlockers = state.review === void 0 ? ["LLM critic did not submit a mechanic review"] : state.review.verdict === "repair" ? [
+    ...state.review.missingEntityIds.map((id) => `Critic reports missing entity ${id}`),
+    ...state.review.conflictingClaimIds.map((id) => `Critic reports conflicting claim ${id}`),
+    ...state.review.invalidProofIds.map((id) => `Critic reports invalid proof ${id}`)
+  ] : [];
+  const blockers = [.../* @__PURE__ */ new Set([...state.blockers, ...criticBlockers])].sort();
+  const proven = new Map(state.proofs.filter(({ status: status2 }) => status2 === "proven").map((proof) => [proof.claimId, proof]));
+  const edges = state.claims.flatMap((claim) => {
+    const proof = proven.get(claim.id);
+    if (proof === void 0) return [];
+    return [{
+      id: `edge:${claim.id}`,
+      sourceId: claim.sourceId,
+      targetId: claim.targetId,
+      relation: claim.relation,
+      context: claim.context,
+      ...claim.scenario === void 0 ? {} : { scenario: claim.scenario },
+      claimId: claim.id,
+      proofIds: [proof.id],
+      effectState: claim.effectState
+    }];
+  });
+  const key = cacheKey(state.snapshot, facts, dependencies.providerDescriptor);
+  const status = blockers.length === 0 ? "verified" : "blocked";
+  const llmSummary = state.review?.summary ?? "LLM review unavailable before a configured safety limit was reached.";
+  const withoutFingerprint = {
+    schemaVersion: state.snapshot.schemaVersion,
+    status,
+    snapshotFingerprint: state.snapshot.fingerprint,
+    projectionFingerprint: state.snapshot.mechanicProjectionFingerprint,
+    factBundleFingerprint: facts.fingerprint,
+    cacheKey: key,
+    contexts: [...facts.contexts],
+    claims: state.claims,
+    proofs: state.proofs,
+    graph: { nodes: facts.entities, edges },
+    coverage: updateCoverageWithProofs(facts, state.coverage, state.claims, state.proofs),
+    findings: [
+      ...blockers.map((message) => reportFinding(message, "blocker")),
+      ...state.warnings.map((message) => reportFinding(message, "warning"))
+    ],
+    blockers,
+    summary: `${status}: ${state.claims.length} claims, ${state.proofs.filter(({ status: proofStatus }) => proofStatus === "proven").length} proven, ${blockers.length} blockers`,
+    llmSummary,
+    modelCalls: state.modelCalls,
+    experimentCount: state.experimentCount,
+    repairRounds: state.repairRounds,
+    createdAt: (dependencies.now ?? (() => /* @__PURE__ */ new Date()))().toISOString()
+  };
+  return VerifiedBuildMechanicReportSchema.parse({
+    ...withoutFingerprint,
+    analysisFingerprint: `sha256:${canonicalHash({ ...withoutFingerprint, createdAt: void 0 })}`
+  });
+}
+function createGraph(dependencies, signal) {
+  const extractFactsNode = async (state) => {
+    progress(dependencies, state, "ExtractFacts", 0.05, "Reading both weapon contexts from isolated PoB workers");
+    const observations = await Promise.all(state.options.contexts.map(async (context2) => [
+      context2,
+      await dependencies.worker.observe(state.snapshot, context2, signal)
+    ]));
+    const facts = extractMechanicFacts(state.snapshot, Object.fromEntries(observations));
+    const key = cacheKey(state.snapshot, facts, dependencies.providerDescriptor);
+    const cached2 = state.options.force === true ? void 0 : VerifiedBuildMechanicReportSchema.safeParse(dependencies.store.getCache(key));
+    const report = cached2?.success === true ? auditMechanicReport(cached2.data) : void 0;
+    progress(dependencies, { ...state, facts }, "ExtractFacts", 0.15, report === void 0 ? "PoB fact bundle ready" : "Exact mechanic report cache hit");
+    return { facts, report, phase: "ExtractFacts", trace: "ExtractFacts" };
+  };
+  const discoverClaimsNode = async (state) => {
+    progress(dependencies, state, "DiscoverClaims", 0.2, "LLM analyst is discovering typed mechanism claims");
+    const output = await callAnalyst(dependencies, state, "analyst", signal);
+    return {
+      submittedClaims: output.claims,
+      inspectedEntityIds: output.inspected,
+      modelCalls: state.modelCalls + output.modelCalls,
+      phase: "DiscoverClaims",
+      trace: "DiscoverClaims"
+    };
+  };
+  const validateCoverageNode = (state) => {
+    const facts = state.facts;
+    if (facts === void 0) throw new Error("Mechanic facts are unavailable");
+    const claims = normalizeClaims(facts, state.submittedClaims);
+    const validation = validateCoverage(facts, claims, state.inspectedEntityIds);
+    progress(dependencies, state, "ValidateCoverage", 0.35, `Validated ${claims.length} typed claims`);
+    return {
+      claims,
+      coverage: validation.coverage,
+      blockers: validation.blockers,
+      warnings: validation.warnings,
+      phase: "ValidateCoverage",
+      trace: "ValidateCoverage"
+    };
+  };
+  const compileNode = (state) => {
+    const facts = state.facts;
+    if (facts === void 0) throw new Error("Mechanic facts are unavailable");
+    const compiled = compileMechanicExperiments(facts, state.claims);
+    const experiments = compiled.filter(({ experiment }) => experiment !== void 0);
+    const max = dependencies.maxExperiments ?? 1024;
+    const blockers = experiments.length > max ? [...state.blockers, `Critical experiment count ${experiments.length} exceeds limit ${max}`] : state.blockers;
+    progress(dependencies, state, "CompileCriticalExperiments", 0.45, `Compiled ${experiments.length} critical experiments`);
+    return { compiled, blockers, phase: "CompileCriticalExperiments", trace: "CompileCriticalExperiments" };
+  };
+  const runNode = async (state) => {
+    const facts = state.facts;
+    if (facts === void 0) throw new Error("Mechanic facts are unavailable");
+    const max = dependencies.maxExperiments ?? 1024;
+    const experiments = state.compiled.flatMap(({ experiment }) => experiment === void 0 ? [] : [experiment]).slice(0, max);
+    progress(dependencies, state, "RunExperiments", 0.55, `Running ${experiments.length} isolated counterfactuals`);
+    const results = experiments.length === 0 ? [] : await dependencies.worker.run(state.snapshot, experiments, signal);
+    return {
+      experimentResults: results,
+      experimentCount: state.experimentCount + results.length,
+      phase: "RunExperiments",
+      trace: "RunExperiments"
+    };
+  };
+  const verifyNode = (state) => {
+    const facts = state.facts;
+    if (facts === void 0) throw new Error("Mechanic facts are unavailable");
+    const verified = verifyClaims(facts, state.compiled, state.experimentResults);
+    progress(dependencies, state, "VerifyClaims", 0.7, `PoB verified ${verified.proofs.filter(({ status }) => status === "proven").length} claims`);
+    return {
+      claims: verified.claims,
+      proofs: verified.proofs,
+      blockers: [.../* @__PURE__ */ new Set([...state.blockers, ...verified.blockers])].sort(),
+      warnings: [.../* @__PURE__ */ new Set([...state.warnings, ...verified.warnings])].sort(),
+      phase: "VerifyClaims",
+      trace: "VerifyClaims"
+    };
+  };
+  const critiqueNode = async (state) => {
+    progress(dependencies, state, "CritiqueCoverage", 0.8, "LLM critic is auditing coverage and PoB proofs");
+    const output = await callCritic(dependencies, state, signal);
+    return {
+      review: output.review,
+      modelCalls: state.modelCalls + output.modelCalls,
+      phase: "CritiqueCoverage",
+      trace: "CritiqueCoverage"
+    };
+  };
+  const repairNode = async (state) => {
+    progress(dependencies, state, "RepairClaims", 0.85, `Repairing claim set, round ${state.repairRounds + 1}`);
+    const output = await callAnalyst(dependencies, state, "repair", signal);
+    return {
+      submittedClaims: output.claims,
+      inspectedEntityIds: output.inspected,
+      modelCalls: state.modelCalls + output.modelCalls,
+      repairRounds: state.repairRounds + 1,
+      blockers: [],
+      warnings: [],
+      proofs: [],
+      experimentResults: [],
+      review: void 0,
+      phase: "RepairClaims",
+      trace: "RepairClaims"
+    };
+  };
+  const finalizeNode = (state) => {
+    const report = state.report ?? finalizeReport(dependencies, state);
+    if (state.report === void 0) dependencies.store.setCache(report.cacheKey, report);
+    progress(dependencies, state, "FinalizeReport", 1, report.status === "verified" ? "Mechanic report verified" : "Mechanic report blocked");
+    return { report, phase: "FinalizeReport", trace: "FinalizeReport" };
+  };
+  const graph = new StateGraph(MechanicStateAnnotation).addNode("ExtractFacts", extractFactsNode).addNode("DiscoverClaims", discoverClaimsNode).addNode("ValidateCoverage", validateCoverageNode).addNode("CompileCriticalExperiments", compileNode).addNode("RunExperiments", runNode).addNode("VerifyClaims", verifyNode).addNode("CritiqueCoverage", critiqueNode).addNode("RepairClaims", repairNode).addNode("FinalizeReport", finalizeNode).addEdge(START, "ExtractFacts").addConditionalEdges("ExtractFacts", (state) => {
+    if (state.report !== void 0 || state.facts?.complete !== true) return "FinalizeReport";
+    return "DiscoverClaims";
+  }, ["DiscoverClaims", "FinalizeReport"]).addEdge("DiscoverClaims", "ValidateCoverage").addEdge("ValidateCoverage", "CompileCriticalExperiments").addEdge("CompileCriticalExperiments", "RunExperiments").addEdge("RunExperiments", "VerifyClaims").addEdge("VerifyClaims", "CritiqueCoverage").addConditionalEdges("CritiqueCoverage", (state) => {
+    const maxRepair = dependencies.maxRepairRounds ?? 3;
+    const maxCalls = dependencies.maxModelCalls ?? 16;
+    const needsRepair = state.review?.verdict === "repair" || state.blockers.length > 0;
+    return needsRepair && state.repairRounds < maxRepair && state.modelCalls < maxCalls ? "RepairClaims" : "FinalizeReport";
+  }, ["RepairClaims", "FinalizeReport"]).addEdge("RepairClaims", "ValidateCoverage").addEdge("FinalizeReport", END);
+  return graph.compile({
+    ...dependencies.checkpointer === false ? {} : { checkpointer: dependencies.checkpointer },
+    name: "MechanicUnderstandingEngine"
+  });
+}
+var MechanicUnderstandingEngine = class {
+  #dependencies;
+  constructor(dependencies) {
+    this.#dependencies = dependencies;
+  }
+  async understand(snapshot, options, signal) {
+    if (options.contexts[0] !== "weaponSet1" || options.contexts[1] !== "weaponSet2") {
+      throw new Error("Mechanic understanding requires weaponSet1 and weaponSet2 in canonical order");
+    }
+    signal.throwIfAborted();
+    const graph = createGraph(this.#dependencies, signal);
+    const graphConfig = {
+      configurable: {
+        thread_id: checkpointThreadId(snapshot, options, this.#dependencies.providerDescriptor)
+      },
+      signal
+    };
+    let result;
+    try {
+      const initial = {
+        snapshot,
+        options,
+        submittedClaims: [],
+        claims: [],
+        compiled: [],
+        experimentResults: [],
+        proofs: [],
+        coverage: [],
+        inspectedEntityIds: [],
+        blockers: [],
+        warnings: [],
+        modelCalls: 0,
+        experimentCount: 0,
+        repairRounds: 0,
+        phase: "idle"
+      };
+      const previous = this.#dependencies.checkpointer === false ? void 0 : await graph.getState(graphConfig);
+      const input = previous !== void 0 && previous.next.length > 0 ? null : initial;
+      result = await graph.invoke(input, graphConfig);
+    } catch (error51) {
+      if (error51 instanceof MechanicProviderError) throw error51;
+      if (signal.aborted) throw signal.reason instanceof Error ? signal.reason : new Error("Mechanic analysis cancelled");
+      throw new Error(`Mechanic understanding failed: ${errorText(error51)}`);
+    }
+    if (result.report === void 0) throw new Error("Mechanic understanding produced no report");
+    return auditMechanicReport(result.report);
   }
 };
 
@@ -72529,6 +74277,8 @@ var ConsentDataCategorySchema = external_exports.enum([
   "tool_outputs",
   "chat_messages",
   "mechanic_report",
+  "mechanic_facts",
+  "mechanic_experiment_results",
   "connection_probe"
 ]);
 var DEFAULT_CONSENT_DATA_CATEGORIES = [
@@ -72537,7 +74287,9 @@ var DEFAULT_CONSENT_DATA_CATEGORIES = [
   "metrics",
   "tool_outputs",
   "chat_messages",
-  "mechanic_report"
+  "mechanic_report",
+  "mechanic_facts",
+  "mechanic_experiment_results"
 ];
 var ProviderProfileIdSchema = external_exports.string().min(1).max(64).regex(/^[A-Za-z0-9][A-Za-z0-9._-]*$/, "Provider id contains unsupported characters");
 var ProviderProfileSchema = external_exports.object({
@@ -72685,8 +74437,8 @@ var MemoryConsentRecordStore = class {
   async get(providerId) {
     return this.#records.get(providerId);
   }
-  async put(record4) {
-    this.#records.set(record4.providerId, record4);
+  async put(record5) {
+    this.#records.set(record5.providerId, record5);
   }
   async delete(providerId) {
     this.#records.delete(providerId);
@@ -72735,14 +74487,14 @@ var ConsentManager = class {
   async get(providerId) {
     return this.#store.get(providerId);
   }
-  async state(profile) {
-    const record4 = await this.#store.get(profile.providerId);
-    if (record4 === void 0) return "required";
-    if (record4.decision === "revoked") return "revoked";
-    return record4.consentKey === createConsentKey(profileDescriptor(profile, record4.dataCategories)) ? "granted" : "required";
+  async state(profile, dataCategories) {
+    const record5 = await this.#store.get(profile.providerId);
+    if (record5 === void 0) return "required";
+    if (record5.decision === "revoked") return "revoked";
+    return record5.consentKey === createConsentKey(profileDescriptor(profile, dataCategories ?? record5.dataCategories)) ? "granted" : "required";
   }
-  async isGranted(profile) {
-    return await this.state(profile) === "granted";
+  async isGranted(profile, dataCategories) {
+    return await this.state(profile, dataCategories) === "granted";
   }
   preview(profile, payload, dataCategories) {
     const descriptor = profileDescriptor(profile, dataCategories);
@@ -72766,15 +74518,15 @@ var ConsentManager = class {
     const descriptor = profileDescriptor(profile, dataCategories);
     const expected = createConsentKey(descriptor);
     if (consentKey !== expected) throw new Error("Consent key does not match the current provider profile");
-    const record4 = {
+    const record5 = {
       providerId: profile.providerId,
       consentKey: expected,
       decision: "granted",
       dataCategories: effectiveCategories(descriptor.dataCategories),
       grantedAt: this.#now().toISOString()
     };
-    await this.#store.put(record4);
-    return record4;
+    await this.#store.put(record5);
+    return record5;
   }
   async revoke(providerId) {
     const existing = await this.#store.get(providerId);
@@ -72880,10 +74632,10 @@ function providerErrorMessage(status, text2) {
   try {
     const parsed = JSON.parse(text2);
     if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
-      const record4 = parsed;
-      const nested = typeof record4.error === "object" && record4.error !== null ? record4.error.message : void 0;
+      const record5 = parsed;
+      const nested = typeof record5.error === "object" && record5.error !== null ? record5.error.message : void 0;
       if (typeof nested === "string") detail = nested;
-      else if (typeof record4.message === "string") detail = record4.message;
+      else if (typeof record5.message === "string") detail = record5.message;
     }
   } catch {
   }
@@ -72921,8 +74673,8 @@ function createOpenAICompatibleTransport(config2) {
     }
   };
 }
-function chatToolDefinitions(strict) {
-  return HIGH_LEVEL_TOOL_DEFINITIONS.map((tool2) => ({
+function chatToolDefinitions(registry2, strict) {
+  return registry2.definitions.map((tool2) => ({
     type: "function",
     function: strict ? tool2.function : {
       name: tool2.function.name,
@@ -72931,8 +74683,8 @@ function chatToolDefinitions(strict) {
     }
   }));
 }
-function responsesToolDefinitions(strict) {
-  return HIGH_LEVEL_TOOL_DEFINITIONS.map((tool2) => ({
+function responsesToolDefinitions(registry2, strict) {
+  return registry2.definitions.map((tool2) => ({
     type: "function",
     name: tool2.function.name,
     description: tool2.function.description,
@@ -72940,9 +74692,14 @@ function responsesToolDefinitions(strict) {
     ...strict ? { strict: true } : {}
   }));
 }
-function toolDefinitions(config2) {
+function toolDefinitions(config2, registry2) {
   const strict = config2.providerKind === "openai";
-  return config2.apiMode === "responses" ? responsesToolDefinitions(strict) : chatToolDefinitions(strict);
+  return config2.apiMode === "responses" ? responsesToolDefinitions(registry2, strict) : chatToolDefinitions(registry2, strict);
+}
+function toolChoice(config2, registry2) {
+  const choice = registry2.toolChoice ?? "auto";
+  if (choice === "auto" || choice === "required") return choice;
+  return config2.apiMode === "responses" ? { type: "function", name: choice } : { type: "function", function: { name: choice } };
 }
 function reasoningFields(config2) {
   const resolution = {
@@ -73022,11 +74779,11 @@ function providerErrorReason(error51) {
   }
   return { reason: "provider_unavailable", retryable: true, detail: "Unknown provider error" };
 }
-function parseToolCalls(calls) {
+function parseToolCalls(calls, registry2) {
   const ids = /* @__PURE__ */ new Set();
   const toolCalls = [];
   for (const call3 of calls) {
-    if (!isHighLevelToolName(call3.function.name)) {
+    if (!registry2.isName(call3.function.name)) {
       throw new ToolCallValidationError(`Forbidden or unknown tool: ${call3.function.name}`);
     }
     if (ids.has(call3.id)) throw new ToolCallValidationError(`Duplicate tool call id: ${call3.id}`);
@@ -73034,7 +74791,7 @@ function parseToolCalls(calls) {
     toolCalls.push({
       id: call3.id,
       name: call3.function.name,
-      arguments: parseToolArguments(call3.function.name, call3.function.arguments),
+      arguments: registry2.parseArguments(call3.function.name, call3.function.arguments),
       rawArguments: call3.function.arguments
     });
   }
@@ -73043,12 +74800,16 @@ function parseToolCalls(calls) {
 var OpenAICompatibleAdapter = class {
   #config;
   #transport;
+  #registry;
+  #systemPolicy;
   #reasoningByToolCall = /* @__PURE__ */ new Map();
   #responsesContinuationByToolCall = /* @__PURE__ */ new Map();
   #callsUsed = 0;
   constructor(config2, options = {}) {
     this.#config = ProviderConfigSchema.parse(config2);
     this.#transport = options.transport ?? createOpenAICompatibleTransport(this.#config);
+    this.#registry = options.toolRegistry ?? HIGH_LEVEL_TOOL_REGISTRY;
+    this.#systemPolicy = options.systemPolicy ?? READ_ONLY_POLICY;
   }
   get callsUsed() {
     return this.#callsUsed;
@@ -73068,7 +74829,7 @@ var OpenAICompatibleAdapter = class {
     const timeoutSignal = AbortSignal.timeout(this.#config.timeoutMs);
     const requestSignal = signal === void 0 ? timeoutSignal : AbortSignal.any([signal, timeoutSignal]);
     const messages = [
-      { role: "system", content: READ_ONLY_POLICY },
+      { role: "system", content: this.#systemPolicy },
       ...parsedInput.data.messages,
       ...parsedInput.data.context === void 0 ? [] : [{
         role: "system",
@@ -73079,8 +74840,8 @@ ${stringifyForModel(parsedInput.data.context)}`
     const request = this.#config.apiMode === "responses" ? {
       model: this.#config.model,
       input: messages.flatMap((message) => toResponsesInput(message, this.#responsesContinuationByToolCall)),
-      tools: toolDefinitions(this.#config),
-      tool_choice: "auto",
+      tools: toolDefinitions(this.#config, this.#registry),
+      tool_choice: toolChoice(this.#config, this.#registry),
       parallel_tool_calls: false,
       max_output_tokens: this.#config.maxOutputTokens,
       store: false,
@@ -73088,8 +74849,8 @@ ${stringifyForModel(parsedInput.data.context)}`
     } : {
       model: this.#config.model,
       messages: messages.map((message) => toChatMessage(message, this.#reasoningByToolCall)),
-      tools: toolDefinitions(this.#config),
-      tool_choice: "auto",
+      tools: toolDefinitions(this.#config, this.#registry),
+      tool_choice: toolChoice(this.#config, this.#registry),
       parallel_tool_calls: false,
       ...this.#config.providerKind === "openai" ? { max_completion_tokens: this.#config.maxOutputTokens } : { max_tokens: this.#config.maxOutputTokens },
       ...reasoningFields(this.#config)
@@ -73114,7 +74875,7 @@ ${stringifyForModel(parsedInput.data.context)}`
     const choice = parsed.data.choices[0];
     if (choice === void 0) return fallback("invalid_provider_response", false, "Provider response has no first choice");
     try {
-      const toolCalls = parseToolCalls(choice.message.tool_calls ?? []);
+      const toolCalls = parseToolCalls(choice.message.tool_calls ?? [], this.#registry);
       if (choice.message.reasoning_content !== void 0 && choice.message.reasoning_content !== null) {
         for (const call3 of toolCalls) this.#reasoningByToolCall.set(call3.id, choice.message.reasoning_content);
       }
@@ -73155,7 +74916,7 @@ ${stringifyForModel(parsedInput.data.context)}`
       }
     }
     try {
-      const toolCalls = parseToolCalls(calls);
+      const toolCalls = parseToolCalls(calls, this.#registry);
       const usage = parsed.data.usage;
       return {
         kind: "message",
@@ -73272,7 +75033,7 @@ function probeRequest(config2) {
     ...reasoningRequestFields(resolution)
   };
 }
-function parseArguments(raw) {
+function parseArguments2(raw) {
   let args;
   try {
     args = JSON.parse(raw);
@@ -73339,7 +75100,7 @@ async function runProviderConnectionProbe(input, signal, transportFactory = crea
   if (argumentsText === void 0) {
     throw new ProviderConnectionProbeError(budgetExhausted ? "Connection test failed: model exhausted the output budget before the required tool call; choose Reasoning Fast" : "Connection test failed: model did not return the required tool call");
   }
-  parseArguments(argumentsText);
+  parseArguments2(argumentsText);
   return {
     ok: true,
     latencyMs: Math.max(0, Math.round(import_node_perf_hooks.performance.now() - startedAt)),
@@ -73546,7 +75307,7 @@ var ProviderProfileService = class {
     return {
       configured: true,
       credentialConfigured,
-      consent: await this.#consent.state(profile),
+      consent: await this.#consent.state(profile, DEFAULT_CONSENT_DATA_CATEGORIES),
       profile
     };
   }
@@ -73679,10 +75440,12 @@ var ConsentGuardAdapter = class {
   #inner;
   #profile;
   #consent;
-  constructor(inner, profile, consent) {
+  #dataCategories;
+  constructor(inner, profile, consent, dataCategories = DEFAULT_CONSENT_DATA_CATEGORIES) {
     this.#inner = inner;
     this.#profile = profile;
     this.#consent = consent;
+    this.#dataCategories = dataCategories;
   }
   get callsUsed() {
     return this.#inner.callsUsed;
@@ -73691,7 +75454,7 @@ var ConsentGuardAdapter = class {
     return this.#inner.callsRemaining;
   }
   async complete(input, signal) {
-    if (!await this.#consent.isGranted(this.#profile)) {
+    if (!await this.#consent.isGranted(this.#profile, this.#dataCategories)) {
       return {
         kind: "fallback",
         signal: {
@@ -73713,13 +75476,18 @@ var ProviderModelAdapterFactory = class {
     this.#service = options.service;
     this.#adapterOptions = options.adapter ?? {};
   }
-  async create(providerId) {
+  async create(providerId, options = {}) {
     const status = await this.#service.status(providerId);
     if (!status.configured || status.profile === void 0) {
       throw new ProviderConfigurationError("Provider is not configured");
     }
     const secret = status.profile.authMode === "none" ? "" : await this.#service.credentials.get(status.profile.credentialTarget);
     if (secret === void 0) throw new ProviderConfigurationError("Provider credential is not configured");
+    const adapterOptions = {
+      ...this.#adapterOptions.transport === void 0 ? {} : { transport: this.#adapterOptions.transport },
+      ...options.toolRegistry === void 0 ? {} : { toolRegistry: options.toolRegistry },
+      ...options.systemPolicy === void 0 ? {} : { systemPolicy: options.systemPolicy }
+    };
     const inner = new OpenAICompatibleAdapter(
       {
         apiKey: secret,
@@ -73733,9 +75501,14 @@ var ProviderModelAdapterFactory = class {
         maxOutputTokens: status.profile.maxOutputTokens,
         timeoutMs: status.profile.timeoutMs
       },
-      this.#adapterOptions
+      adapterOptions
     );
-    return new ConsentGuardAdapter(inner, status.profile, this.#service.consent);
+    return new ConsentGuardAdapter(
+      inner,
+      status.profile,
+      this.#service.consent,
+      options.dataCategories ?? DEFAULT_CONSENT_DATA_CATEGORIES
+    );
   }
 };
 
@@ -73926,8 +75699,8 @@ var SqliteProviderStore = class {
       const row = this.#db.prepare("SELECT payload FROM provider_consents WHERE provider_id = ?").get(providerId);
       return row === void 0 ? void 0 : parseConsentRecord(JSON.parse(row.payload));
     },
-    put: async (record4) => {
-      const parsed = parseConsentRecord(record4);
+    put: async (record5) => {
+      const parsed = parseConsentRecord(record5);
       this.#db.prepare(`
         INSERT INTO provider_consents(provider_id, payload, updated_at)
         VALUES (?, ?, ?)
@@ -73943,28 +75716,28 @@ function parseConsentRecord(value) {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     throw new Error("Consent record must be an object");
   }
-  const record4 = value;
-  if (typeof record4.providerId !== "string" || typeof record4.consentKey !== "string") {
+  const record5 = value;
+  if (typeof record5.providerId !== "string" || typeof record5.consentKey !== "string") {
     throw new Error("Consent record identifiers are invalid");
   }
-  if (record4.decision !== "granted" && record4.decision !== "revoked") {
+  if (record5.decision !== "granted" && record5.decision !== "revoked") {
     throw new Error("Consent record decision is invalid");
   }
-  if (record4.grantedAt !== void 0 && typeof record4.grantedAt !== "string") {
+  if (record5.grantedAt !== void 0 && typeof record5.grantedAt !== "string") {
     throw new Error("Consent grantedAt is invalid");
   }
-  if (record4.revokedAt !== void 0 && typeof record4.revokedAt !== "string") {
+  if (record5.revokedAt !== void 0 && typeof record5.revokedAt !== "string") {
     throw new Error("Consent revokedAt is invalid");
   }
-  if (record4.dataCategories !== void 0) {
-    if (!Array.isArray(record4.dataCategories) || record4.dataCategories.length === 0) {
+  if (record5.dataCategories !== void 0) {
+    if (!Array.isArray(record5.dataCategories) || record5.dataCategories.length === 0) {
       throw new Error("Consent dataCategories are invalid");
     }
-    for (const category of record4.dataCategories) {
+    for (const category of record5.dataCategories) {
       if (!ConsentDataCategorySchema.safeParse(category).success) throw new Error("Consent dataCategories are invalid");
     }
   }
-  return record4;
+  return record5;
 }
 
 // src/search/types.ts
@@ -74642,8 +76415,8 @@ function candidateTouches(candidate) {
   }
   for (const action of candidate.actions) {
     if (!action || typeof action !== "object") continue;
-    const record4 = action;
-    const payload = record4.payload;
+    const record5 = action;
+    const payload = record5.payload;
     if (!payload || typeof payload !== "object" || Array.isArray(payload)) continue;
     const values = payload;
     for (const key of ["target", "field", "path"]) {
@@ -74652,25 +76425,25 @@ function candidateTouches(candidate) {
     if (Array.isArray(values.fields)) {
       for (const entry of values.fields) if (typeof entry === "string") touches.add(entry);
     }
-    if (record4.kind === "setIdentity") {
+    if (record5.kind === "setIdentity") {
       if (values.class !== void 0) touches.add("identity.class");
       if (values.ascendancy !== void 0) touches.add("identity.ascendancy");
       if (values.property === "class" || values.property === "ascendancy") touches.add(`identity.${values.property}`);
       if (values.property === "mainSkill" || values.property === "mainSocketGroup") touches.add("skills.mainSkill");
     }
-    if ((record4.kind === "setSkill" || record4.kind === "replaceSkillLinks") && values.mainSkill === true) {
+    if ((record5.kind === "setSkill" || record5.kind === "replaceSkillLinks") && values.mainSkill === true) {
       touches.add("skills.mainSkill");
     }
-    if (record4.kind === "setSkill" && values.mainGroup !== void 0) touches.add("skills.mainSkill");
-    if (record4.kind === "setConfig") {
+    if (record5.kind === "setSkill" && values.mainGroup !== void 0) touches.add("skills.mainSkill");
+    if (record5.kind === "setConfig") {
       const name = values.name ?? values.key ?? values.field;
       if (typeof name === "string") touches.add(`config.${name}`);
     }
-    if (record4.kind === "replaceItem" && typeof values.slot === "string") touches.add(`gear.${values.slot}`);
-    if (record4.kind === "replaceSkillLinks" && typeof values.group === "number") {
+    if (record5.kind === "replaceItem" && typeof values.slot === "string") touches.add(`gear.${values.slot}`);
+    if (record5.kind === "replaceSkillLinks" && typeof values.group === "number") {
       touches.add(`skills.groups.${values.group}.links`);
     }
-    if (record4.kind === "setTree") touches.add("tree.nodes");
+    if (record5.kind === "setTree") touches.add("tree.nodes");
   }
   return [...touches];
 }
@@ -75194,6 +76967,16 @@ var DEFAULT_NODE_DEPENDENCIES = {
 function resolveNodeDependencies(dependencies = {}) {
   return { ...DEFAULT_NODE_DEPENDENCIES, ...dependencies };
 }
+var AwaitingProviderError = class extends Error {
+  phase;
+  retryable;
+  constructor(phase, message, retryable = true) {
+    super(message);
+    this.name = "AwaitingProviderError";
+    this.phase = phase;
+    this.retryable = retryable;
+  }
+};
 function wrapNode(node, handler, limits, now, options = {}) {
   return async (state) => {
     const nowMs = now();
@@ -75250,6 +77033,7 @@ function wrapNode(node, handler, limits, now, options = {}) {
       if (options.final === true) return finalize2(projected, base, nowMs);
       return base;
     } catch (error51) {
+      if (error51 instanceof AwaitingProviderError) throw error51;
       const failed = {
         ...base,
         status: "failed",
@@ -75286,7 +77070,7 @@ function validateNodeUpdate(update) {
     validated.scenarios = update.scenarios.map((scenario) => ScenarioSpecSchema.parse(scenario));
   }
   if (update.mechanicReport !== void 0) {
-    validated.mechanicReport = BuildMechanicReportSchema.parse(update.mechanicReport);
+    validated.mechanicReport = update.mechanicReport !== null && typeof update.mechanicReport === "object" && "factBundleFingerprint" in update.mechanicReport ? VerifiedBuildMechanicReportSchema.parse(update.mechanicReport) : BuildMechanicReportSchema.parse(update.mechanicReport);
   }
   if (update.frontier !== void 0) {
     validated.frontier = update.frontier.map((candidate) => CandidateSchema.parse(candidate));
@@ -75368,7 +77152,7 @@ function errorMessage(error51) {
 }
 
 // src/workflow/state.ts
-function replace(defaultValue) {
+function replace2(defaultValue) {
   return Annotation({
     reducer: (_current, update) => update,
     default: defaultValue
@@ -75377,35 +77161,35 @@ function replace(defaultValue) {
 var WorkflowStateAnnotation = Annotation.Root({
   runId: Annotation(),
   snapshot: Annotation(),
-  objectiveDraft: replace(() => void 0),
-  objective: replace(() => void 0),
-  objectiveConfirmed: replace(() => false),
-  scenarios: replace(() => []),
-  mechanicReport: replace(() => void 0),
-  artifacts: replace(() => ({})),
-  frontier: replace(() => []),
-  selected: replace(() => []),
-  explanation: replace(() => void 0),
-  preview: replace(() => void 0),
-  approval: replace(() => void 0),
-  transactionResult: replace(() => void 0),
-  phase: replace(() => "idle"),
-  status: replace(() => "draft"),
-  stopReason: replace(() => void 0),
-  searchStopReason: replace(() => void 0),
-  error: replace(() => void 0),
-  cancelRequested: replace(() => false),
-  providerFallback: replace(() => false),
-  needsRefinement: replace(() => false),
-  latestImprovementRatio: replace(() => 0),
-  noImprovementRounds: replace(() => 0),
-  evaluations: replace(() => 0),
-  modelCalls: replace(() => 0),
-  refinementRounds: replace(() => 0),
-  lastToolCallFingerprint: replace(() => void 0),
-  duplicateToolCalls: replace(() => 0),
-  startedAtMs: replace(() => 0),
-  updatedAtMs: replace(() => 0),
+  objectiveDraft: replace2(() => void 0),
+  objective: replace2(() => void 0),
+  objectiveConfirmed: replace2(() => false),
+  scenarios: replace2(() => []),
+  mechanicReport: replace2(() => void 0),
+  artifacts: replace2(() => ({})),
+  frontier: replace2(() => []),
+  selected: replace2(() => []),
+  explanation: replace2(() => void 0),
+  preview: replace2(() => void 0),
+  approval: replace2(() => void 0),
+  transactionResult: replace2(() => void 0),
+  phase: replace2(() => "idle"),
+  status: replace2(() => "draft"),
+  stopReason: replace2(() => void 0),
+  searchStopReason: replace2(() => void 0),
+  error: replace2(() => void 0),
+  cancelRequested: replace2(() => false),
+  providerFallback: replace2(() => false),
+  needsRefinement: replace2(() => false),
+  latestImprovementRatio: replace2(() => 0),
+  noImprovementRounds: replace2(() => 0),
+  evaluations: replace2(() => 0),
+  modelCalls: replace2(() => 0),
+  refinementRounds: replace2(() => 0),
+  lastToolCallFingerprint: replace2(() => void 0),
+  duplicateToolCalls: replace2(() => 0),
+  startedAtMs: replace2(() => 0),
+  updatedAtMs: replace2(() => 0),
   trace: Annotation({
     reducer: (current, update) => current.concat(update),
     default: () => []
@@ -75468,6 +77252,7 @@ function toOptimizationRun(state) {
     evaluations: state.evaluations,
     modelCalls: state.modelCalls,
     refinementRounds: state.refinementRounds,
+    ...state.mechanicReport !== void 0 && "analysisFingerprint" in state.mechanicReport ? { mechanicAnalysisFingerprint: state.mechanicReport.analysisFingerprint } : {},
     startedAt: new Date(state.startedAtMs).toISOString(),
     updatedAt: new Date(state.updatedAtMs).toISOString(),
     ...state.stopReason === void 0 ? {} : { stopReason: state.stopReason },
@@ -75482,7 +77267,7 @@ function routeAfterMechanicGate(state) {
   return state.stopReason === "cancelled" || state.stopReason === "failed" ? "FinalVerify" : "Inspect";
 }
 function mechanicGateNode(state) {
-  const report = BuildMechanicReportSchema.parse(state.mechanicReport);
+  const report = state.mechanicReport !== null && typeof state.mechanicReport === "object" && "factBundleFingerprint" in state.mechanicReport ? VerifiedBuildMechanicReportSchema.parse(state.mechanicReport) : BuildMechanicReportSchema.parse(state.mechanicReport);
   if (report.status !== "blocked") {
     return { phase: "MechanicGate", status: "running", trace: "MechanicGate" };
   }
@@ -75568,10 +77353,12 @@ var DefaultPlannerController = class {
   #workerPoolFactory;
   #providerService;
   #modelAdapterFactory;
+  #mechanicEngineFactory;
   #providerId;
   #pendingConsent = /* @__PURE__ */ new Map();
   #pendingProviderTests = /* @__PURE__ */ new Map();
   #active = /* @__PURE__ */ new Map();
+  #mechanicAnalyses = /* @__PURE__ */ new Map();
   #pending = /* @__PURE__ */ new Map();
   #cancelled = /* @__PURE__ */ new Set();
   #activations = /* @__PURE__ */ new Map();
@@ -75587,6 +77374,7 @@ var DefaultPlannerController = class {
     });
     this.#providerService = options.providerService;
     this.#modelAdapterFactory = options.modelAdapterFactory;
+    this.#mechanicEngineFactory = options.mechanicEngineFactory;
     this.#providerId = options.providerId ?? "openai";
   }
   async hello(params) {
@@ -75599,7 +77387,7 @@ var DefaultPlannerController = class {
       capabilities: {
         workflowGraph: true,
         domainGraph: true,
-        deterministicFallback: true,
+        deterministicFallback: false,
         humanGatedTransactions: true,
         nativeLinkProbe: true,
         nativeEvidence: true,
@@ -75743,13 +77531,13 @@ var DefaultPlannerController = class {
     if (pending === void 0 || pending.consentKey !== parsed.consentKey || pending.payloadHash !== parsed.payloadHash) {
       throw new JsonRpcError(JsonRpcErrorCode.Conflict, "Consent preview is missing or stale");
     }
-    const record4 = await this.#providerService.grantConsent(
+    const record5 = await this.#providerService.grantConsent(
       parsed.providerId,
       parsed.consentKey,
       pending.dataCategories
     );
     this.#pendingConsent.delete(parsed.providerId);
-    return record4;
+    return record5;
   }
   async revokeConsent(params) {
     if (this.#providerService === void 0) throw providerUnavailable();
@@ -75806,6 +77594,131 @@ var DefaultPlannerController = class {
     if (snapshot === void 0) throw notFound(`Build snapshot not found: ${snapshotFingerprint}`);
     return analyzeBuildMechanics(snapshot);
   }
+  startMechanicAnalysis(params, context2) {
+    if (this.#closed) throw new JsonRpcError(JsonRpcErrorCode.InternalError, "Planner controller is closed");
+    const parsed = MechanicsStartParamsSchema.parse(params);
+    const snapshot = this.#store.getSnapshot(parsed.snapshotFingerprint);
+    if (snapshot === void 0) throw notFound(`Build snapshot not found: ${parsed.snapshotFingerprint}`);
+    if (this.#modelAdapterFactory === void 0 || this.#providerService === void 0) throw providerUnavailable();
+    const analysisId = (0, import_node_crypto5.randomUUID)();
+    const active = {
+      id: analysisId,
+      snapshotFingerprint: snapshot.fingerprint,
+      controller: new AbortController(),
+      notify: context2.notify,
+      status: "running"
+    };
+    this.#mechanicAnalyses.set(analysisId, active);
+    this.#trackTask(this.#runMechanicAnalysis(active, snapshot, parsed.force));
+    return { analysisId, snapshotFingerprint: snapshot.fingerprint, status: "running" };
+  }
+  mechanicAnalysisStatus(params, context2) {
+    const { analysisId } = MechanicsStatusParamsSchema.parse(params);
+    const active = this.#mechanicAnalyses.get(analysisId);
+    if (active === void 0) throw notFound(`Mechanic analysis not found: ${analysisId}`);
+    active.notify = context2.notify;
+    return {
+      analysisId,
+      snapshotFingerprint: active.snapshotFingerprint,
+      status: active.status,
+      ...active.progress === void 0 ? {} : { progress: active.progress },
+      ...active.report === void 0 ? {} : { report: active.report },
+      ...active.error === void 0 ? {} : { error: active.error, retryable: active.retryable ?? false }
+    };
+  }
+  cancelMechanicAnalysis(params) {
+    const { analysisId } = MechanicsCancelParamsSchema.parse(params);
+    const active = this.#mechanicAnalyses.get(analysisId);
+    if (active === void 0) throw notFound(`Mechanic analysis not found: ${analysisId}`);
+    if (active.status === "completed" || active.status === "failed" || active.status === "cancelled") {
+      return { analysisId, status: active.status };
+    }
+    active.status = "cancelled";
+    active.controller.abort(new Error("Mechanic analysis cancelled by user"));
+    return { analysisId, status: "cancelled" };
+  }
+  async #runMechanicAnalysis(active, snapshot, force) {
+    let pool;
+    try {
+      pool = await this.#workerPoolFactory(snapshot, active.controller.signal);
+      this.#pools.add(pool);
+      const engine = await this.#createMechanicEngine(
+        pool,
+        `mechanics:${active.id}`,
+        (next) => {
+          active.progress = next;
+          active.notify({
+            method: "mechanics.progress",
+            params: {
+              analysisId: active.id,
+              snapshotFingerprint: snapshot.fingerprint,
+              ...next
+            }
+          });
+        }
+      );
+      const report = await engine.understand(snapshot, {
+        contexts: ["weaponSet1", "weaponSet2"],
+        force
+      }, active.controller.signal);
+      if (active.status === "cancelled") return;
+      active.status = "completed";
+      active.report = report;
+      active.notify({
+        method: "mechanics.completed",
+        params: { analysisId: active.id, snapshotFingerprint: snapshot.fingerprint, report }
+      });
+    } catch (error51) {
+      if (active.status === "cancelled" || active.controller.signal.aborted) return;
+      active.status = "failed";
+      const message = error51 instanceof Error ? error51.message : String(error51);
+      active.error = message;
+      active.retryable = error51 instanceof MechanicProviderError && error51.retryable;
+      active.notify({
+        method: "mechanics.failed",
+        params: {
+          analysisId: active.id,
+          snapshotFingerprint: snapshot.fingerprint,
+          error: message,
+          retryable: active.retryable
+        }
+      });
+    } finally {
+      if (pool !== void 0) {
+        this.#pools.delete(pool);
+        await pool.close();
+      }
+    }
+  }
+  async #createMechanicEngine(pool, runId, onProgress) {
+    if (this.#mechanicEngineFactory !== void 0) {
+      return await this.#mechanicEngineFactory(pool, runId, onProgress);
+    }
+    if (this.#modelAdapterFactory === void 0 || this.#providerService === void 0) throw providerUnavailable();
+    const status = await this.#providerService.status(this.#providerId);
+    if (!status.configured || !status.credentialConfigured || status.profile === void 0) throw providerUnavailable();
+    if (status.consent !== "granted") {
+      throw new JsonRpcError(JsonRpcErrorCode.Conflict, "Provider consent is required for mechanic facts and experiment results");
+    }
+    const adapter = await this.#modelAdapterFactory.create(this.#providerId, {
+      toolRegistry: MECHANIC_TOOL_REGISTRY,
+      dataCategories: DEFAULT_CONSENT_DATA_CATEGORIES
+    });
+    return new MechanicUnderstandingEngine({
+      provider: adapter,
+      providerDescriptor: {
+        providerId: status.profile.providerId,
+        endpoint: status.profile.baseURL,
+        model: status.profile.model,
+        apiMode: status.profile.resolvedApiMode,
+        reasoningMode: status.profile.reasoningMode
+      },
+      worker: new PoolMechanicExperimentRunner(pool, runId),
+      store: this.#store,
+      checkpointer: this.#checkpointer,
+      ...onProgress === void 0 ? {} : { onProgress }
+    });
+  }
   startRun(params, context2) {
     if (this.#closed) throw new JsonRpcError(JsonRpcErrorCode.InternalError, "Planner controller is closed");
     this.#store.prune();
@@ -75845,12 +77758,13 @@ var DefaultPlannerController = class {
       evaluations: 0,
       modelCalls: 0,
       refinementRounds: 0,
+      ...parsed.mechanicAnalysisFingerprint === void 0 ? {} : { mechanicAnalysisFingerprint: parsed.mechanicAnalysisFingerprint },
       startedAt: now,
       updatedAt: now
     });
     this.#pending.set(runId, new AbortController());
     this.#operations.add(runId);
-    const task2 = this.#start(runId, snapshot, objective, context2);
+    const task2 = this.#start(runId, snapshot, objective, context2, parsed.mechanicAnalysisFingerprint);
     this.#trackTask(task2);
     return {
       runId,
@@ -75874,7 +77788,9 @@ var DefaultPlannerController = class {
       frontier: run.frontier,
       candidates: run.selected,
       stopReason: run.stopReason,
-      error: run.error
+      error: run.error,
+      awaitingProvider: run.awaitingProvider,
+      mechanicAnalysisFingerprint: run.mechanicAnalysisFingerprint
     };
   }
   cancelRun(params) {
@@ -75917,12 +77833,32 @@ var DefaultPlannerController = class {
     if (persisted.status === "completed" || persisted.status === "failed" || persisted.status === "cancelled") {
       throw new JsonRpcError(JsonRpcErrorCode.InvalidParams, `Run is terminal and cannot be resumed: ${persisted.status}`);
     }
+    if (persisted.awaitingProvider !== void 0) {
+      if (!("decision" in resume) || !["retryProvider", "cancelProvider"].includes(resume.decision)) {
+        throw new JsonRpcError(JsonRpcErrorCode.Conflict, "Run is awaiting Provider; only retryProvider or cancelProvider is allowed");
+      }
+      if (resume.decision === "cancelProvider") {
+        const cancelled = {
+          ...persisted,
+          status: "cancelled",
+          stopReason: "cancelled",
+          error: resume.reason ?? "Cancelled while awaiting Provider",
+          awaitingProvider: void 0,
+          updatedAt: (/* @__PURE__ */ new Date()).toISOString()
+        };
+        this.#store.saveRun(cancelled);
+        await this.#releaseActive(resume.runId);
+        return { runId: resume.runId, status: "cancelled" };
+      }
+    } else if ("decision" in resume && ["retryProvider", "cancelProvider"].includes(resume.decision)) {
+      throw new JsonRpcError(JsonRpcErrorCode.Conflict, "Run is not awaiting Provider");
+    }
     return this.#withRunOperation(resume.runId, async () => {
       const active = await this.#ensureActive(resume.runId, context2.notify, context2.signal, tradeAccessFrom(context2));
       const operationSignal = AbortSignal.any([active.controller.signal, context2.signal]);
       operationSignal.throwIfAborted();
       active.notify = context2.notify;
-      if ("mode" in resume) {
+      if ("mode" in resume || "decision" in resume && resume.decision === "retryProvider") {
         let output2;
         try {
           output2 = await active.graph.invoke(
@@ -75930,17 +77866,22 @@ var DefaultPlannerController = class {
             workflowConfig(resume.runId, void 0, void 0, operationSignal)
           );
         } catch (error51) {
+          if (error51 instanceof AwaitingProviderError) {
+            await this.#awaitProvider(resume.runId, error51, context2.notify);
+            return { runId: resume.runId, status: "awaitingProvider", phase: error51.phase, retryable: error51.retryable };
+          }
           if (!operationSignal.aborted) await this.#failRun(resume.runId, error51);
           throw error51;
         }
         operationSignal.throwIfAborted();
         const run2 = toOptimizationRun(output2);
-        if (output2.mechanicReport?.status === "blocked") {
+        const verifiedMechanics = asVerifiedMechanicReport(output2.mechanicReport);
+        if (verifiedMechanics?.status === "blocked") {
           const paused = { ...run2, status: "paused", updatedAt: (/* @__PURE__ */ new Date()).toISOString() };
           this.#store.saveRun(paused);
-          context2.notify({ method: "run.mechanicsReady", params: { runId: run2.id, report: output2.mechanicReport } });
-          context2.notify({ method: "run.awaitingMechanicReview", params: { runId: run2.id, report: output2.mechanicReport } });
-          return { runId: run2.id, status: "paused", candidates: run2.selected, mechanicReport: output2.mechanicReport };
+          context2.notify({ method: "run.mechanicsReady", params: { runId: run2.id, report: verifiedMechanics } });
+          context2.notify({ method: "run.awaitingMechanicReview", params: { runId: run2.id, report: verifiedMechanics } });
+          return { runId: run2.id, status: "paused", candidates: run2.selected, mechanicReport: verifiedMechanics };
         }
         this.#store.saveRun(run2);
         return { runId: run2.id, status: run2.status, candidates: run2.selected };
@@ -75975,6 +77916,9 @@ var DefaultPlannerController = class {
         context2.notify({ method: "run.completed", params: { runId: run.id, candidates: run.selected } });
         await this.#releaseActive(run.id);
         return { runId: run.id, status: run.status };
+      }
+      if (resume.decision !== "apply") {
+        throw new JsonRpcError(JsonRpcErrorCode.InvalidParams, `Unsupported resume decision: ${resume.decision}`);
       }
       const candidate = run.selected.find(({ id }) => id === resume.candidateId) ?? run.frontier.find(({ id }) => id === resume.candidateId);
       if (candidate === void 0) throw new JsonRpcError(JsonRpcErrorCode.InvalidParams, "Candidate is not part of this run");
@@ -76088,6 +78032,11 @@ var DefaultPlannerController = class {
       active.controller.abort(new Error("Planner controller closed"));
       active.pool.cancel(runId);
     }
+    for (const analysis of this.#mechanicAnalyses.values()) {
+      if (analysis.status !== "running") continue;
+      analysis.status = "cancelled";
+      analysis.controller.abort(new Error("Planner controller closed"));
+    }
     await Promise.allSettled([...this.#tasks]);
     this.#pending.clear();
     this.#cancelled.clear();
@@ -76095,8 +78044,9 @@ var DefaultPlannerController = class {
     await Promise.all([...this.#pools].map((pool) => pool.close()));
     this.#pools.clear();
     this.#active.clear();
+    this.#mechanicAnalyses.clear();
   }
-  async #start(runId, snapshot, objective, context2) {
+  async #start(runId, snapshot, objective, context2, expectedMechanicFingerprint) {
     const notify = context2.notify;
     let startedActive;
     try {
@@ -76111,7 +78061,15 @@ var DefaultPlannerController = class {
           message: "Starting isolated PoB workers"
         }
       });
-      const active = await this.#activate(runId, snapshot, objective, notify, void 0, tradeAccessFrom(context2));
+      const active = await this.#activate(
+        runId,
+        snapshot,
+        objective,
+        notify,
+        void 0,
+        tradeAccessFrom(context2),
+        expectedMechanicFingerprint
+      );
       startedActive = active;
       this.#pending.delete(runId);
       if (active.controller.signal.aborted) {
@@ -76129,12 +78087,13 @@ var DefaultPlannerController = class {
         return;
       }
       const run = toOptimizationRun(state);
-      if (state.mechanicReport !== void 0) {
-        notify({ method: "run.mechanicsReady", params: { runId, report: state.mechanicReport } });
-        if (state.mechanicReport.status === "blocked") {
+      const verifiedMechanics = asVerifiedMechanicReport(state.mechanicReport);
+      if (verifiedMechanics !== void 0) {
+        notify({ method: "run.mechanicsReady", params: { runId, report: verifiedMechanics } });
+        if (verifiedMechanics.status === "blocked") {
           const paused = { ...run, status: "paused", updatedAt: (/* @__PURE__ */ new Date()).toISOString() };
           this.#store.saveRun(paused);
-          notify({ method: "run.awaitingMechanicReview", params: { runId, report: state.mechanicReport } });
+          notify({ method: "run.awaitingMechanicReview", params: { runId, report: verifiedMechanics } });
           return;
         }
       }
@@ -76168,6 +78127,11 @@ var DefaultPlannerController = class {
         this.#cancelled.delete(runId);
         return;
       }
+      if (error51 instanceof AwaitingProviderError) {
+        await this.#awaitProvider(runId, error51, notify);
+        this.#pending.delete(runId);
+        return;
+      }
       const message = error51 instanceof Error ? error51.message : String(error51);
       const persisted = this.#store.getRun(runId);
       if (persisted !== void 0) {
@@ -76186,7 +78150,7 @@ var DefaultPlannerController = class {
       this.#operations.delete(runId);
     }
   }
-  async #createActive(runId, snapshot, objective, notify, requestSignal, tradeAccess) {
+  async #createActive(runId, snapshot, objective, notify, requestSignal, tradeAccess, expectedMechanicFingerprint) {
     const tradeBridge = {
       requestTradeCatalog: tradeAccess?.requestTradeCatalog,
       cancelTradeCatalog: tradeAccess?.cancelTradeCatalog
@@ -76214,17 +78178,55 @@ var DefaultPlannerController = class {
       throw error51;
     }
     const providerController = new AbortController();
+    let mechanicReport;
     let modelAdapter;
-    if (this.#modelAdapterFactory !== void 0) {
-      try {
-        modelAdapter = await this.#modelAdapterFactory.create(this.#providerId);
-      } catch {
-        modelAdapter = void 0;
+    try {
+      const mechanicEngine = await this.#createMechanicEngine(
+        pool,
+        `run:${runId}:mechanics`,
+        (progress2) => notify({
+          method: "run.progress",
+          params: {
+            runId,
+            phase: `Mechanics:${progress2.phase}`,
+            progress: Math.min(0.2, progress2.progress * 0.2),
+            evaluations: 0,
+            frontierSize: 0,
+            message: `${progress2.message}; entities=${progress2.inspectedCount}/${progress2.entityCount}; modelCalls=${progress2.modelCalls}; experiments=${progress2.experimentCount}`
+          }
+        })
+      );
+      mechanicReport = await mechanicEngine.understand(
+        snapshot,
+        { contexts: ["weaponSet1", "weaponSet2"] },
+        startupSignal
+      );
+      if (mechanicReport.status !== "verified") {
+        throw new JsonRpcError(
+          JsonRpcErrorCode.Conflict,
+          "Verified mechanic report is blocked; optimization cannot start",
+          mechanicReport.blockers
+        );
       }
+      if (expectedMechanicFingerprint !== void 0 && mechanicReport.analysisFingerprint !== expectedMechanicFingerprint) {
+        throw new JsonRpcError(
+          JsonRpcErrorCode.Conflict,
+          "Requested mechanic report fingerprint is stale or does not match the active Build"
+        );
+      }
+      notify({ method: "run.mechanicsReady", params: { runId, report: mechanicReport } });
+      if (this.#modelAdapterFactory === void 0) throw providerUnavailable();
+      modelAdapter = await this.#modelAdapterFactory.create(this.#providerId);
+    } catch (error51) {
+      await pool.close();
+      if (this.#pending.get(runId) === controller) this.#pending.delete(runId);
+      throw error51;
     }
     const graph = createWorkflowGraph({
       checkpointer: this.#checkpointer,
       nodes: {
+        analyzeMechanics: () => ({ mechanicReport }),
+        inspectMechanics: () => ({ mechanicReport }),
         inspect: (state) => ({
           artifacts: {
             inspection: {
@@ -76302,6 +78304,7 @@ var DefaultPlannerController = class {
       providerController,
       providerId: this.#providerId,
       tradeAccess: tradeBridge,
+      mechanicReport,
       notify,
       cancelled: false
     };
@@ -76323,7 +78326,7 @@ var DefaultPlannerController = class {
     this.#pending.delete(runId);
     this.#cancelled.delete(runId);
   }
-  async #activate(runId, snapshot, objective, notify, requestSignal, tradeAccess) {
+  async #activate(runId, snapshot, objective, notify, requestSignal, tradeAccess, expectedMechanicFingerprint) {
     const active = this.#active.get(runId);
     if (active !== void 0) {
       active.tradeAccess.requestTradeCatalog = tradeAccess?.requestTradeCatalog ?? active.tradeAccess.requestTradeCatalog;
@@ -76336,7 +78339,15 @@ var DefaultPlannerController = class {
       requestSignal?.throwIfAborted();
       return shared;
     }
-    const activation = this.#createActive(runId, snapshot, objective, notify, requestSignal, tradeAccess);
+    const activation = this.#createActive(
+      runId,
+      snapshot,
+      objective,
+      notify,
+      requestSignal,
+      tradeAccess,
+      expectedMechanicFingerprint
+    );
     this.#activations.set(runId, activation);
     try {
       return await activation;
@@ -76371,6 +78382,28 @@ var DefaultPlannerController = class {
     }
     await this.#releaseActive(runId);
   }
+  async #awaitProvider(runId, error51, notify) {
+    const persisted = this.#store.getRun(runId);
+    if (persisted !== void 0) {
+      this.#store.saveRun({
+        ...persisted,
+        status: "paused",
+        awaitingProvider: { phase: error51.phase, error: error51.message, retryable: error51.retryable },
+        error: void 0,
+        updatedAt: (/* @__PURE__ */ new Date()).toISOString()
+      });
+    }
+    notify({
+      method: "run.awaitingProvider",
+      params: {
+        runId,
+        phase: error51.phase,
+        error: error51.message,
+        retryable: error51.retryable
+      }
+    });
+    await this.#releaseActive(runId);
+  }
   async #ensureActive(runId, notify, requestSignal, tradeAccess) {
     const run = this.#store.getRun(runId);
     if (run === void 0) throw notFound(`Run not found: ${runId}`);
@@ -76385,7 +78418,15 @@ var DefaultPlannerController = class {
     }
     const snapshot = this.#store.getSnapshot(run.buildFingerprint);
     if (snapshot === void 0) throw notFound(`Build snapshot not found for run: ${runId}`);
-    return this.#activate(runId, snapshot, run.objective, notify, requestSignal, tradeAccess);
+    return this.#activate(
+      runId,
+      snapshot,
+      run.objective,
+      notify,
+      requestSignal,
+      tradeAccess,
+      run.mechanicAnalysisFingerprint
+    );
   }
   async #verifyCandidateForApply(active, run, candidate, signal) {
     if (candidate.baseFingerprint !== active.snapshot.fingerprint) {
@@ -76454,13 +78495,8 @@ var DefaultPlannerController = class {
     return task2;
   }
   async #modelGuidance(state, phase, adapter, signal) {
-    if (adapter === void 0 || state.objective === void 0) {
-      return {
-        artifacts: { model: { phase, configured: false, mode: "deterministic_fallback" } },
-        usage: { evaluations: 0, modelCalls: 0 },
-        providerFallback: true
-      };
-    }
+    if (state.objective === void 0) throw new Error("Confirmed objective is unavailable");
+    const mechanics = VerifiedBuildMechanicReportSchema.parse(state.mechanicReport);
     const dispatcher = new ReadonlyToolDispatcher({
       inspect_build: (_args, context2) => ({
         fingerprint: context2.snapshot.fingerprint,
@@ -76468,16 +78504,15 @@ var DefaultPlannerController = class {
         metrics: context2.snapshot.metrics,
         catalogEntries: context2.snapshot.contentCatalog?.length ?? 0,
         graph: context2.snapshot.buildGraph,
-        mechanics: analyzeBuildMechanics(context2.snapshot)
+        mechanics
       }),
-      trace_mechanic: (args, context2) => {
-        const report = analyzeBuildMechanics(context2.snapshot);
-        const nodes = report.graph.nodes.filter(({ id }) => id === args.nodeId);
-        const edges = report.graph.edges.filter(({ from, to }) => from === args.nodeId || to === args.nodeId);
+      trace_mechanic: (args) => {
+        const nodes = mechanics.graph.nodes.filter(({ id }) => id === args.nodeId);
+        const edges = mechanics.graph.edges.filter(({ sourceId, targetId }) => sourceId === args.nodeId || targetId === args.nodeId);
         return { nodes, edges };
       },
-      list_findings: (args, context2) => {
-        const findings = analyzeBuildMechanics(context2.snapshot).findings;
+      list_findings: (args) => {
+        const findings = mechanics.findings;
         return args.severity === void 0 ? findings : findings.filter(({ severity }) => severity === args.severity);
       },
       describe_modifier: (args, context2) => {
@@ -76532,20 +78567,22 @@ var DefaultPlannerController = class {
         limits: { recursionLimit: 8, modelCallLimit: 4, wallTimeMs: 6e4 },
         signal
       });
+      if (result.fallback !== void 0) {
+        throw new AwaitingProviderError(phase, result.fallback.detail, result.fallback.retryable);
+      }
       return {
         artifacts: {
           model: {
             phase,
             configured: true,
-            mode: result.fallback === void 0 ? "provider" : "deterministic_fallback",
+            mode: "provider",
             content: result.content,
             stopReason: result.stopReason,
-            toolCalls: result.toolCalls,
-            fallback: result.fallback
+            toolCalls: result.toolCalls
           }
         },
         usage: { evaluations: 0, modelCalls: result.modelCalls },
-        providerFallback: result.fallback !== void 0,
+        providerFallback: false,
         toolCallFingerprint: canonicalHash({
           phase,
           toolResults: result.toolResults.map(({ name, ok }) => ({ name, ok })),
@@ -76553,18 +78590,12 @@ var DefaultPlannerController = class {
         })
       };
     } catch (error51) {
-      return {
-        artifacts: {
-          model: {
-            phase,
-            configured: true,
-            mode: "deterministic_fallback",
-            error: error51 instanceof Error ? error51.message : "Provider failed"
-          }
-        },
-        usage: { evaluations: 0, modelCalls: 0 },
-        providerFallback: true
-      };
+      if (error51 instanceof AwaitingProviderError) throw error51;
+      throw new AwaitingProviderError(
+        phase,
+        error51 instanceof Error ? error51.message : "Provider failed",
+        true
+      );
     }
   }
   async #search(runId, state, nodeContext, pool, signal, notify, tradeAccess) {
@@ -76578,7 +78609,7 @@ var DefaultPlannerController = class {
         selected: [...state.selected],
         usage: { evaluations: 0, modelCalls: 0 },
         searchStopReason: "evaluation_limit",
-        providerFallback: true,
+        providerFallback: false,
         toolCallFingerprint: canonicalHash({ runId, stopReason: "evaluation_limit" })
       };
     }
@@ -76634,17 +78665,17 @@ var DefaultPlannerController = class {
       },
       // Candidate-native proofs are per calculator run. Reusing a metrics-only
       // cache entry would bypass the required probe/evidence barrier.
-      onProgress: (progress) => {
+      onProgress: (progress2) => {
         persistSearchSnapshot(
           this.#store,
           runId,
           state,
           sustainable.length,
-          progress.frontier,
+          progress2.frontier,
           domain2.evidence,
-          progress.evaluations
+          progress2.evaluations
         );
-        sendSearchProgress(runId, progress, notify);
+        sendSearchProgress(runId, progress2, notify);
       }
     });
     const result = await engine.run();
@@ -76695,7 +78726,7 @@ var DefaultPlannerController = class {
       },
       artifacts: {
         search: { stopReason: result.stopReason, rounds: result.rounds },
-        provider: { configured: false, mode: "deterministic_fallback" },
+        provider: { configured: true, mode: "llm_guided_controller_search" },
         domainGraph: {
           nodes: domain2.graph.toJSON().nodes.length,
           edges: domain2.graph.toJSON().edges.length,
@@ -76709,7 +78740,7 @@ var DefaultPlannerController = class {
         }
       },
       searchStopReason: result.stopReason,
-      providerFallback: true,
+      providerFallback: false,
       toolCallFingerprint: canonicalHash({ runId, frontier: publicFrontier.map(({ id }) => id) })
     };
   }
@@ -76894,9 +78925,9 @@ function isRecord2(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 function prepareDomainState(snapshot, scenarios) {
-  const catalog = snapshot.contentCatalog ?? [];
-  const baseGraph = snapshot.buildGraph === void 0 ? DomainGraph.fromCatalog(catalog) : new DomainGraph(snapshot.buildGraph);
-  for (const entry of catalog) {
+  const catalog2 = snapshot.contentCatalog ?? [];
+  const baseGraph = snapshot.buildGraph === void 0 ? DomainGraph.fromCatalog(catalog2) : new DomainGraph(snapshot.buildGraph);
+  for (const entry of catalog2) {
     if (!baseGraph.hasNode(entry.id)) {
       baseGraph.addNode({
         id: entry.id,
@@ -76909,7 +78940,7 @@ function prepareDomainState(snapshot, scenarios) {
   const applied = createDefaultMechanicAdapterRegistry().apply(baseGraph, {
     ruleset: snapshot.ruleset,
     dataVersion: snapshot.dataVersion,
-    catalog
+    catalog: catalog2
   });
   const evidence2 = scenarios.filter((scenario) => scenario.profile === "sustainable" || scenario.profile === "peak").flatMap((scenario) => resolveConditionEvidence(
     applied.conditionClaims,
@@ -77080,16 +79111,16 @@ function persistSearchSnapshot(store, runId, state, baselineEvaluations, frontie
     updatedAt: (/* @__PURE__ */ new Date()).toISOString()
   });
 }
-function sendSearchProgress(runId, progress, notify) {
+function sendSearchProgress(runId, progress2, notify) {
   notify({
     method: "run.progress",
     params: {
       runId,
-      phase: progress.domain ?? progress.phase,
-      progress: Math.min(0.95, progress.round / 40),
-      evaluations: progress.evaluations,
-      frontierSize: progress.frontier.length,
-      message: `Searching ${progress.domain ?? progress.phase}`
+      phase: progress2.domain ?? progress2.phase,
+      progress: Math.min(0.95, progress2.round / 40),
+      evaluations: progress2.evaluations,
+      frontierSize: progress2.frontier.length,
+      message: `Searching ${progress2.domain ?? progress2.phase}`
     }
   });
 }
@@ -77102,15 +79133,19 @@ function providerUnavailable() {
     "Provider configuration is unavailable; install the Windows Credential Manager helper"
   );
 }
+function asVerifiedMechanicReport(value) {
+  if (value === null || typeof value !== "object" || Array.isArray(value) || !("factBundleFingerprint" in value)) return void 0;
+  return value;
+}
 
 // src/rpc/normalize.ts
 function isRecord3(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
-function normalizeArrayField(record4, key) {
-  const value = record4[key];
+function normalizeArrayField(record5, key) {
+  const value = record5[key];
   if (isRecord3(value) && Object.keys(value).length === 0) {
-    record4[key] = [];
+    record5[key] = [];
   }
 }
 function canonicalScenario(value) {
@@ -77220,6 +79255,9 @@ var SUPPORTED_METHODS = /* @__PURE__ */ new Set([
   "hello",
   "build.capture",
   "build.analyze",
+  "mechanics.start",
+  "mechanics.status",
+  "mechanics.cancel",
   "run.start",
   "run.stream",
   "run.cancel",
@@ -77388,6 +79426,12 @@ var RpcRouter = class {
         return this.bind(this.controller.captureBuild, parseParams(BuildCaptureParamsSchema));
       case "build.analyze":
         return this.bind(this.controller.analyzeBuild, parseParams(BuildAnalyzeParamsSchema));
+      case "mechanics.start":
+        return this.bind(this.controller.startMechanicAnalysis, parseParams(MechanicsStartParamsSchema));
+      case "mechanics.status":
+        return this.bind(this.controller.mechanicAnalysisStatus, parseParams(MechanicsStatusParamsSchema));
+      case "mechanics.cancel":
+        return this.bind(this.controller.cancelMechanicAnalysis, parseParams(MechanicsCancelParamsSchema));
       case "run.start":
         return this.bind(this.controller.startRun, parseParams(RunStartParamsSchema));
       case "run.stream":
@@ -77791,6 +79835,9 @@ var NativeProbeWorkerPool = class {
     this.delegate = delegate;
   }
   async evaluate(job, signal) {
+    if (job.payload.operation === "mechanic_experiment") {
+      return this.delegate.evaluate(job, signal);
+    }
     const probeRaw = await this.delegate.evaluate({
       ...job,
       id: `${job.id}:native-probe`,
@@ -78229,7 +80276,7 @@ function waitForExit(child) {
 var WorkerEvaluationSchema = external_exports.object({
   jobId: external_exports.string().min(1),
   candidateId: external_exports.string().min(1),
-  operation: external_exports.enum(["evaluate", "probe"]).optional(),
+  operation: external_exports.enum(["evaluate", "probe", "mechanic_experiment"]).optional(),
   metricsByScenario: external_exports.record(external_exports.string(), MetricSetSchema).default({}),
   diagnostics: external_exports.array(external_exports.string()).optional(),
   candidateFingerprint: external_exports.string().optional(),
@@ -78237,7 +80284,8 @@ var WorkerEvaluationSchema = external_exports.object({
   evidenceFingerprint: external_exports.string().optional(),
   nativeLinkProbe: external_exports.unknown().optional(),
   nativeEvidence: external_exports.unknown().optional(),
-  nativeEvidenceByScenario: external_exports.unknown().optional()
+  nativeEvidenceByScenario: external_exports.unknown().optional(),
+  mechanicExperimentResult: MechanicExperimentResultSchema.optional()
 }).passthrough();
 async function main() {
   const config2 = parseArgs(process.argv.slice(2));
@@ -78257,7 +80305,7 @@ async function startApplication(config2) {
   }
   const saver = await createSqliteSaver({
     connectionString: (0, import_node_path5.join)(config2.dataDir, "checkpoints.sqlite"),
-    onWarning: (message, error51) => warn(`${message}: ${errorText(error51)}`)
+    onWarning: (message, error51) => warn(`${message}: ${errorText2(error51)}`)
   });
   const worker = processWorkerFactory(config2);
   const provider = createProviderRuntime(config2);
@@ -78320,22 +80368,22 @@ async function startApplication(config2) {
   } catch (error51) {
     const cleanup = await Promise.allSettled([server.close(), controller.close(), worker.close()]);
     for (const result of cleanup) {
-      if (result.status === "rejected") warn(`Startup cleanup failed: ${errorText(result.reason)}`);
+      if (result.status === "rejected") warn(`Startup cleanup failed: ${errorText2(result.reason)}`);
     }
     try {
       saver.close();
     } catch (closeError) {
-      warn(`Checkpoint cleanup failed: ${errorText(closeError)}`);
+      warn(`Checkpoint cleanup failed: ${errorText2(closeError)}`);
     }
     try {
       store.close();
     } catch (closeError) {
-      warn(`Store cleanup failed: ${errorText(closeError)}`);
+      warn(`Store cleanup failed: ${errorText2(closeError)}`);
     }
     try {
       provider?.close();
     } catch (closeError) {
-      warn(`Provider store cleanup failed: ${errorText(closeError)}`);
+      warn(`Provider store cleanup failed: ${errorText2(closeError)}`);
     }
     throw error51;
   }
@@ -78357,7 +80405,7 @@ function createProviderRuntime(config2) {
       close: () => persistence.close()
     };
   } catch (error51) {
-    warn(`Provider configuration unavailable: ${errorText(error51)}`);
+    warn(`Provider configuration unavailable: ${errorText2(error51)}`);
     return void 0;
   }
 }
@@ -78407,7 +80455,7 @@ async function writeReadyFile(path3, port) {
     await (0, import_promises3.rename)(temporary, path3);
   } catch (error51) {
     await (0, import_promises3.rm)(temporary, { force: true });
-    throw new Error(`Unable to publish ready file ${path3}: ${errorText(error51)}`);
+    throw new Error(`Unable to publish ready file ${path3}: ${errorText2(error51)}`);
   }
 }
 async function removeOwnReadyFile(path3) {
@@ -78421,11 +80469,11 @@ function warn(message) {
   process.stderr.write(`[aipob-sidecar] ${message}
 `);
 }
-function errorText(error51) {
+function errorText2(error51) {
   return error51 instanceof Error ? error51.message : String(error51);
 }
 void main().catch((error51) => {
-  warn(errorText(error51));
+  warn(errorText2(error51));
   process.exitCode = 1;
 });
 // Annotate the CommonJS export names for ESM import in node:

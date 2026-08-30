@@ -88,7 +88,7 @@ acknowledgement. Successful acknowledgement clears the journal.
 ### Transport boundary
 
 The sidecar listens only on `127.0.0.1`. Each request carries JSON-RPC version
-`2.0`, protocol version `3`, and a random per-launch session token of at least 32
+`2.0`, protocol version `5`, and a random per-launch session token of at least 32
 characters. The server enforces maximum frame size, request timeout,
 authentication, ordered newline-delimited frames, and cancellation.
 
@@ -97,6 +97,9 @@ Request methods:
 - `hello`
 - `build.capture`
 - `build.analyze`
+- `mechanics.start`
+- `mechanics.status`
+- `mechanics.cancel`
 - `run.start`
 - `run.stream`
 - `run.cancel`
@@ -124,10 +127,14 @@ Server notifications:
 - `run.progress`
 - `run.mechanicsReady`
 - `run.awaitingMechanicReview`
+- `run.awaitingProvider`
 - `run.awaitingApproval`
 - `run.completed`
 - `run.failed`
 - `transaction.apply`
+- `mechanics.progress`
+- `mechanics.completed`
+- `mechanics.failed`
 
 The wire contract is defined by [`protocol.ts`](../../sidecar/src/protocol.ts),
 [`schemas.ts`](../../sidecar/src/schemas.ts), and the Lua
@@ -135,7 +142,7 @@ The wire contract is defined by [`protocol.ts`](../../sidecar/src/protocol.ts),
 
 ### Versioned data contracts
 
-Protocol version `4` and schema version `3` currently cross the process
+Protocol version `5` and schema version `4` currently cross the process
 boundary. Principal validated values are:
 
 - `ObjectiveSpec`: confirmed goals, weights, hard constraints, Locks, Budget,
@@ -146,8 +153,17 @@ boundary. Principal validated values are:
   item set, slot, modifier section, line flag, parsed `Mod` type, provenance,
   and conservative item-legality result. Inactive items remain visible but do
   not contribute active mechanic edges;
-- `BuildMechanicReport`: deterministic mechanism graph, main-skill source
-  chains, structured findings, and a projection-bound analysis fingerprint;
+- `MechanicFactBundle`: stable, provenance-bearing facts for both weapon sets,
+  every enabled and Full DPS skill, supports, active equipment modifiers,
+  allocated passives, Config, actors, resources, cooldowns, durations, metrics,
+  and inactive-set inventory;
+- `MechanicClaim` and `MechanicProof`: model-discovered typed relations bound to
+  exact native evidence or isolated PoB counterfactual deltas;
+- `VerifiedBuildMechanicReport`: the only authoritative understanding artifact,
+  with verified/blocked status, coverage ledger, semantic graph, effect states,
+  findings, and a cache-bound analysis fingerprint;
+- `BuildMechanicReport`: legacy deterministic projection/fact diagnostic used
+  for local Candidate diffs, not proof of complete Build understanding;
 - `ScenarioSpec`: enemy class, profile, modifiers, events, and assumptions;
 - `ConditionEvidence`: source chain, uptime, conflict, confidence, and status;
 - `BuildAction`: typed payload, dependencies, preconditions, cost, and
@@ -179,9 +195,39 @@ CaptureBuild -> DraftObjective -> ConfirmObjective -> BuildScenarios
 -> [ApplyTransaction | Reject] -> FinalVerify -> End
 ```
 
-The current controller supplies deterministic handlers for inspection,
-diagnosis, domain search, selection, and apply verification. The graph contains
+The current controller supplies deterministic search/evaluation handlers, but
+Start first requires an exact verified mechanic report and a live model. The
+model participates in PlanSearch, RefineSearch, and Explain. The graph contains
 one bounded refinement pass when the first pass produces no frontier.
+
+### Mechanic understanding engine
+
+[`engine.ts`](../../sidecar/src/mechanics/engine.ts) owns a separate LangGraph
+subgraph:
+
+```text
+ExtractFacts -> DiscoverClaims -> ValidateCoverage
+-> CompileCriticalExperiments -> RunExperiments -> VerifyClaims
+-> CritiqueCoverage -> [RepairClaims -> ValidateCoverage | FinalizeReport]
+```
+
+Only `MechanicUnderstandingEngine.understand()` is public. Provider, Worker,
+Store, checkpoint, and limits are injected. The model receives a compact
+manifest, pages detailed local facts through dedicated read tools, and must
+submit Claims and Review through forced tool calls. Local code validates scope,
+relations, entity IDs, evidence, contradictions, and criticality.
+
+Critical or ambiguous Claims compile to worker-only diagnostic interventions.
+[`MechanicExperiment.lua`](../../src/Modules/AIPoB/MechanicExperiment.lua)
+observes baseline and diagnostic Sandboxes without producing Build Actions or
+touching the active Build. Noncritical structural Claims require exact native
+provenance. Missing, truncated, zero-delta, stale, or invalid proof blocks the
+report and Start.
+
+The exact cache key binds Build, Projection, Fact Bundle, PoB engine/data/
+ruleset, both weapon contexts, Scenario matrix, engine/prompt/tool versions,
+and Provider endpoint/model/API/reasoning settings. Cache namespaces are
+versioned; old rows stay stored but are not resumed as schema-4 reports.
 
 ### Domain and search
 
@@ -207,10 +253,11 @@ search.
 
 The CLI injects an OpenAI-compatible adapter only when a non-secret provider
 profile, an LLM-only WinCred key, and matching consent are present. The consent
-key binds endpoint, model, data categories, privacy policy, redaction policy,
-and redacted payload preview. Without it, the deterministic schedule remains
-active. Planner Chat returns a strict Objective Draft; the UI requires review
-and another Objective confirmation before search.
+key binds endpoint, model, data categories including `mechanic_facts` and
+`mechanic_experiment_results`, privacy policy, redaction policy, and redacted
+payload preview. Without it, new mechanic analysis and Start are blocked.
+Planner Chat returns a strict Objective Draft; the UI requires review and
+another Objective confirmation before search.
 
 The `providerCompatibility` capability exposes presets, optional bounded
 `/models` discovery, semantic reasoning modes, and explicit advanced overrides.
@@ -285,7 +332,8 @@ not logged or stored.
 | RPC authentication or protocol mismatch | Request is rejected with a structured error |
 | Worker startup, crash, timeout, or invalid result | Evaluation/run fails; active build remains unchanged |
 | Trade unavailable, timed out, or rate-limited | Warning is recorded; deterministic local search continues |
-| Provider missing, unconsented, revoked, or unavailable | Deterministic schedule remains active; revocation aborts matching provider calls |
+| Provider missing, unconsented, or offline before analysis/Start | Request is blocked; no deterministic fallback is used |
+| Provider fails during PlanSearch, RefineSearch, or Explain | Run checkpoints at `awaitingProvider`; only Retry or Cancel is accepted |
 | Connection probe rejected, timed out, or incompatible | Unsaved fields and protected key remain available for retry; saved profile, credential, and durable consent remain unchanged |
 | Preview requested | Sidecar returns the persisted Candidate action/metric diff without mutating the active build |
 | Apply preflight or action failure | Transaction restores captured XML and reports rollback evidence |

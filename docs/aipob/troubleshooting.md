@@ -45,7 +45,9 @@ pnpm --version
 | Provider status is unconfigured | No OpenAI-compatible profile or LLM credential | Configure endpoint, model, and key in Planner provider setup; do not use `.env` or project files |
 | Provider consent is required | First call, changed endpoint/model/policy, or revoked consent | Review the redacted consent preview and grant it only if its exact destination and categories are acceptable |
 | Credential helper fails | WinCred helper missing, wrong architecture, or target outside `AIPathOfBuilding/LLM/*` | Use a verified Windows package; never broaden the namespace or move PoE OAuth secrets into the helper |
-| Run ends with provider fallback | Provider is absent, unconsented, unavailable, or returned an invalid response | Inspect provider status/error; deterministic search remains available |
+| Analyze Build or Start says Provider unavailable | Provider is absent, unconsented, offline, or returned an invalid forced tool call | Fix Provider status/consent and retry; there is no deterministic fallback |
+| Run waits at `awaitingProvider` | Provider failed during PlanSearch, RefineSearch, or Explain | Restore the same Provider and choose **Retry LLM**, or cancel the run; other resume decisions are rejected |
+| Mechanic report is blocked | Required facts were missing/truncated, coverage or Proof was incomplete, a critical experiment was zero-delta, or a safety limit was reached | Inspect the report blocker and exact Claim/Proof; fix the source problem and run Analyze Build again; blocked reports cannot be overridden |
 | No verified candidate | No typed proposal improves the baseline while satisfying Locks, Budget, native proof, graph rules, and hard constraints | Relax intended constraints, verify catalog/Trade warnings, and inspect worker diagnostics |
 | Apply says fingerprint changed | Active Build changed after capture | Start a new run from the current Build; do not bypass fingerprint validation |
 | Apply metric mismatch | Candidate could not be reproduced in fresh verification or commit | Keep the active Build unchanged, inspect Scenario inputs and calculator diagnostics, then reproduce with a focused test |

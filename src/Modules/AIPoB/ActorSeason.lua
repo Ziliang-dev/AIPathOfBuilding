@@ -96,7 +96,9 @@ local function isMinionGem(gem)
 	end
 
 local function bounded(list, value, limit)
-	if #list < limit then table.insert(list, value) end
+	if #list >= limit then return false end
+	table.insert(list, value)
+	return true
 end
 
 local function actorProvenance(build, limit)
@@ -105,10 +107,11 @@ local function actorProvenance(build, limit)
 		{ id = "actor:player", kind = "player", source = "Build" },
 	}
 	local seen = { ["actor:player"] = true }
+	local truncated = false
 	local function add(value)
 		if type(value) ~= "table" or type(value.id) ~= "string" or seen[value.id] then return end
 		seen[value.id] = true
-		bounded(actors, value, limit)
+		if not bounded(actors, value, limit) then truncated = true end
 	end
 
 	local skills = build and build.skillsTab
@@ -151,15 +154,16 @@ local function actorProvenance(build, limit)
 		local control = controls[controlName]
 		local text = control and control.buf or ""
 		add({ id = "actor:party:" .. buffer, kind = "party", source = "Party." .. buffer,
-			buffer = buffer, textHash = digest(text), sourceStatus = "manual" })
+			buffer = buffer, active = text ~= "", textHash = digest(text), sourceStatus = "manual" })
 	end
-	return actors
+	return actors, truncated
 end
 
 local function seasonProjection(build, limit)
 	limit = math.max(1, math.min(500, tonumber(limit) or 128))
 	local spec = build and build.spec
 	local result = {
+		truncated = false,
 		secondaryAscendancy = nil,
 		pacts = { },
 		timeless = nil,
@@ -178,8 +182,8 @@ local function seasonProjection(build, limit)
 		for gemIndex, gem in ipairs(group.gemList or { }) do
 			local name = gemName(gem)
 			if name and name:lower():find("pact of ", 1, true) then
-				bounded(result.pacts, { id = "season:pact:" .. name, name = name, group = groupIndex, gem = gemIndex,
-					source = "Skills.Gem", skillId = gemId(gem) }, limit)
+				if not bounded(result.pacts, { id = "season:pact:" .. name, name = name, group = groupIndex, gem = gemIndex,
+					source = "Skills.Gem", skillId = gemId(gem) }, limit) then result.truncated = true end
 			end
 		end
 	end
@@ -199,18 +203,20 @@ local function seasonProjection(build, limit)
 			table.insert(result.overrides, { nodeId = nodeId, dn = override.dn, id = override.id,
 				isTattoo = override.isTattoo == true, overrideType = override.overrideType,
 				source = "Tree.Spec.Overrides" })
-		end
+		else result.truncated = true end
 	end
 	local itemsTab = build and build.itemsTab
 	for _, itemId in ipairs(sortedKeys(itemsTab and itemsTab.items or { })) do
 		local item = itemsTab.items[itemId]
 		if item.type == "Graft" and #result.items.grafts < limit then
 			table.insert(result.items.grafts, { itemId = itemId, baseName = item.baseName, type = item.type, source = "Items" })
+		elseif item.type == "Graft" then result.truncated = true
 		elseif item.type == "Tincture" and #result.items.tinctures < limit then
 			table.insert(result.items.tinctures, { itemId = itemId, baseName = item.baseName, type = item.type, source = "Items" })
+		elseif item.type == "Tincture" then result.truncated = true
 		elseif item.foulborn and #result.items.foulborn < limit then
 			table.insert(result.items.foulborn, { itemId = itemId, title = item.title, baseName = item.baseName, source = "Items" })
-		end
+		elseif item.foulborn then result.truncated = true end
 	end
 	return result
 end
@@ -298,12 +304,15 @@ end
 
 function ActorSeason.Project(build, options)
 	options = options or { }
+	local actors, actorTruncated = actorProvenance(build, options.limit)
+	local season = seasonProjection(build, options.limit)
 	return {
 		schemaVersion = ActorSeason.SCHEMA_VERSION,
 		ruleset = build and build.targetVersion,
 		treeVersion = build and build.spec and build.spec.treeVersion,
-		actors = actorProvenance(build, options.limit),
-		season = seasonProjection(build, options.limit),
+		actors = actors,
+		season = season,
+		truncated = actorTruncated or season.truncated == true,
 	}
 end
 

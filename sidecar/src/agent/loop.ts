@@ -12,8 +12,42 @@ import {
 import {
   ReadonlyToolDispatcher,
   type ReadonlyToolContext,
-  type ToolExecutionResult,
 } from "./readonlyTools.js";
+
+export interface AgentToolExecutionResult<TName extends string = string> {
+  readonly toolCallId: string;
+  readonly name: TName;
+  readonly ok: boolean;
+  readonly output: unknown;
+}
+
+export interface AgentToolDispatcher<TName extends string, TContext> {
+  execute(call: ParsedToolCall<TName>, context: TContext): Promise<AgentToolExecutionResult<TName>>;
+}
+
+export interface AgentLoopOptions<TName extends string, TContext> {
+  readonly adapter: ModelAdapter<TName>;
+  readonly dispatcher: AgentToolDispatcher<TName, TContext>;
+  readonly messages: readonly AgentMessage[];
+  readonly context: TContext;
+  readonly modelContext?: unknown;
+  readonly limits?: Partial<DeepLimits>;
+  readonly signal?: AbortSignal;
+  readonly stopAfterTool?: (
+    result: AgentToolExecutionResult<TName>,
+    context: TContext,
+  ) => boolean;
+}
+
+export interface AgentLoopResult<TName extends string = string> {
+  readonly stopReason: StopReason;
+  readonly content: string;
+  readonly messages: readonly AgentMessage[];
+  readonly modelCalls: number;
+  readonly toolCalls: number;
+  readonly toolResults: readonly AgentToolExecutionResult<TName>[];
+  readonly fallback?: DeterministicFallbackSignal;
+}
 
 export interface ReadonlyAgentLoopOptions {
   readonly adapter: ModelAdapter<HighLevelToolName>;
@@ -24,15 +58,7 @@ export interface ReadonlyAgentLoopOptions {
   readonly signal?: AbortSignal;
 }
 
-export interface ReadonlyAgentLoopResult {
-  readonly stopReason: StopReason;
-  readonly content: string;
-  readonly messages: readonly AgentMessage[];
-  readonly modelCalls: number;
-  readonly toolCalls: number;
-  readonly toolResults: readonly ToolExecutionResult[];
-  readonly fallback?: DeterministicFallbackSignal;
-}
+export type ReadonlyAgentLoopResult = AgentLoopResult<HighLevelToolName>;
 
 interface DuplicateState {
   signature: string;
@@ -50,7 +76,7 @@ function canonicalize(value: unknown): unknown {
   return value;
 }
 
-function duplicateSignature(call: ParsedToolCall<HighLevelToolName>, result: ToolExecutionResult): string {
+function duplicateSignature<TName extends string>(call: ParsedToolCall<TName>, result: AgentToolExecutionResult<TName>): string {
   const serialized = JSON.stringify(
     canonicalize({ name: call.name, arguments: call.arguments, ok: result.ok, output: result.output }),
   );
@@ -65,15 +91,15 @@ function isAborted(signal: AbortSignal | undefined): boolean {
   return signal?.aborted ?? false;
 }
 
-function stopped(
+function stopped<TName extends string>(
   stopReason: StopReason,
   content: string,
   messages: readonly AgentMessage[],
   initialAdapterCalls: number,
-  adapter: ModelAdapter<HighLevelToolName>,
-  toolResults: readonly ToolExecutionResult[],
+  adapter: ModelAdapter<TName>,
+  toolResults: readonly AgentToolExecutionResult<TName>[],
   fallback?: DeterministicFallbackSignal,
-): ReadonlyAgentLoopResult {
+): AgentLoopResult<TName> {
   return {
     stopReason,
     content,
@@ -88,10 +114,16 @@ function stopped(
 export async function runReadonlyAgentLoop(
   options: ReadonlyAgentLoopOptions,
 ): Promise<ReadonlyAgentLoopResult> {
+  return runAgentLoop(options);
+}
+
+export async function runAgentLoop<TName extends string, TContext>(
+  options: AgentLoopOptions<TName, TContext>,
+): Promise<AgentLoopResult<TName>> {
   const limits = resolveLimits(options.limits);
   const parsedMessages = options.messages.map((message) => AgentMessageSchema.parse(message));
   const messages: AgentMessage[] = [...parsedMessages];
-  const toolResults: ToolExecutionResult[] = [];
+  const toolResults: AgentToolExecutionResult<TName>[] = [];
   const startedAt = Date.now();
   const initialAdapterCalls = options.adapter.callsUsed;
   let duplicateState: DuplicateState | undefined;
@@ -132,7 +164,7 @@ export async function runReadonlyAgentLoop(
     let turn;
     try {
       turn = await options.adapter.complete(
-        { messages, context: options.context },
+        { messages, context: options.modelContext ?? options.context },
         options.signal,
       );
     } catch (error) {
@@ -211,6 +243,17 @@ export async function runReadonlyAgentLoop(
         toolCallId: call.id,
         content: stringifyForModel({ ok: result.ok, output: result.output }),
       });
+
+      if (options.stopAfterTool?.(result, options.context) === true) {
+        return stopped(
+          "completed",
+          lastContent,
+          messages,
+          initialAdapterCalls,
+          options.adapter,
+          toolResults,
+        );
+      }
 
       const signature = duplicateSignature(call, result);
       duplicateState =

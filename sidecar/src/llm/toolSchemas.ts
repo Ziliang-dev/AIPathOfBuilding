@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { RankedScenarioIdSchema } from "../schemas.js";
+import type { ModelToolRegistry } from "./types.js";
 
 const IdentifierSchema = z.string().min(1).max(256);
 const DomainSchema = z.enum([
@@ -231,3 +232,10 @@ export function parseToolArguments<TName extends HighLevelToolName>(
   }
   return parsed.data as HighLevelToolArguments<TName>;
 }
+
+export const HIGH_LEVEL_TOOL_REGISTRY: ModelToolRegistry<HighLevelToolName> = Object.freeze({
+  definitions: HIGH_LEVEL_TOOL_DEFINITIONS,
+  toolChoice: "auto" as const,
+  isName: isHighLevelToolName,
+  parseArguments: parseToolArguments,
+});

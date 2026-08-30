@@ -132,15 +132,20 @@ export class ConsentManager {
     return this.#store.get(providerId);
   }
 
-  async state(profile: ProviderProfile): Promise<"required" | "granted" | "revoked"> {
+  async state(
+    profile: ProviderProfile,
+    dataCategories?: readonly ConsentDataCategory[],
+  ): Promise<"required" | "granted" | "revoked"> {
     const record = await this.#store.get(profile.providerId);
     if (record === undefined) return "required";
     if (record.decision === "revoked") return "revoked";
-    return record.consentKey === createConsentKey(profileDescriptor(profile, record.dataCategories)) ? "granted" : "required";
+    return record.consentKey === createConsentKey(profileDescriptor(profile, dataCategories ?? record.dataCategories))
+      ? "granted"
+      : "required";
   }
 
-  async isGranted(profile: ProviderProfile): Promise<boolean> {
-    return (await this.state(profile)) === "granted";
+  async isGranted(profile: ProviderProfile, dataCategories?: readonly ConsentDataCategory[]): Promise<boolean> {
+    return (await this.state(profile, dataCategories)) === "granted";
   }
 
   preview(profile: ProviderProfile, payload?: unknown, dataCategories?: readonly ConsentDataCategory[]): ProviderConsentPreview {

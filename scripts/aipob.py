@@ -138,6 +138,7 @@ def release_gate(args: argparse.Namespace) -> None:
         "../spec/System/TestAIPoBNativeProbe_spec.lua",
         "../spec/System/TestAIPoBActorSeason_spec.lua",
         "../spec/System/TestAIPoBGolden_spec.lua",
+        "../spec/System/TestAIPoBMechanicUnderstanding_spec.lua",
         "../spec/System/TestAIPoBUpdateCheck_spec.lua",
         "../spec/System/TestAIPlannerTab_spec.lua",
     ]

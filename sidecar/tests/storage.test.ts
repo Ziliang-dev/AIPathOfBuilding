@@ -6,7 +6,7 @@ describe("SidecarDatabase", () => {
   it("round-trips snapshots and cached evaluations", () => {
     const store = new SidecarDatabase(":memory:");
     const snapshot = {
-      schemaVersion: 3 as const,
+      schemaVersion: 4 as const,
       mechanicProjection: emptyModifierProjection(),
       mechanicProjectionFingerprint: EMPTY_PROJECTION_FINGERPRINT,
       xml: "<PathOfBuilding/>",
@@ -29,7 +29,7 @@ describe("SidecarDatabase", () => {
   it("persists a selected candidate that overlaps the frontier id", () => {
     const store = new SidecarDatabase(":memory:");
     const snapshot = {
-      schemaVersion: 3 as const,
+      schemaVersion: 4 as const,
       mechanicProjection: emptyModifierProjection(),
       mechanicProjectionFingerprint: EMPTY_PROJECTION_FINGERPRINT,
       xml: "<PathOfBuilding/>",
@@ -44,7 +44,7 @@ describe("SidecarDatabase", () => {
     };
     store.saveSnapshot(snapshot);
     const candidate = {
-      schemaVersion: 3 as const,
+      schemaVersion: 4 as const,
       id: "same-candidate",
       label: "Balanced" as const,
       summary: "Same selected and frontier candidate",
@@ -59,12 +59,12 @@ describe("SidecarDatabase", () => {
       actions: [], evidence: [], hardConstraintsSatisfied: true,
     };
     store.saveRun({
-      schemaVersion: 3,
+      schemaVersion: 4,
       id: "run:overlap",
       buildFingerprint: snapshot.fingerprint,
       status: "paused",
       objective: {
-        schemaVersion: 3,
+        schemaVersion: 4,
         primaryScenario: "mapping",
         scenarioWeights: { mapping: 0.55, standardBoss: 0.15, pinnacle: 0.15, uber: 0.15 },
         locks: { class: true, ascendancy: true, mainSkill: true, fields: [] },
