@@ -87,11 +87,13 @@ class ScriptedAdapter implements ModelAdapter<MechanicToolName> {
   callsRemaining = 16;
   readonly #modifierIds: string[];
   readonly #metricIds: string[];
+  readonly #criticVerdict: "complete" | "repair";
   readonly callsByPhase = new Map<string, number>();
 
-  constructor(modifierIds: string[], metricIds: string[]) {
+  constructor(modifierIds: string[], metricIds: string[], criticVerdict: "complete" | "repair" = "complete") {
     this.#modifierIds = modifierIds;
     this.#metricIds = metricIds;
+    this.#criticVerdict = criticVerdict;
   }
 
   async complete(input: ModelTurnInput): Promise<ModelTurnResult<MechanicToolName>> {
@@ -104,7 +106,10 @@ class ScriptedAdapter implements ModelAdapter<MechanicToolName> {
       return call === 1
         ? { kind: "message", content: "", toolCalls: [toolCall("proofs", "inspect_mechanic_proofs", { cursor: 0, limit: 100 })] }
         : { kind: "message", content: "", toolCalls: [toolCall("review", "submit_mechanic_review", {
-            verdict: "complete", missingEntityIds: [], conflictingClaimIds: [], invalidProofIds: [], summary: "All local facts and counterfactuals verified.",
+            verdict: this.#criticVerdict, missingEntityIds: [], conflictingClaimIds: [], invalidProofIds: [],
+            summary: this.#criticVerdict === "complete"
+              ? "All local facts and counterfactuals verified."
+              : "The critic still requires repair.",
           })] };
     }
     if (call === 1) {
@@ -234,6 +239,25 @@ describe("MechanicUnderstandingEngine", () => {
     const audited = auditMechanicReport({ ...report, proofs: [] });
     expect(audited.status).toBe("blocked");
     expect(audited.blockers.join(" ")).toMatch(/no valid proven proof/);
+  });
+
+  it("finalizes blocked after the full three-round repair budget", async () => {
+    const build = snapshot();
+    const facts = extractMechanicFacts(build, { weaponSet1: observation("weaponSet1"), weaponSet2: observation("weaponSet2") });
+    const modifierIds = facts.entities.filter(({ kind }) => kind === "modifierLine").map(({ id }) => id);
+    const metricIds = ["weaponSet1", "weaponSet2"].map((context) =>
+      facts.entities.find(({ kind, context: factContext }) => kind === "metric" && factContext === context)!.id);
+    const engine = new MechanicUnderstandingEngine({
+      provider: new ScriptedAdapter(modifierIds, metricIds, "repair"),
+      providerDescriptor: { providerId: "test", endpoint: "local", model: "repair-fixture", apiMode: "test", reasoningMode: "test" },
+      worker: new FixtureRunner(),
+      store: { getCache: () => undefined, setCache: () => undefined },
+      checkpointer: false,
+    });
+    const report = await engine.understand(build, { contexts: ["weaponSet1", "weaponSet2"] }, new AbortController().signal);
+    expect(report.status).toBe("blocked");
+    expect(report.repairRounds).toBe(3);
+    expect(report.blockers).toContain("Critic requested repair: The critic still requires repair.");
   });
 
   it("resumes an interrupted mechanic checkpoint without extracting PoB facts again", async () => {

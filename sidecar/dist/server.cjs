@@ -73917,6 +73917,7 @@ function finalizeReport(dependencies, state) {
   const facts = state.facts;
   if (facts === void 0) throw new Error("Mechanic facts are unavailable");
   const criticBlockers = state.review === void 0 ? ["LLM critic did not submit a mechanic review"] : state.review.verdict === "repair" ? [
+    `Critic requested repair: ${state.review.summary}`,
     ...state.review.missingEntityIds.map((id) => `Critic reports missing entity ${id}`),
     ...state.review.conflictingClaimIds.map((id) => `Critic reports conflicting claim ${id}`),
     ...state.review.invalidProofIds.map((id) => `Critic reports invalid proof ${id}`)
@@ -74106,10 +74107,15 @@ var MechanicUnderstandingEngine = class {
     }
     signal.throwIfAborted();
     const graph = createGraph(this.#dependencies, signal);
+    const maxRepairRounds = Math.max(0, this.#dependencies.maxRepairRounds ?? 3);
     const graphConfig = {
       configurable: {
         thread_id: checkpointThreadId(snapshot, options, this.#dependencies.providerDescriptor)
       },
+      // Initial discovery uses seven nodes. Each repair adds six, then the
+      // report still needs one finalization step. Keep graph plumbing above
+      // that path while the domain limits continue to enforce three repairs.
+      recursionLimit: 9 + maxRepairRounds * 6,
       signal
     };
     let result;

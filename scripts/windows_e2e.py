@@ -156,6 +156,23 @@ class FixtureProvider:
                 result.append(tool["name"])
         return result
 
+    @staticmethod
+    def _tool_outputs(messages: list[Any]) -> list[Any]:
+        outputs: list[Any] = []
+        for message in messages:
+            if not isinstance(message, dict) or message.get("role") != "tool":
+                continue
+            content = message.get("content")
+            if not isinstance(content, str):
+                continue
+            try:
+                decoded = json.loads(content)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(decoded, dict) and decoded.get("ok") is True:
+                outputs.append(decoded.get("output"))
+        return outputs
+
     def _completion(self, payload: dict[str, Any]) -> dict[str, Any]:
         names = self._tool_names(payload)
         messages = payload.get("messages", [])
@@ -169,32 +186,60 @@ class FixtureProvider:
         content = "E2E Provider supplied read-only guidance from verified fixture tools."
         if "aipob_connection_probe" in names:
             tool_name, arguments = "aipob_connection_probe", {"ok": True}
+        elif "submit_mechanic_review" in names and "critic inside AIPathOfBuilding" in message_text:
+            tool_name, arguments = "submit_mechanic_review", {
+                "verdict": "complete",
+                "missingEntityIds": [],
+                "conflictingClaimIds": [],
+                "invalidProofIds": [],
+                "summary": "E2E fixture claims have exact local PoB provenance.",
+            }
         elif "submit_mechanic_claims" in names:
-            if '"phase":"critic"' in message_text:
-                tool_name, arguments = "submit_mechanic_review", {
-                    "verdict": "complete",
-                    "missingEntityIds": [],
-                    "conflictingClaimIds": [],
-                    "invalidProofIds": [],
-                    "summary": "E2E fixture claims have exact local PoB provenance.",
-                }
-            elif any(isinstance(message, dict) and message.get("role") == "tool" for message in messages):
-                tool_name, arguments = "submit_mechanic_claims", {
-                    "claims": [
-                        {
-                            "sourceId": source_id,
-                            "relation": "grants",
-                            "targetId": source_id.rsplit(":explicit:1:parsed:1", 1)[0],
-                            "context": context,
-                            "statement": "Inactive diagnostic fixture modifier belongs to its inventory item.",
-                            "evidenceIds": [source_id],
-                        }
-                        for source_id, context in zip(MECHANIC_SOURCE_IDS, ("weaponSet1", "weaponSet2"), strict=True)
-                    ],
-                    "complete": True,
-                }
+            outputs = self._tool_outputs(messages)
+            pages = [
+                output for output in outputs
+                if isinstance(output, dict) and isinstance(output.get("entities"), list)
+            ]
+            if not pages:
+                tool_name, arguments = "list_mechanic_entities", {"cursor": 0, "limit": 200}
+            elif isinstance(pages[-1].get("nextCursor"), int):
+                tool_name, arguments = "list_mechanic_entities", {"cursor": pages[-1]["nextCursor"], "limit": 200}
             else:
-                tool_name, arguments = "inspect_mechanic_entity", {"entityIds": MECHANIC_SOURCE_IDS}
+                entities = [
+                    entity for page in pages for entity in page["entities"]
+                    if isinstance(entity, dict) and isinstance(entity.get("id"), str)
+                ]
+                required_kinds = {"modifierLine", "skill", "support", "passive", "config", "condition", "actorBuff", "seasonMechanic"}
+                sources = [entity for entity in entities if entity.get("active") is True and entity.get("kind") in required_kinds]
+                if not sources:
+                    sources = [entity for entity in entities if entity["id"] in MECHANIC_SOURCE_IDS]
+                inspected_ids = {
+                    entity["id"]
+                    for output in outputs if isinstance(output, list)
+                    for entity in output if isinstance(entity, dict) and isinstance(entity.get("id"), str)
+                }
+                pending = [entity["id"] for entity in sources if entity["id"] not in inspected_ids]
+                if pending:
+                    tool_name, arguments = "inspect_mechanic_entity", {"entityIds": pending[:100]}
+                else:
+                    claims: list[dict[str, Any]] = []
+                    for source in sources:
+                        context = source.get("context")
+                        targets = [
+                            entity for entity in entities
+                            if entity.get("context") == context and entity.get("kind") == "item" and entity["id"] != source["id"]
+                        ]
+                        if not targets:
+                            continue
+                        claims.append({
+                            "sourceId": source["id"],
+                            "relation": "grants",
+                            "targetId": targets[0]["id"],
+                            "context": context,
+                            "statement": "E2E fixture relation is covered by exact local PoB provenance.",
+                            "evidenceIds": [source["id"]],
+                        })
+                    tool_name, arguments = "submit_mechanic_claims", {"claims": claims, "complete": True}
 
         tool_calls = [] if tool_name is None else [{
             "id": self._next_id(),
