@@ -230,7 +230,7 @@ version when a game rule is necessary to explain an adapter.
   `implicit`, `explicit`, and `crucible` lines plus every canonical line flag.
 - All parsed `Mod` types cross the boundary generically. Unknown structured
   values remain typed as unknown; they are never guessed into a numeric rule.
-- Inactive item sets and unequipped items are inspectable evidence, never active
+- Inactive item sets and unequipped items remain available as evidence, never active
   mechanic sources.
 - Structural invalidity on an active item blocks optimization. Unverifiable
   evidence blocks only when it lies on the critical main mechanism or a hard

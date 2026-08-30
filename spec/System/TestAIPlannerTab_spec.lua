@@ -4,7 +4,7 @@ describe("AIPlannerTab", function()
 		local planner = build.plannerTab
 		local objective = planner:BuildObjective()
 
-		assert.are.equals(2, objective.schemaVersion)
+		assert.are.equals(3, objective.schemaVersion)
 		assert.are.equals("mapping", objective.primaryScenario)
 		assert.are.equals(0.55, objective.scenarioWeights.mapping)
 		assert.are.equals(0.15, objective.scenarioWeights.standardBoss)
@@ -51,7 +51,7 @@ describe("AIPlannerTab", function()
 		local xml = { elem = "AIPlanner" }
 		planner:Save(xml)
 
-		assert.are.equals("2", xml.attrib.schemaVersion)
+		assert.are.equals("3", xml.attrib.schemaVersion)
 		assert.are.equals("12.5", xml.attrib.budgetDivine)
 		assert.are.equals("true", xml.attrib.sourceUniques)
 		assert.are.equals("true", xml.attrib.sourceTargetRares)
