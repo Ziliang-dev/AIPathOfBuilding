@@ -23,6 +23,7 @@ importlink
 indegree
 INSTDIR
 instfiles
+jsontype
 langchain
 langgraph
 LASTEXITCODE
