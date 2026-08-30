@@ -95,7 +95,9 @@ local function evaluate(job)
 		if not result then error(experimentErr) end
 		return {
 			jobId = job.id, candidateId = job.candidateId, operation = operation,
-			metricsByScenario = { }, diagnostics = { }, mechanicExperimentResult = result,
+			-- dkjson encodes an untyped empty Lua table as an array. Omit this
+			-- optional record so the sidecar schema can apply its {} default.
+			diagnostics = { }, mechanicExperimentResult = result,
 		}
 	end
 	local ordered, orderErr = BuildAction.Order(payload.actions or { })
