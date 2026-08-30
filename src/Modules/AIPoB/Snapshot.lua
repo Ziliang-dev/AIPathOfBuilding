@@ -1,7 +1,7 @@
 local sha = require("sha2")
 
 local Snapshot = {
-	SCHEMA_VERSION = 2,
+	SCHEMA_VERSION = 3,
 }
 
 local gameplayOrder = { "Build", "Config", "Party", "Tree", "Items", "Skills" }
@@ -164,6 +164,9 @@ function Snapshot.Capture(build, options)
 	local ruleset = tostring(build.spec and build.spec.treeVersion or latestTreeVersion or "unknown")
 	local gameplayFieldPaths, coverageErr = Snapshot.GameplayFieldPaths(fullXml)
 	if not gameplayFieldPaths then return nil, coverageErr end
+	local ModifierProjection = require("Modules.AIPoB.ModifierProjection")
+	local mechanicProjection, projectionErr = ModifierProjection.Capture(build)
+	if not mechanicProjection then return nil, "modifier projection failed: " .. tostring(projectionErr) end
 	local result = {
 		schemaVersion = Snapshot.SCHEMA_VERSION,
 		xml = xml,
@@ -182,6 +185,8 @@ function Snapshot.Capture(build, options)
 			mainSocketGroup = tonumber(build.mainSocketGroup) or 1,
 		},
 		gameplayFieldPaths = gameplayFieldPaths,
+		mechanicProjection = mechanicProjection,
+		mechanicProjectionFingerprint = mechanicProjection.fingerprint,
 	}
 	if options and options.includeRollback then result.rollbackXml = fullXml end
 	return result

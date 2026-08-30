@@ -1,6 +1,7 @@
 import { Annotation } from "@langchain/langgraph";
 import type {
   BuildSnapshot,
+  BuildMechanicReport,
   BuildAction,
   Candidate,
   ObjectiveSpec,
@@ -16,6 +17,9 @@ export const WORKFLOW_NODE_NAMES = [
   "DraftObjective",
   "ConfirmObjective",
   "BuildScenarios",
+  "AnalyzeMechanics",
+  "InspectMechanics",
+  "MechanicGate",
   "Inspect",
   "Diagnose",
   "PlanSearch",
@@ -48,6 +52,11 @@ export interface TransactionApplyInterrupt {
   actions: BuildAction[];
 }
 
+export interface MechanicReviewDecision {
+  decision: "cancel";
+  reason?: string | undefined;
+}
+
 export interface WorkflowUsage {
   evaluations?: number;
   modelCalls?: number;
@@ -59,6 +68,7 @@ export interface WorkflowNodeUpdate {
   objective?: ObjectiveSpec;
   objectiveConfirmed?: boolean;
   scenarios?: ScenarioSpec[];
+  mechanicReport?: BuildMechanicReport;
   artifacts?: Record<string, unknown>;
   frontier?: Candidate[];
   selected?: Candidate[];
@@ -88,6 +98,7 @@ export const WorkflowStateAnnotation = Annotation.Root({
   objective: replace<ObjectiveSpec | undefined>(() => undefined),
   objectiveConfirmed: replace(() => false),
   scenarios: replace<ScenarioSpec[]>(() => []),
+  mechanicReport: replace<BuildMechanicReport | undefined>(() => undefined),
   artifacts: replace<Record<string, unknown>>(() => ({})),
   frontier: replace<Candidate[]>(() => []),
   selected: replace<Candidate[]>(() => []),

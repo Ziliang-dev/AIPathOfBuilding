@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
   BuildSnapshotSchema,
+  BuildMechanicReportSchema,
   CapabilitySchema,
   CandidateSchema,
   ObjectiveSpecDraftSchema,
@@ -27,6 +28,7 @@ export const RpcRequestSchema = z.object({
   method: z.enum([
     "hello",
     "build.capture",
+    "build.analyze",
     "run.start",
     "run.stream",
     "run.cancel",
@@ -91,7 +93,10 @@ export type RpcError = z.infer<typeof RpcErrorSchema>;
 
 export const RpcNotificationSchema = z.object({
   jsonrpc: z.literal("2.0"),
-  method: z.enum(["run.progress", "run.awaitingApproval", "run.completed", "run.failed", "transaction.apply"]),
+  method: z.enum([
+    "run.progress", "run.mechanicsReady", "run.awaitingMechanicReview",
+    "run.awaitingApproval", "run.completed", "run.failed", "transaction.apply",
+  ]),
   params: z.unknown(),
   protocolVersion: z.literal(PROTOCOL_VERSION),
 });
@@ -103,6 +108,7 @@ export const HelloParamsSchema = z.object({
   capabilities: z.array(CapabilitySchema).default([]),
 });
 export const BuildCaptureParamsSchema = z.object({ snapshot: BuildSnapshotSchema });
+export const BuildAnalyzeParamsSchema = z.object({ snapshotFingerprint: z.string().min(1) });
 export const RunStartParamsSchema = z.object({
   snapshotFingerprint: z.string().min(1),
   objective: ObjectiveSpecSchema,
@@ -114,6 +120,7 @@ export const RunResumeParamsSchema = z.union([
     z.object({ runId: z.string().min(1), decision: z.literal("apply"), candidateId: z.string().min(1) }),
     z.object({ runId: z.string().min(1), decision: z.literal("reject") }),
   ]),
+  z.object({ runId: z.string().min(1), decision: z.literal("cancel"), reason: z.string().optional() }),
   z.object({ runId: z.string().min(1), mode: z.literal("checkpoint") }),
 ]);
 export const CandidatePreviewParamsSchema = z.object({ runId: z.string().min(1), candidateId: z.string().min(1) });
@@ -159,7 +166,8 @@ export const ConsentPreviewParamsSchema = z.object({
   snapshotFingerprint: z.string().min(1).optional(),
   dataCategories: z.array(z.enum([
     "objective", "build_snapshot", "metrics", "tool_outputs", "chat_messages",
-  ])).max(5).default([]),
+    "mechanic_report",
+  ])).max(6).default([]),
 });
 export const ConsentGrantParamsSchema = z.object({
   providerId: ProviderIdSchema,
@@ -188,6 +196,11 @@ export const RunAwaitingApprovalNotificationSchema = z.object({
   runId: z.string().min(1),
   candidates: z.array(CandidateSchema),
 });
+export const RunMechanicsReadyNotificationSchema = z.object({
+  runId: z.string().min(1),
+  report: BuildMechanicReportSchema,
+});
+export const RunAwaitingMechanicReviewNotificationSchema = RunMechanicsReadyNotificationSchema;
 export const RunCompletedNotificationSchema = z.object({ runId: z.string().min(1), candidates: z.array(CandidateSchema) });
 export const RunFailedNotificationSchema = z.object({ runId: z.string().min(1), error: z.string().min(1) });
 export const TransactionApplyNotificationSchema = z.object({

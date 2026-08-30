@@ -20,6 +20,7 @@ local function initialState()
 		candidates = { }, error = nil, preview = nil,
 		sidecarStatus = "stopped", sidecarMessage = "Sidecar not started",
 		providerTestStatus = "idle",
+		mechanicReport = nil,
 	}
 end
 
@@ -56,6 +57,7 @@ function Controller.new(build, options)
 		transaction = options.transaction or Transaction.new(build, options.transactionOptions),
 		journal = options.journal or TransactionJournal.new(options.journalPath),
 		pendingObjective = nil,
+		pendingAnalysis = false,
 		pendingTransactionResult = nil,
 		pendingAppliedResult = nil,
 		transactionResultEverQueued = false,
@@ -199,8 +201,15 @@ function Controller:_resumeCheckpoint()
 			if type(result) == "table" and type(result.candidates) == "table" then self.state.candidates = result.candidates end
 			local resumedStatus = type(result) == "table" and result.status or nil
 			if resumedStatus == "paused" then
-				self.state.status = "awaitingApproval"
-				self.state.message = "Checkpoint restored; review verified candidates"
+				local mechanicReport = type(result) == "table" and result.mechanicReport or nil
+				if type(mechanicReport) == "table" and mechanicReport.status == "blocked" then
+					self.state.mechanicReport = mechanicReport
+					self.state.status = "awaitingMechanicReview"
+					self.state.message = "Checkpoint restored; correct critical mechanic findings"
+				else
+					self.state.status = "awaitingApproval"
+					self.state.message = "Checkpoint restored; review verified candidates"
+				end
 			elseif resumedStatus == "running" then
 				self.state.status = "running"
 				self.state.message = "Optimization checkpoint restored"
@@ -221,6 +230,19 @@ function Controller:_registerHandlers()
 		self.state.progress = math.max(0, math.min(1, tonumber(params.progress) or self.state.progress))
 		self.state.message = params.message or params.phase or "Optimizing"
 		if type(params.candidates) == "table" then self.state.candidates = params.candidates end
+	end)
+	self.rpc:Register("run.mechanicsReady", function(params)
+		if params.runId and self.state.runId and params.runId ~= self.state.runId then return end
+		self.state.mechanicReport = params.report
+		local findings = type(params.report) == "table" and params.report.findings or { }
+		self.state.message = type(params.report) == "table" and params.report.summary
+			or ("Mechanics understood: " .. tostring(#findings) .. " finding(s)")
+	end)
+	self.rpc:Register("run.awaitingMechanicReview", function(params)
+		if params.runId and self.state.runId and params.runId ~= self.state.runId then return end
+		self.state.mechanicReport = params.report
+		self.state.status = "awaitingMechanicReview"
+		self.state.message = "Critical mechanics must be corrected before optimization"
 	end)
 	self.rpc:Register("run.awaitingApproval", function(params)
 		if params.runId and self.state.runId and params.runId ~= self.state.runId then return end
@@ -313,7 +335,7 @@ function Controller:_hello()
 	self.state.message = self.state.sidecarMessage
 	self.rpc:Request("hello", {
 		clientName = "pob-lua", clientVersion = tostring(_G.version or "1"),
-		capabilities = { "nativeLinkProbe", "nativeEvidence", "tradeBroker", "providerConsent", "providerConnectionTest", "providerCompatibility", "objectiveDraft" },
+		capabilities = { "nativeLinkProbe", "nativeEvidence", "tradeBroker", "providerConsent", "providerConnectionTest", "providerCompatibility", "objectiveDraft", "mechanicAnalysis" },
 	}, function(result, err)
 		self.helloPending = false
 		if err then self:_setSidecarError("Sidecar handshake failed: " .. errorText(err)) return end
@@ -327,8 +349,45 @@ function Controller:_hello()
 		self.state.message = "Sidecar connected"
 		self:RefreshProviderStatus()
 		if self.reconnectRunId then self:_resumeCheckpoint()
-		elseif self.pendingObjective then self:_captureAndStart() end
+		elseif self.pendingObjective then self:_captureAndStart()
+		elseif self.pendingAnalysis then self:_captureAndAnalyze() end
 	end, 10000)
+end
+
+function Controller:_captureAndAnalyze()
+	if not self.helloComplete or not self.rpc then return end
+	self.pendingAnalysis = false
+	local snapshot, snapshotErr = Snapshot.Capture(self.build)
+	if not snapshot then self:_setError(snapshotErr) return end
+	local catalog, catalogErr = ContentCatalog.Export(self.build, { limit = 1000 })
+	if not catalog then self:_setError(catalogErr) return end
+	snapshot.contentCatalog = ContentCatalog.ToEntries(catalog)
+	self.state.status = "analyzingMechanics"
+	self.state.message = "Understanding Build mechanics"
+	self.rpc:Request("build.capture", { snapshot = snapshot }, function(result, err)
+		if err then self:_setError("Build capture failed: " .. errorText(err)) return end
+		local fingerprint = type(result) == "table" and result.snapshotFingerprint or snapshot.fingerprint
+		self.rpc:Request("build.analyze", { snapshotFingerprint = fingerprint }, function(report, analyzeErr)
+			if analyzeErr then self:_setError("Mechanic analysis failed: " .. errorText(analyzeErr)) return end
+			self.state.mechanicReport = report
+			self.state.status = type(report) == "table" and report.status or "warning"
+			local findings = type(report) == "table" and report.findings or { }
+			self.state.message = type(report) == "table" and report.summary
+				or ("Mechanic report ready: " .. tostring(#findings) .. " finding(s)")
+		end, 30000)
+	end, 30000)
+end
+
+function Controller:AnalyzeBuild()
+	if self.shutdown then return nil, "controller is shut down" end
+	self.pendingAnalysis = true
+	self.launchRequested = true
+	if self.helloComplete then self:_captureAndAnalyze()
+	else
+		self.state.status = "connecting"
+		self.state.message = "Starting sidecar for mechanic analysis"
+	end
+	return true
 end
 
 function Controller:EnsureConnected()
@@ -484,7 +543,7 @@ function Controller:PreviewProviderConsent()
 	if not self.rpc or not self.helloComplete then return nil, "sidecar is not connected" end
 	self.rpc:Request("consent.preview", {
 		providerId = "openai",
-		dataCategories = { "objective", "build_snapshot", "metrics", "tool_outputs", "chat_messages" },
+		dataCategories = { "objective", "build_snapshot", "metrics", "tool_outputs", "chat_messages", "mechanic_report" },
 	}, function(result, err)
 		if err then self:_setError("Consent preview failed: " .. errorText(err)) return end
 		self.state.consentPreview = result

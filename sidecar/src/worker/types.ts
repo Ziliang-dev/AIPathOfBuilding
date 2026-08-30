@@ -1,4 +1,4 @@
-import type { BuildAction, ConditionEvidence, ScenarioSpec } from "../schemas.js";
+import type { BuildAction, ConditionEvidence, ModifierProjection, ScenarioSpec } from "../schemas.js";
 import type { MetricVector } from "../search/types.js";
 
 /** Frozen Lua worker evaluate payload. Keep secrets and account data outside it. */
@@ -27,6 +27,7 @@ export interface WorkerEvaluation {
   readonly diagnostics?: readonly string[];
   readonly operation?: "evaluate" | "probe";
   readonly candidateFingerprint?: string;
+  readonly candidateProjection?: ModifierProjection;
   readonly nativeProbeFingerprint?: string;
   readonly evidenceFingerprint?: string;
   readonly nativeLinkProbe?: unknown;

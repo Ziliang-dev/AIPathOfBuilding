@@ -1,3 +1,4 @@
+import { EMPTY_PROJECTION_FINGERPRINT, emptyModifierProjection } from "./mechanicsFixture.js";
 import { describe, expect, it } from "vitest";
 import {
   BuildActionSchema,
@@ -10,7 +11,7 @@ import {
 import { RunResumeParamsSchema } from "../src/protocol.js";
 
 const objective = {
-  schemaVersion: 2,
+  schemaVersion: 3,
   primaryScenario: "mapping",
   scenarioWeights: { mapping: 0.55, standardBoss: 0.15, pinnacle: 0.15, uber: 0.15 },
   locks: { class: true, ascendancy: true, mainSkill: true, fields: [] },
@@ -23,7 +24,9 @@ const objective = {
 describe("public schemas", () => {
   it("accepts bounded optional catalog and graph data", () => {
     const parsed = BuildSnapshotSchema.parse({
-      schemaVersion: 2,
+      schemaVersion: 3,
+      mechanicProjection: emptyModifierProjection(),
+      mechanicProjectionFingerprint: EMPTY_PROJECTION_FINGERPRINT,
       xml: "<PathOfBuilding/>",
       fingerprint: "sha256:one",
       engineVersion: "test",
@@ -99,7 +102,7 @@ describe("public schemas", () => {
 
   it("requires all four ranked scenarios on candidates", () => {
     expect(() => CandidateSchema.parse({
-      schemaVersion: 2,
+      schemaVersion: 3,
       id: "candidate-incomplete",
       label: "Offence",
       summary: "Incomplete scenario fixture",

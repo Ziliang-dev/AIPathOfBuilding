@@ -12,7 +12,7 @@ local s_format = string.format
 local t_concat = table.concat
 local t_insert = table.insert
 
-local SCHEMA_VERSION = 2
+local SCHEMA_VERSION = 3
 
 local scenarioList = {
 	{ id = "mapping", label = "Mapping" },
@@ -68,6 +68,7 @@ local terminalStatus = {
 local unresolvedRunStatus = {
 	awaitingApproval = true,
 	awaiting_approval = true,
+	awaitingMechanicReview = true,
 	preview = true,
 }
 
@@ -243,6 +244,13 @@ function AIPlannerTabClass:AIPlannerTab(build)
 		return self.controller ~= nil and self:HasActiveMainSkill() and self.controls.confirmed.state
 			and not self:IsBusy() and not unresolvedRunStatus[status]
 	end
+	self.controls.analyze = new("ButtonControl"):ButtonControl({"TOPLEFT",self,"TOPLEFT"}, {390, 274, 110, 22}, "Analyze Build", function()
+		self:ControllerCall("AnalyzeBuild")
+	end)
+	self.controls.analyze.enabled = function()
+		return self.controller ~= nil and not self:IsBusy()
+	end
+	self.controls.analyze.tooltipText = "Capture all PoB item modifier sections and inspect Build mechanics without mutation."
 	self.controls.start.tooltipText = function()
 		if not self:HasActiveMainSkill() then return "Import a build or add an active main skill before search." end
 		if not self.controls.confirmed.state then return "Confirm the structured objective before search." end

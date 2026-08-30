@@ -1,3 +1,4 @@
+import { EMPTY_PROJECTION_FINGERPRINT, emptyModifierProjection } from "./mechanicsFixture.js";
 import { describe, expect, it } from "vitest";
 import { runReadonlyAgentLoop } from "../src/agent/loop.js";
 import { ReadonlyToolDispatcher } from "../src/agent/readonlyTools.js";
@@ -17,6 +18,8 @@ import {
 
 const snapshot = BuildSnapshotSchema.parse({
   schemaVersion: SCHEMA_VERSION,
+  mechanicProjection: emptyModifierProjection(),
+  mechanicProjectionFingerprint: EMPTY_PROJECTION_FINGERPRINT,
   xml: "<PathOfBuilding/>",
   fingerprint: "fingerprint",
   engineVersion: "test",

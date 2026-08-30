@@ -200,8 +200,8 @@ function getEnumValues(entries) {
   const values = Object.entries(entries).filter(([k, _]) => numericValues.indexOf(+k) === -1).map(([_, v]) => v);
   return values;
 }
-function joinValues(array2, separator = "|") {
-  return array2.map((val) => stringifyPrimitive(val)).join(separator);
+function joinValues(array3, separator = "|") {
+  return array3.map((val) => stringifyPrimitive(val)).join(separator);
 }
 function jsonStringifyReplacer(_, value) {
   if (typeof value === "bigint")
@@ -15573,13 +15573,13 @@ function escapeIfNeeded(value, pathSet = /* @__PURE__ */ new WeakSet()) {
     if (pathSet.has(value)) return createNotImplemented(value);
     if (isSerializableLike(value)) return value;
     pathSet.add(value);
-    const record3 = value;
-    if (needsEscaping(record3)) {
+    const record4 = value;
+    if (needsEscaping(record4)) {
       pathSet.delete(value);
-      return escapeObject(record3);
+      return escapeObject(record4);
     }
     const result = {};
-    for (const [key, val] of Object.entries(record3)) result[key] = escapeIfNeeded(val, pathSet);
+    for (const [key, val] of Object.entries(record4)) result[key] = escapeIfNeeded(val, pathSet);
     pathSet.delete(value);
     return result;
   }
@@ -15588,10 +15588,10 @@ function escapeIfNeeded(value, pathSet = /* @__PURE__ */ new WeakSet()) {
 }
 function unescapeValue(obj) {
   if (obj !== null && typeof obj === "object" && !Array.isArray(obj)) {
-    const record3 = obj;
-    if (isEscapedObject(record3)) return record3[LC_ESCAPED_KEY];
+    const record4 = obj;
+    if (isEscapedObject(record4)) return record4[LC_ESCAPED_KEY];
     const result = {};
-    for (const [key, value] of Object.entries(record3)) result[key] = unescapeValue(value);
+    for (const [key, value] of Object.entries(record4)) result[key] = unescapeValue(value);
     return result;
   }
   if (Array.isArray(obj)) return obj.map((item) => unescapeValue(item));
@@ -21764,13 +21764,13 @@ var require_lower_bound = __commonJS({
   "node_modules/.pnpm/p-queue@6.6.2/node_modules/p-queue/dist/lower-bound.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
-    function lowerBound(array2, value, comparator) {
+    function lowerBound(array3, value, comparator) {
       let first = 0;
-      let count = array2.length;
+      let count = array3.length;
       while (count > 0) {
         const step = count / 2 | 0;
         let it = first + step;
-        if (comparator(array2[it], value) <= 0) {
+        if (comparator(array3[it], value) <= 0) {
           first = ++it;
           count -= step + 1;
         } else {
@@ -22567,11 +22567,11 @@ var init_utils4 = __esm({
     init_values();
     has = (obj, key) => (has = Object.hasOwn ?? Function.prototype.call.bind(Object.prototype.hasOwnProperty), has(obj, key));
     hex_table = /* @__PURE__ */ (() => {
-      const array2 = [];
+      const array3 = [];
       for (let i = 0; i < 256; ++i) {
-        array2.push("%" + ((i < 16 ? "0" : "") + i.toString(16)).toUpperCase());
+        array3.push("%" + ((i < 16 ? "0" : "") + i.toString(16)).toUpperCase());
       }
-      return array2;
+      return array3;
     })();
     limit = 1024;
     encode3 = (str, _defaultEncoder, charset, _kind, format2) => {
@@ -37051,8 +37051,8 @@ var init_util2 = __esm({
         return void 0;
       };
       util2.isInteger = typeof Number.isInteger === "function" ? (val) => Number.isInteger(val) : (val) => typeof val === "number" && Number.isFinite(val) && Math.floor(val) === val;
-      function joinValues2(array2, separator = " | ") {
-        return array2.map((val) => typeof val === "string" ? `'${val}'` : val).join(separator);
+      function joinValues2(array3, separator = " | ") {
+        return array3.map((val) => typeof val === "string" ? `'${val}'` : val).join(separator);
       }
       util2.joinValues = joinValues2;
       util2.jsonStringifyReplacer = (_, value) => {
@@ -50596,14 +50596,14 @@ function parseToolArgs(value) {
   }
 }
 function standardizeToolBlock(block) {
-  const record3 = block;
+  const record4 = block;
   if (block.type === "tool_call") return block;
   if (block.type !== "tool_call_chunk" && block.type !== "tool_use" && block.type !== "input_json_delta") return block;
-  const name = typeof record3.name === "string" ? record3.name : void 0;
+  const name = typeof record4.name === "string" ? record4.name : void 0;
   if (name == null) return block;
-  const args = record3.args ?? record3.input;
+  const args = record4.args ?? record4.input;
   return {
-    ...record3,
+    ...record4,
     type: "tool_call",
     name,
     args: parseToolArgs(args)
@@ -50946,16 +50946,16 @@ function extractImageBlocksFromToolOutputs(message) {
   const blocks2 = [];
   for (const entry of toolOutputs) {
     if (entry == null || typeof entry !== "object") continue;
-    const record3 = entry;
-    if (record3.type !== "image_generation_call") continue;
-    const data = typeof record3.result === "string" ? record3.result : void 0;
-    const url2 = typeof record3.url === "string" ? record3.url : void 0;
+    const record4 = entry;
+    if (record4.type !== "image_generation_call") continue;
+    const data = typeof record4.result === "string" ? record4.result : void 0;
+    const url2 = typeof record4.url === "string" ? record4.url : void 0;
     if (data == null && url2 == null) continue;
-    const outputFormat = typeof record3.output_format === "string" ? record3.output_format.toLowerCase() : void 0;
+    const outputFormat = typeof record4.output_format === "string" ? record4.output_format.toLowerCase() : void 0;
     const mimeType = (outputFormat != null ? MIME_TYPE_BY_IMAGE_FORMAT[outputFormat] : void 0) ?? "image/png";
     blocks2.push({
       type: "image",
-      ...typeof record3.id === "string" ? { id: record3.id } : {},
+      ...typeof record4.id === "string" ? { id: record4.id } : {},
       ...url2 != null ? { url: url2 } : {},
       ...data != null ? { data } : {},
       mimeType
@@ -50966,16 +50966,16 @@ function extractImageBlocksFromToolOutputs(message) {
 function getAudioPayload(message) {
   const audio = getAdditionalKwargs(message).audio;
   if (audio == null || typeof audio !== "object") return void 0;
-  const record3 = audio;
-  const data = typeof record3.data === "string" ? record3.data : void 0;
-  const url2 = typeof record3.url === "string" ? record3.url : void 0;
-  const transcript = typeof record3.transcript === "string" ? record3.transcript : void 0;
+  const record4 = audio;
+  const data = typeof record4.data === "string" ? record4.data : void 0;
+  const url2 = typeof record4.url === "string" ? record4.url : void 0;
+  const transcript = typeof record4.transcript === "string" ? record4.transcript : void 0;
   if (data == null && url2 == null && transcript == null) return void 0;
-  const explicitMimeType = typeof record3.mime_type === "string" ? record3.mime_type : typeof record3.mimeType === "string" ? record3.mimeType : void 0;
-  const format2 = typeof record3.format === "string" ? record3.format.toLowerCase() : void 0;
+  const explicitMimeType = typeof record4.mime_type === "string" ? record4.mime_type : typeof record4.mimeType === "string" ? record4.mimeType : void 0;
+  const format2 = typeof record4.format === "string" ? record4.format.toLowerCase() : void 0;
   const mimeType = explicitMimeType ?? (format2 != null ? MIME_TYPE_BY_AUDIO_FORMAT[format2] : void 0) ?? (data != null ? "audio/wav" : "audio/pcm");
   return {
-    ...typeof record3.id === "string" ? { id: record3.id } : {},
+    ...typeof record4.id === "string" ? { id: record4.id } : {},
     ...data != null ? { data } : {},
     ...url2 != null ? { url: url2 } : {},
     ...transcript != null ? { transcript } : {},
@@ -56590,16 +56590,16 @@ function maximalMarginalRelevance(queryEmbedding, embeddingList, lambda = 0.5, k
   }
   return selectedEmbeddingsIndexes;
 }
-function argMax(array2) {
-  if (array2.length === 0) return {
+function argMax(array3) {
+  if (array3.length === 0) return {
     maxIndex: -1,
     maxValue: NaN
   };
-  let maxValue = array2[0];
+  let maxValue = array3[0];
   let maxIndex = 0;
-  for (let i = 1; i < array2.length; i += 1) if (array2[i] > maxValue) {
+  for (let i = 1; i < array3.length; i += 1) if (array3[i] > maxValue) {
     maxIndex = i;
-    maxValue = array2[i];
+    maxValue = array3[i];
   }
   return {
     maxIndex,
@@ -56607,7 +56607,7 @@ function argMax(array2) {
   };
 }
 function matrixMaxVal(arrays) {
-  return arrays.reduce((acc, array2) => Math.max(acc, argMax(array2).maxValue), 0);
+  return arrays.reduce((acc, array3) => Math.max(acc, argMax(array3).maxValue), 0);
 }
 var math_exports;
 var init_math = __esm({
@@ -58090,10 +58090,10 @@ async function reviver(value) {
     path: [...path3, `${i}`],
     depth: depth + 1
   }, v)));
-  const record3 = value;
-  if (isEscapedObject(record3)) return unescapeValue(record3);
-  if ("lc" in record3 && "type" in record3 && "id" in record3 && record3.lc === 1 && record3.type === "secret") {
-    const [key] = record3.id;
+  const record4 = value;
+  if (isEscapedObject(record4)) return unescapeValue(record4);
+  if ("lc" in record4 && "type" in record4 && "id" in record4 && record4.lc === 1 && record4.type === "secret") {
+    const [key] = record4.id;
     if (key in secretsMap) return secretsMap[key];
     else if (secretsFromEnv) {
       const secretValueInEnv = getEnvironmentVariable(key);
@@ -58101,12 +58101,12 @@ async function reviver(value) {
     }
     throw new Error(`Missing secret "${key}" at ${pathStr}`);
   }
-  if ("lc" in record3 && "type" in record3 && "id" in record3 && record3.lc === 1 && record3.type === "not_implemented") {
-    const str = JSON.stringify(record3);
+  if ("lc" in record4 && "type" in record4 && "id" in record4 && record4.lc === 1 && record4.type === "not_implemented") {
+    const str = JSON.stringify(record4);
     throw new Error(`Trying to load an object that doesn't implement serialization: ${pathStr} -> ${str}`);
   }
-  if ("lc" in record3 && "type" in record3 && "id" in record3 && "kwargs" in record3 && record3.lc === 1 && record3.type === "constructor") {
-    const serialized = record3;
+  if ("lc" in record4 && "type" in record4 && "id" in record4 && "kwargs" in record4 && record4.lc === 1 && record4.type === "constructor") {
+    const serialized = record4;
     const str = JSON.stringify(serialized);
     const [name, ...namespaceReverse] = serialized.id.slice().reverse();
     const namespace = namespaceReverse.reverse();
@@ -58147,7 +58147,7 @@ async function reviver(value) {
     return instance;
   }
   const result = {};
-  for (const [key, val] of Object.entries(record3)) result[key] = await reviver.call({
+  for (const [key, val] of Object.entries(record4)) result[key] = await reviver.call({
     ...this,
     path: [...path3, key],
     depth: depth + 1
@@ -58194,42 +58194,42 @@ function isDeltaSnapshotRecord(value) {
 function isConstructorRecord(value) {
   return value.lc === 2 && value.type === "constructor";
 }
-function hasConstructorId(record3, name) {
-  return Array.isArray(record3.id) && record3.id.length === 1 && record3.id[0] === name;
+function hasConstructorId(record4, name) {
+  return Array.isArray(record4.id) && record4.id.length === 1 && record4.id[0] === name;
 }
-function hasNoMethod(record3) {
-  return record3.method === void 0 || record3.method === null;
+function hasNoMethod(record4) {
+  return record4.method === void 0 || record4.method === null;
 }
-function hasSingleArrayArg(record3) {
-  return Array.isArray(record3.args) && record3.args.length === 1 && Array.isArray(record3.args[0]);
+function hasSingleArrayArg(record4) {
+  return Array.isArray(record4.args) && record4.args.length === 1 && Array.isArray(record4.args[0]);
 }
 function isByteArray(value) {
   return value.every((item) => typeof item === "number" && Number.isInteger(item) && item >= 0 && item <= 255);
 }
-function reviveConstructorRecord(record3) {
-  if (hasConstructorId(record3, "Set") && hasNoMethod(record3)) {
-    if (!hasSingleArrayArg(record3)) return void 0;
-    return new Set(record3.args[0]);
+function reviveConstructorRecord(record4) {
+  if (hasConstructorId(record4, "Set") && hasNoMethod(record4)) {
+    if (!hasSingleArrayArg(record4)) return void 0;
+    return new Set(record4.args[0]);
   }
-  if (hasConstructorId(record3, "Map") && hasNoMethod(record3)) {
-    if (!hasSingleArrayArg(record3) || !record3.args[0].every((entry) => Array.isArray(entry) && entry.length === 2)) return;
-    return new Map(record3.args[0]);
+  if (hasConstructorId(record4, "Map") && hasNoMethod(record4)) {
+    if (!hasSingleArrayArg(record4) || !record4.args[0].every((entry) => Array.isArray(entry) && entry.length === 2)) return;
+    return new Map(record4.args[0]);
   }
-  if (hasConstructorId(record3, "RegExp") && hasNoMethod(record3)) {
-    if (!Array.isArray(record3.args) || record3.args.length !== 2 || typeof record3.args[0] !== "string" || typeof record3.args[1] !== "string") return;
+  if (hasConstructorId(record4, "RegExp") && hasNoMethod(record4)) {
+    if (!Array.isArray(record4.args) || record4.args.length !== 2 || typeof record4.args[0] !== "string" || typeof record4.args[1] !== "string") return;
     try {
-      return new RegExp(record3.args[0], record3.args[1]);
+      return new RegExp(record4.args[0], record4.args[1]);
     } catch {
       return;
     }
   }
-  if (hasConstructorId(record3, "Error") && hasNoMethod(record3)) {
-    if (!Array.isArray(record3.args) || record3.args.length !== 1 || typeof record3.args[0] !== "string") return;
-    return new Error(record3.args[0]);
+  if (hasConstructorId(record4, "Error") && hasNoMethod(record4)) {
+    if (!Array.isArray(record4.args) || record4.args.length !== 1 || typeof record4.args[0] !== "string") return;
+    return new Error(record4.args[0]);
   }
-  if (hasConstructorId(record3, "Uint8Array") && (hasNoMethod(record3) || record3.method === "from")) {
-    if (!hasSingleArrayArg(record3) || !isByteArray(record3.args[0])) return;
-    return new Uint8Array(record3.args[0]);
+  if (hasConstructorId(record4, "Uint8Array") && (hasNoMethod(record4) || record4.method === "from")) {
+    if (!hasSingleArrayArg(record4) || !isByteArray(record4.args[0])) return;
+    return new Uint8Array(record4.args[0]);
   }
 }
 async function _reviver(value) {
@@ -59125,13 +59125,13 @@ function normalizeObjectiveSpec(input) {
     }
   };
 }
-var SCHEMA_VERSION, PROTOCOL_VERSION, CapabilitySchema, ScenarioIdSchema, RankedScenarioIdSchema, ScenarioWeightsSchema, GoalSchema, HardConstraintSchema, ObjectiveSpecSchema, ObjectiveSpecDraftSchema, MetricSetSchema, ContentCatalogEntrySchema, BuildGraphSchema, BuildSnapshotSchema, ScenarioSpecSchema, EvidenceStatusSchema, ConditionEvidenceSchema, ActionBaseSchema, TradePriceSchema, Sha256Schema, TradeStatFilterSchema, TradeCatalogQuerySchema, TradeCatalogItemSchema, TradeCatalogResultSchema, TradeCatalogCancelSchema, ImportAndEquipPayloadSchema, SecondaryAscendancyPayloadSchema, TreeOverridePayloadSchema, CatalogPartyBufferPayloadSchema, BuildActionSchema, CandidateLabelSchema, CandidateSchema, DeepLimitsSchema, SearchStopReasonSchema, StopReasonSchema, OptimizationRunSchema, TransactionResultSchema;
+var SCHEMA_VERSION, PROTOCOL_VERSION, CapabilitySchema, ScenarioIdSchema, RankedScenarioIdSchema, ScenarioWeightsSchema, GoalSchema, HardConstraintSchema, ObjectiveSpecSchema, ObjectiveSpecDraftSchema, MetricSetSchema, ContentCatalogEntrySchema, ModifierResolutionSchema, ModifierParseStatusSchema, ItemLegalityStatusSchema, ModifierProvenanceSchema, ParsedModifierSchema, ModifierLineProjectionSchema, ItemLegalityFindingSchema, ItemLegalitySchema, ModifierItemProjectionSchema, ModifierProjectionSchema, BuildGraphSchema, BuildSnapshotSchema, MechanicFindingSchema, MechanicUnderstandingSchema, BuildMechanicReportSchema, MechanicDiffSchema, ScenarioSpecSchema, EvidenceStatusSchema, ConditionEvidenceSchema, ActionBaseSchema, TradePriceSchema, Sha256Schema, TradeStatFilterSchema, TradeCatalogQuerySchema, TradeCatalogItemSchema, TradeCatalogResultSchema, TradeCatalogCancelSchema, ImportAndEquipPayloadSchema, SecondaryAscendancyPayloadSchema, TreeOverridePayloadSchema, CatalogPartyBufferPayloadSchema, BuildActionSchema, CandidateLabelSchema, CandidateSchema, DeepLimitsSchema, SearchStopReasonSchema, StopReasonSchema, OptimizationRunSchema, TransactionResultSchema;
 var init_schemas3 = __esm({
   "src/schemas.ts"() {
     "use strict";
     init_zod();
-    SCHEMA_VERSION = 2;
-    PROTOCOL_VERSION = 3;
+    SCHEMA_VERSION = 3;
+    PROTOCOL_VERSION = 4;
     CapabilitySchema = external_exports.enum([
       "nativeLinkProbe",
       "nativeEvidence",
@@ -59139,7 +59139,8 @@ var init_schemas3 = __esm({
       "providerConsent",
       "providerConnectionTest",
       "providerCompatibility",
-      "objectiveDraft"
+      "objectiveDraft",
+      "mechanicAnalysis"
     ]);
     ScenarioIdSchema = external_exports.enum([
       "current",
@@ -59238,6 +59239,110 @@ var init_schemas3 = __esm({
       available: external_exports.boolean().default(true),
       data: external_exports.record(external_exports.string(), external_exports.unknown()).default({})
     });
+    ModifierResolutionSchema = external_exports.enum(["exact", "inferred", "unknown"]);
+    ModifierParseStatusSchema = external_exports.enum(["parsed", "partial", "unknown", "disabled"]);
+    ItemLegalityStatusSchema = external_exports.enum(["valid", "invalid", "unverifiable"]);
+    ModifierProvenanceSchema = external_exports.object({
+      sourceFamily: external_exports.string().min(1),
+      sourceTable: external_exports.string().min(1).optional(),
+      sourceModId: external_exports.string().min(1).optional(),
+      donorItem: external_exports.string().min(1).optional(),
+      resolution: ModifierResolutionSchema,
+      evidence: external_exports.array(external_exports.string().min(1)).default([]),
+      alternatives: external_exports.array(external_exports.string().min(1)).max(8).optional()
+    });
+    ParsedModifierSchema = external_exports.object({
+      name: external_exports.string().min(1),
+      type: external_exports.string().min(1),
+      classification: external_exports.enum(["numeric", "boolean", "structured", "unknown"]),
+      value: external_exports.unknown().optional(),
+      flags: external_exports.number().int(),
+      keywordFlags: external_exports.number().int(),
+      source: external_exports.string().min(1).optional(),
+      tags: external_exports.array(external_exports.unknown()).default([])
+    });
+    ModifierLineProjectionSchema = external_exports.object({
+      id: external_exports.string().min(1),
+      section: external_exports.enum(["buff", "enchant", "scourge", "classRequirement", "implicit", "explicit", "crucible"]),
+      ordinal: external_exports.number().int().positive(),
+      rawText: external_exports.string(),
+      active: external_exports.boolean(),
+      disabled: external_exports.boolean(),
+      flags: external_exports.array(external_exports.string().min(1)).default([]),
+      modTags: external_exports.array(external_exports.string()).default([]),
+      modId: external_exports.string().min(1).optional(),
+      newModId: external_exports.string().min(1).optional(),
+      range: external_exports.union([external_exports.number(), external_exports.array(external_exports.number())]).optional(),
+      corruptedRange: external_exports.number().optional(),
+      valueScalar: external_exports.number().optional(),
+      extra: external_exports.string().optional(),
+      parseStatus: ModifierParseStatusSchema,
+      provenance: ModifierProvenanceSchema,
+      parsedMods: external_exports.array(ParsedModifierSchema).default([])
+    });
+    ItemLegalityFindingSchema = external_exports.object({
+      status: external_exports.enum(["invalid", "unverifiable"]),
+      code: external_exports.string().min(1),
+      reason: external_exports.string().min(1),
+      lineId: external_exports.string().min(1).optional()
+    });
+    ItemLegalitySchema = external_exports.object({
+      version: external_exports.number().int().positive(),
+      status: ItemLegalityStatusSchema,
+      findings: external_exports.array(ItemLegalityFindingSchema).default([])
+    });
+    ModifierItemProjectionSchema = external_exports.object({
+      id: external_exports.string().min(1),
+      name: external_exports.string().optional(),
+      title: external_exports.string().optional(),
+      baseName: external_exports.string().optional(),
+      type: external_exports.string().optional(),
+      rarity: external_exports.string().optional(),
+      itemLevel: external_exports.number().optional(),
+      quality: external_exports.number().optional(),
+      equipped: external_exports.boolean(),
+      active: external_exports.boolean(),
+      references: external_exports.array(external_exports.object({
+        itemSetId: external_exports.string().min(1),
+        slot: external_exports.string().min(1),
+        active: external_exports.boolean(),
+        nodeId: external_exports.union([external_exports.string(), external_exports.number()]).optional()
+      })).default([]),
+      state: external_exports.record(external_exports.string(), external_exports.boolean()).default({}),
+      legality: ItemLegalitySchema,
+      modifierLines: external_exports.array(ModifierLineProjectionSchema).default([])
+    });
+    ModifierProjectionSchema = external_exports.object({
+      version: external_exports.number().int().positive(),
+      inventory: external_exports.object({
+        version: external_exports.number().int().positive(),
+        sections: external_exports.array(external_exports.string().min(1)),
+        lineFlags: external_exports.array(external_exports.string().min(1)),
+        sourceFamilies: external_exports.array(external_exports.object({
+          name: external_exports.string().min(1),
+          modifierCount: external_exports.number().int().nonnegative()
+        }))
+      }),
+      items: external_exports.array(ModifierItemProjectionSchema),
+      modifierCount: external_exports.number().int().nonnegative(),
+      activeModifierCount: external_exports.number().int().nonnegative(),
+      unresolvedModifierCount: external_exports.number().int().nonnegative(),
+      descriptions: external_exports.object({
+        entries: external_exports.array(external_exports.object({
+          sourceTable: external_exports.string().min(1),
+          modId: external_exports.string().min(1),
+          type: external_exports.string().optional(),
+          group: external_exports.string().optional(),
+          affix: external_exports.string().optional(),
+          level: external_exports.number().optional(),
+          lines: external_exports.array(external_exports.string()).default([]),
+          modTags: external_exports.array(external_exports.string()).default([]),
+          donorItem: external_exports.string().optional()
+        })).default([]),
+        truncated: external_exports.boolean()
+      }),
+      fingerprint: external_exports.string().regex(/^sha256:[a-f0-9]{64}$/)
+    });
     BuildGraphSchema = external_exports.object({
       nodes: external_exports.array(
         external_exports.object({
@@ -59277,8 +59382,51 @@ var init_schemas3 = __esm({
       config: external_exports.record(external_exports.string(), external_exports.unknown()).default({}),
       buildState: external_exports.record(external_exports.string(), external_exports.unknown()).default({}),
       gameplayFieldPaths: external_exports.array(external_exports.string().min(1)).default([]),
+      mechanicProjection: ModifierProjectionSchema,
+      mechanicProjectionFingerprint: external_exports.string().regex(/^sha256:[a-f0-9]{64}$/),
       contentCatalog: external_exports.array(ContentCatalogEntrySchema).optional(),
       buildGraph: BuildGraphSchema.optional()
+    });
+    MechanicFindingSchema = external_exports.object({
+      id: external_exports.string().min(1),
+      severity: external_exports.enum(["info", "warning", "blocker"]),
+      code: external_exports.string().min(1),
+      message: external_exports.string().min(1),
+      itemId: external_exports.string().min(1).optional(),
+      modifierLineId: external_exports.string().min(1).optional(),
+      critical: external_exports.boolean().default(false),
+      evidence: external_exports.array(external_exports.string().min(1)).default([])
+    });
+    MechanicUnderstandingSchema = external_exports.object({
+      mainSkillGroup: external_exports.number().int().positive(),
+      mainSkills: external_exports.array(external_exports.object({
+        id: external_exports.string().min(1),
+        name: external_exports.string().min(1),
+        sourceItemId: external_exports.string().min(1).optional(),
+        sourceModifierLineId: external_exports.string().min(1).optional()
+      })).default([]),
+      criticalNodeIds: external_exports.array(external_exports.string().min(1)).default([]),
+      verifiedChains: external_exports.array(external_exports.array(external_exports.string().min(1))).default([])
+    });
+    BuildMechanicReportSchema = external_exports.object({
+      schemaVersion: external_exports.literal(SCHEMA_VERSION),
+      snapshotFingerprint: external_exports.string().min(1),
+      projectionFingerprint: external_exports.string().regex(/^sha256:[a-f0-9]{64}$/),
+      analysisFingerprint: external_exports.string().regex(/^sha256:[a-f0-9]{64}$/),
+      status: external_exports.enum(["complete", "warning", "blocked"]),
+      summary: external_exports.string().min(1),
+      understanding: MechanicUnderstandingSchema,
+      findings: external_exports.array(MechanicFindingSchema),
+      graph: BuildGraphSchema
+    });
+    MechanicDiffSchema = external_exports.object({
+      baseProjectionFingerprint: external_exports.string().min(1),
+      candidateProjectionFingerprint: external_exports.string().min(1),
+      addedModifierLineIds: external_exports.array(external_exports.string()).default([]),
+      removedModifierLineIds: external_exports.array(external_exports.string()).default([]),
+      changedModifierLineIds: external_exports.array(external_exports.string()).default([]),
+      breaksCriticalMechanism: external_exports.boolean(),
+      findings: external_exports.array(MechanicFindingSchema).default([])
     });
     ScenarioSpecSchema = external_exports.object({
       id: ScenarioIdSchema,
@@ -59463,6 +59611,7 @@ var init_schemas3 = __esm({
       actions: external_exports.array(BuildActionSchema),
       evidence: external_exports.array(ConditionEvidenceSchema).default([]),
       hardConstraintsSatisfied: external_exports.boolean(),
+      mechanicDiff: MechanicDiffSchema.optional(),
       score: external_exports.number().finite().optional()
     });
     DeepLimitsSchema = external_exports.object({
@@ -61109,9 +61258,9 @@ function unwrapMessagesPayload(payload) {
   if (!Array.isArray(payload) || payload.length !== 2) return { data: payload };
   const [data, metadata] = payload;
   if (metadata == null || typeof metadata !== "object") return { data: payload };
-  const record3 = metadata;
-  const node = typeof record3.langgraph_node === "string" ? record3.langgraph_node : void 0;
-  const runId = typeof record3.run_id === "string" ? record3.run_id : void 0;
+  const record4 = metadata;
+  const node = typeof record4.langgraph_node === "string" ? record4.langgraph_node : void 0;
+  const runId = typeof record4.run_id === "string" ? record4.run_id : void 0;
   return {
     data: runId != null && data != null && typeof data === "object" ? {
       ...data,
@@ -62061,9 +62210,9 @@ function createLifecycleTransformer(options = {}) {
 // node_modules/.pnpm/@langchain+langgraph@1.4.13_@langchain+core@1.2.9_openai@7.8.0_zod@4.4.3___zod@4.4.3/node_modules/@langchain/langgraph/dist/stream/transformers/messages.js
 init_stream2();
 function getMessageStreamKey(data) {
-  const record3 = data;
-  if (typeof record3.run_id === "string") return `run:${record3.run_id}`;
-  if (data.event === "message-start" && typeof record3.id === "string") return `message:${record3.id}`;
+  const record4 = data;
+  if (typeof record4.run_id === "string") return `run:${record4.run_id}`;
+  if (data.event === "message-start" && typeof record4.id === "string") return `message:${record4.id}`;
   return "__default__";
 }
 function createMessagesTransformer(path3, nodeFilter) {
@@ -70855,8 +71004,8 @@ function createDefaultCoverageRegistry() {
   return registry2;
 }
 
-// src/domain/nativeProbe.ts
-init_zod();
+// src/domain/mechanics.ts
+init_schemas3();
 
 // src/search/canonical.ts
 var import_node_crypto = require("node:crypto");
@@ -70929,7 +71078,281 @@ function actionIdentity(value) {
   return `1:${canonicalStringify(value)}`;
 }
 
+// src/domain/mechanics.ts
+function record3(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value) ? value : void 0;
+}
+function array2(value) {
+  return Array.isArray(value) ? value : [];
+}
+function mainNativeSkills(snapshot) {
+  const mainGroup = Number(snapshot.buildState.mainSocketGroup ?? 1);
+  const skillsEntry = snapshot.contentCatalog?.find(({ id }) => id === "pob:skills");
+  const probe = record3(skillsEntry?.data.nativeLinkProbe);
+  const group = array2(probe?.groups).map(record3).find((entry) => Number(entry?.index) === mainGroup);
+  return array2(group?.activeSkills).map(record3).filter((entry) => entry !== void 0);
+}
+function parsedSkill(mod) {
+  if (mod.name !== "ExtraSkill") return void 0;
+  const value = record3(mod.value);
+  const id = value?.skillId;
+  if (typeof id !== "string" && typeof id !== "number") return void 0;
+  return {
+    id: String(id),
+    ...typeof value?.skillName === "string" ? { name: value.skillName } : {},
+    triggered: value?.triggered === true
+  };
+}
+function finding(input) {
+  return {
+    id: `finding:${canonicalHash(input).slice(0, 24)}`,
+    ...input
+  };
+}
+function addFindingOnce(findings, next) {
+  if (!findings.some(({ id }) => id === next.id)) findings.push(next);
+}
+function sourceSkillLine(projection, skill) {
+  const skillId = typeof skill.id === "string" || typeof skill.id === "number" ? String(skill.id) : void 0;
+  const skillName = typeof skill.name === "string" ? skill.name.toLowerCase() : void 0;
+  for (const item of projection.items) {
+    if (!item.active) continue;
+    for (const line of item.modifierLines) {
+      if (!line.active) continue;
+      for (const mod of line.parsedMods) {
+        const extra = parsedSkill(mod);
+        if (extra !== void 0 && (extra.id === skillId || extra.name !== void 0 && extra.name.toLowerCase() === skillName)) {
+          return { itemId: item.id, line };
+        }
+      }
+      if (skillName !== void 0 && line.rawText.toLowerCase().includes(skillName)) return { itemId: item.id, line };
+    }
+  }
+  return void 0;
+}
+function configuredConditionFindings(snapshot, projection) {
+  const configEntry = snapshot.contentCatalog?.find(({ id }) => id === "pob:config");
+  const claims = array2(configEntry?.data.conditionClaims).map(record3).filter((claim) => claim !== void 0);
+  const activeText = projection.items.filter(({ active }) => active).flatMap(({ modifierLines }) => modifierLines.filter(({ active }) => active).map(({ rawText }) => rawText.toLowerCase())).join("\n");
+  const findings = [];
+  for (const claim of claims) {
+    if (claim.sourceStatus !== "manual" || claim.current === void 0 || claim.current === false) continue;
+    const condition = typeof claim.condition === "string" ? claim.condition : "manual-condition";
+    const label = typeof claim.label === "string" ? claim.label : condition;
+    const words = label.toLowerCase().match(/[a-z]{4,}/g) ?? [];
+    const critical = words.some((word) => activeText.includes(word));
+    findings.push(finding({
+      severity: critical ? "blocker" : "warning",
+      code: "manual_condition_unproven",
+      message: `${label} is configured manually without native sustainable source evidence`,
+      critical,
+      evidence: [`config:${condition}`]
+    }));
+  }
+  return findings;
+}
+function analyzeBuildMechanics(snapshot) {
+  const projection = snapshot.mechanicProjection;
+  if (projection.fingerprint !== snapshot.mechanicProjectionFingerprint) {
+    throw new Error("Modifier projection fingerprint does not match BuildSnapshot");
+  }
+  const graph = new DomainGraph(snapshot.buildGraph ?? { nodes: [], edges: [] });
+  const findings = [];
+  const mainGroup = Number(snapshot.buildState.mainSocketGroup ?? 1);
+  const playerId = `build:${snapshot.fingerprint.slice(0, 16)}:player`;
+  graph.addNode({ id: playerId, domain: "identity", kind: "player", data: { current: true } });
+  for (const item of projection.items) {
+    const itemNodeId = `item:${item.id}`;
+    graph.addNode({
+      id: itemNodeId,
+      domain: "gear",
+      kind: "item",
+      data: {
+        name: item.name,
+        baseName: item.baseName,
+        type: item.type,
+        rarity: item.rarity,
+        active: item.active,
+        legality: item.legality.status
+      }
+    });
+    if (item.active) graph.addEdge({ from: playerId, to: itemNodeId, relation: "usesSlot", data: {} });
+    for (const legality of item.legality.findings) {
+      addFindingOnce(findings, finding({
+        severity: legality.status === "invalid" && item.active ? "blocker" : "warning",
+        code: legality.code,
+        message: legality.reason,
+        itemId: item.id,
+        ...legality.lineId === void 0 ? {} : { modifierLineId: `item:${item.id}:${legality.lineId}` },
+        critical: legality.status === "invalid" && item.active,
+        evidence: [`item:${item.id}`, `legality:${item.legality.status}`]
+      }));
+    }
+    for (const line of item.modifierLines) {
+      graph.addNode({
+        id: line.id,
+        domain: "gear",
+        kind: "modifierLine",
+        data: {
+          text: line.rawText,
+          section: line.section,
+          flags: line.flags,
+          active: line.active,
+          parseStatus: line.parseStatus,
+          provenance: line.provenance
+        }
+      });
+      graph.addEdge({ from: itemNodeId, to: line.id, relation: "grants", data: { active: line.active } });
+      if (line.provenance.donorItem !== void 0) {
+        const donorId = `unique:${canonicalHash(line.provenance.donorItem).slice(0, 20)}`;
+        if (!graph.hasNode(donorId)) graph.addNode({ id: donorId, domain: "gear", kind: "modifierDonor", data: { name: line.provenance.donorItem } });
+        graph.addEdge({ from: donorId, to: line.id, relation: "grants", data: { sourceFamily: line.provenance.sourceFamily } });
+      }
+      line.parsedMods.forEach((mod, index2) => {
+        const modId = `${line.id}:mod:${index2 + 1}`;
+        graph.addNode({ id: modId, domain: "gear", kind: "parsedModifier", data: mod });
+        graph.addEdge({ from: line.id, to: modId, relation: "grants", data: {} });
+        const extra = parsedSkill(mod);
+        if (extra !== void 0) {
+          const skillId = `skill:${extra.id}:item:${item.id}`;
+          if (!graph.hasNode(skillId)) graph.addNode({ id: skillId, domain: "skills", kind: "itemGrantedSkill", data: { name: extra.name ?? extra.id, active: line.active } });
+          graph.addEdge({ from: modId, to: skillId, relation: extra.triggered ? "triggers" : "grants", data: {} });
+        }
+      });
+      if (item.active && line.active && (line.parseStatus === "unknown" || line.parseStatus === "partial")) {
+        addFindingOnce(findings, finding({
+          severity: "warning",
+          code: "active_modifier_semantics_incomplete",
+          message: `Active modifier is not completely parsed: ${line.rawText}`,
+          itemId: item.id,
+          modifierLineId: line.id,
+          critical: false,
+          evidence: [`parse:${line.parseStatus}`, ...line.provenance.evidence]
+        }));
+      }
+    }
+  }
+  const mainSkills = mainNativeSkills(snapshot);
+  const understoodSkills = [];
+  const criticalNodeIds = [];
+  const verifiedChains = [];
+  const hasNativeSkillProbe = snapshot.contentCatalog?.some(({ id }) => id === "pob:skills") === true;
+  if (mainSkills.length === 0 && hasNativeSkillProbe) {
+    findings.push(finding({
+      severity: "blocker",
+      code: "main_skill_missing",
+      message: "Selected main socket group has no native active skill",
+      critical: true,
+      evidence: [`socket-group:${mainGroup}`]
+    }));
+  } else if (mainSkills.length === 0) {
+    findings.push(finding({
+      severity: "warning",
+      code: "native_skill_probe_unavailable",
+      message: "Native active-skill probe is unavailable in this snapshot",
+      critical: false,
+      evidence: ["catalog:pob:skills:missing"]
+    }));
+  }
+  for (const skill of mainSkills) {
+    const id = typeof skill.id === "string" || typeof skill.id === "number" ? String(skill.id) : "unknown";
+    const name = typeof skill.name === "string" ? skill.name : id;
+    const source = sourceSkillLine(projection, skill);
+    const skillNodeId = `main-skill:${id}`;
+    if (!graph.hasNode(skillNodeId)) graph.addNode({ id: skillNodeId, domain: "skills", kind: "mainSkill", data: { name, group: mainGroup, fromItem: skill.fromItem === true } });
+    criticalNodeIds.push(skillNodeId);
+    if (skill.fromItem === true) {
+      if (source === void 0) {
+        findings.push(finding({
+          severity: "blocker",
+          code: "item_granted_skill_source_unknown",
+          message: `Item-granted main skill ${name} has no resolved modifier source`,
+          critical: true,
+          evidence: [`skill:${id}`, `socket-group:${mainGroup}`]
+        }));
+        understoodSkills.push({ id, name });
+      } else {
+        graph.addEdge({ from: source.line.id, to: skillNodeId, relation: source.line.parsedMods.some((mod) => record3(mod.value)?.triggered === true) ? "triggers" : "grants", data: {} });
+        criticalNodeIds.push(source.line.id, `item:${source.itemId}`);
+        verifiedChains.push([`item:${source.itemId}`, source.line.id, skillNodeId]);
+        understoodSkills.push({ id, name, sourceItemId: source.itemId, sourceModifierLineId: source.line.id });
+        const existing = findings.find(({ modifierLineId }) => modifierLineId === source.line.id && modifierLineId !== void 0);
+        if (existing !== void 0 && existing.code === "active_modifier_semantics_incomplete") {
+          existing.severity = "blocker";
+          existing.critical = true;
+        }
+      }
+    } else {
+      understoodSkills.push({ id, name });
+      verifiedChains.push([skillNodeId]);
+    }
+  }
+  for (const condition of configuredConditionFindings(snapshot, projection)) addFindingOnce(findings, condition);
+  findings.sort((left, right) => left.id.localeCompare(right.id));
+  const status = findings.some(({ severity }) => severity === "blocker") ? "blocked" : findings.some(({ severity }) => severity === "warning") ? "warning" : "complete";
+  const graphJson = graph.toJSON();
+  const reportWithoutFingerprint = {
+    schemaVersion: SCHEMA_VERSION,
+    snapshotFingerprint: snapshot.fingerprint,
+    projectionFingerprint: projection.fingerprint,
+    status,
+    summary: `${understoodSkills.length} main skill(s), ${projection.activeModifierCount} active modifier line(s), ${findings.length} finding(s)`,
+    understanding: {
+      mainSkillGroup: mainGroup,
+      mainSkills: understoodSkills,
+      criticalNodeIds: [...new Set(criticalNodeIds)].sort(),
+      verifiedChains
+    },
+    findings,
+    graph: graphJson
+  };
+  return BuildMechanicReportSchema.parse({
+    ...reportWithoutFingerprint,
+    analysisFingerprint: `sha256:${canonicalHash({
+      snapshot: snapshot.fingerprint,
+      ruleset: snapshot.ruleset,
+      dataVersion: snapshot.dataVersion,
+      projection: projection.fingerprint,
+      report: reportWithoutFingerprint
+    })}`
+  });
+}
+function lineMap(projection) {
+  return new Map(projection.items.flatMap(({ modifierLines }) => modifierLines.map((line) => [line.id, line])));
+}
+function diffMechanics(baseReport, base, candidate) {
+  const before = lineMap(base);
+  const after = lineMap(candidate);
+  const added = [...after.keys()].filter((id) => !before.has(id)).sort();
+  const removed = [...before.keys()].filter((id) => !after.has(id)).sort();
+  const changed = [...before.keys()].filter((id) => {
+    const next = after.get(id);
+    return next !== void 0 && canonicalHash(before.get(id)) !== canonicalHash(next);
+  }).sort();
+  const critical = new Set(baseReport.understanding.criticalNodeIds);
+  const criticalRemoved = removed.filter((id) => critical.has(id));
+  const criticalChanged = changed.filter((id) => critical.has(id));
+  const breaks = criticalRemoved.length > 0 || criticalChanged.length > 0;
+  const findings = breaks ? [finding({
+    severity: "blocker",
+    code: "candidate_breaks_critical_mechanism",
+    message: "Candidate removes or changes a modifier in the verified main-mechanism chain",
+    critical: true,
+    evidence: [...criticalRemoved, ...criticalChanged]
+  })] : [];
+  return MechanicDiffSchema.parse({
+    baseProjectionFingerprint: base.fingerprint,
+    candidateProjectionFingerprint: candidate.fingerprint,
+    addedModifierLineIds: added,
+    removedModifierLineIds: removed,
+    changedModifierLineIds: changed,
+    breaksCriticalMechanism: breaks,
+    findings
+  });
+}
+
 // src/domain/nativeProbe.ts
+init_zod();
 init_schemas3();
 var NATIVE_PROBE_SCHEMA_VERSION = 1;
 var JsonRecordSchema = external_exports.record(external_exports.string(), external_exports.unknown());
@@ -71184,6 +71607,7 @@ var RpcRequestSchema = external_exports.object({
   method: external_exports.enum([
     "hello",
     "build.capture",
+    "build.analyze",
     "run.start",
     "run.stream",
     "run.cancel",
@@ -71238,7 +71662,15 @@ var RpcErrorSchema = external_exports.object({
 });
 var RpcNotificationSchema = external_exports.object({
   jsonrpc: external_exports.literal("2.0"),
-  method: external_exports.enum(["run.progress", "run.awaitingApproval", "run.completed", "run.failed", "transaction.apply"]),
+  method: external_exports.enum([
+    "run.progress",
+    "run.mechanicsReady",
+    "run.awaitingMechanicReview",
+    "run.awaitingApproval",
+    "run.completed",
+    "run.failed",
+    "transaction.apply"
+  ]),
   params: external_exports.unknown(),
   protocolVersion: external_exports.literal(PROTOCOL_VERSION)
 });
@@ -71248,6 +71680,7 @@ var HelloParamsSchema = external_exports.object({
   capabilities: external_exports.array(CapabilitySchema).default([])
 });
 var BuildCaptureParamsSchema = external_exports.object({ snapshot: BuildSnapshotSchema });
+var BuildAnalyzeParamsSchema = external_exports.object({ snapshotFingerprint: external_exports.string().min(1) });
 var RunStartParamsSchema = external_exports.object({
   snapshotFingerprint: external_exports.string().min(1),
   objective: ObjectiveSpecSchema
@@ -71259,6 +71692,7 @@ var RunResumeParamsSchema = external_exports.union([
     external_exports.object({ runId: external_exports.string().min(1), decision: external_exports.literal("apply"), candidateId: external_exports.string().min(1) }),
     external_exports.object({ runId: external_exports.string().min(1), decision: external_exports.literal("reject") })
   ]),
+  external_exports.object({ runId: external_exports.string().min(1), decision: external_exports.literal("cancel"), reason: external_exports.string().optional() }),
   external_exports.object({ runId: external_exports.string().min(1), mode: external_exports.literal("checkpoint") })
 ]);
 var CandidatePreviewParamsSchema = external_exports.object({ runId: external_exports.string().min(1), candidateId: external_exports.string().min(1) });
@@ -71306,8 +71740,9 @@ var ConsentPreviewParamsSchema = external_exports.object({
     "build_snapshot",
     "metrics",
     "tool_outputs",
-    "chat_messages"
-  ])).max(5).default([])
+    "chat_messages",
+    "mechanic_report"
+  ])).max(6).default([])
 });
 var ConsentGrantParamsSchema = external_exports.object({
   providerId: ProviderIdSchema,
@@ -71332,6 +71767,10 @@ var RunProgressNotificationSchema = external_exports.object({
 var RunAwaitingApprovalNotificationSchema = external_exports.object({
   runId: external_exports.string().min(1),
   candidates: external_exports.array(CandidateSchema)
+});
+var RunMechanicsReadyNotificationSchema = external_exports.object({
+  runId: external_exports.string().min(1),
+  report: BuildMechanicReportSchema
 });
 var RunCompletedNotificationSchema = external_exports.object({ runId: external_exports.string().min(1), candidates: external_exports.array(CandidateSchema) });
 var RunFailedNotificationSchema = external_exports.object({ runId: external_exports.string().min(1), error: external_exports.string().min(1) });
@@ -71746,6 +72185,18 @@ var InspectBuildArgumentsSchema = external_exports.object({
   snapshotId: IdentifierSchema,
   domains: external_exports.array(DomainSchema).max(9).optional()
 }).strict();
+var TraceMechanicArgumentsSchema = external_exports.object({
+  snapshotId: IdentifierSchema,
+  nodeId: IdentifierSchema
+}).strict();
+var ListFindingsArgumentsSchema = external_exports.object({
+  snapshotId: IdentifierSchema,
+  severity: external_exports.enum(["info", "warning", "blocker"]).optional()
+}).strict();
+var DescribeModifierArgumentsSchema = external_exports.object({
+  snapshotId: IdentifierSchema,
+  modifierId: IdentifierSchema
+}).strict();
 var DiagnoseBuildArgumentsSchema = external_exports.object({
   snapshotId: IdentifierSchema,
   objectiveId: IdentifierSchema,
@@ -71782,6 +72233,9 @@ var PlanProgressionArgumentsSchema = external_exports.object({
 });
 var HIGH_LEVEL_TOOL_SCHEMAS = {
   inspect_build: InspectBuildArgumentsSchema,
+  trace_mechanic: TraceMechanicArgumentsSchema,
+  list_findings: ListFindingsArgumentsSchema,
+  describe_modifier: DescribeModifierArgumentsSchema,
   diagnose_build: DiagnoseBuildArgumentsSchema,
   search_build: SearchBuildArgumentsSchema,
   refine_search: RefineSearchArgumentsSchema,
@@ -71791,6 +72245,9 @@ var HIGH_LEVEL_TOOL_SCHEMAS = {
 };
 var TOOL_DESCRIPTIONS = {
   inspect_build: "Read a normalized build snapshot and its domain graph.",
+  trace_mechanic: "Trace one mechanic node through verified Build graph edges.",
+  list_findings: "List structured mechanic findings, optionally filtered by severity.",
+  describe_modifier: "Describe one projected item modifier and its PoB provenance.",
   diagnose_build: "Diagnose weaknesses against a confirmed objective and scenarios.",
   search_build: "Run deterministic candidate search over selected build domains.",
   refine_search: "Refine an existing deterministic search using a narrower focus.",
@@ -72071,6 +72528,7 @@ var ConsentDataCategorySchema = external_exports.enum([
   "metrics",
   "tool_outputs",
   "chat_messages",
+  "mechanic_report",
   "connection_probe"
 ]);
 var DEFAULT_CONSENT_DATA_CATEGORIES = [
@@ -72078,7 +72536,8 @@ var DEFAULT_CONSENT_DATA_CATEGORIES = [
   "build_snapshot",
   "metrics",
   "tool_outputs",
-  "chat_messages"
+  "chat_messages",
+  "mechanic_report"
 ];
 var ProviderProfileIdSchema = external_exports.string().min(1).max(64).regex(/^[A-Za-z0-9][A-Za-z0-9._-]*$/, "Provider id contains unsupported characters");
 var ProviderProfileSchema = external_exports.object({
@@ -72226,8 +72685,8 @@ var MemoryConsentRecordStore = class {
   async get(providerId) {
     return this.#records.get(providerId);
   }
-  async put(record3) {
-    this.#records.set(record3.providerId, record3);
+  async put(record4) {
+    this.#records.set(record4.providerId, record4);
   }
   async delete(providerId) {
     this.#records.delete(providerId);
@@ -72277,10 +72736,10 @@ var ConsentManager = class {
     return this.#store.get(providerId);
   }
   async state(profile) {
-    const record3 = await this.#store.get(profile.providerId);
-    if (record3 === void 0) return "required";
-    if (record3.decision === "revoked") return "revoked";
-    return record3.consentKey === createConsentKey(profileDescriptor(profile, record3.dataCategories)) ? "granted" : "required";
+    const record4 = await this.#store.get(profile.providerId);
+    if (record4 === void 0) return "required";
+    if (record4.decision === "revoked") return "revoked";
+    return record4.consentKey === createConsentKey(profileDescriptor(profile, record4.dataCategories)) ? "granted" : "required";
   }
   async isGranted(profile) {
     return await this.state(profile) === "granted";
@@ -72307,15 +72766,15 @@ var ConsentManager = class {
     const descriptor = profileDescriptor(profile, dataCategories);
     const expected = createConsentKey(descriptor);
     if (consentKey !== expected) throw new Error("Consent key does not match the current provider profile");
-    const record3 = {
+    const record4 = {
       providerId: profile.providerId,
       consentKey: expected,
       decision: "granted",
       dataCategories: effectiveCategories(descriptor.dataCategories),
       grantedAt: this.#now().toISOString()
     };
-    await this.#store.put(record3);
-    return record3;
+    await this.#store.put(record4);
+    return record4;
   }
   async revoke(providerId) {
     const existing = await this.#store.get(providerId);
@@ -72421,10 +72880,10 @@ function providerErrorMessage(status, text2) {
   try {
     const parsed = JSON.parse(text2);
     if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
-      const record3 = parsed;
-      const nested = typeof record3.error === "object" && record3.error !== null ? record3.error.message : void 0;
+      const record4 = parsed;
+      const nested = typeof record4.error === "object" && record4.error !== null ? record4.error.message : void 0;
       if (typeof nested === "string") detail = nested;
-      else if (typeof record3.message === "string") detail = record3.message;
+      else if (typeof record4.message === "string") detail = record4.message;
     }
   } catch {
   }
@@ -73467,8 +73926,8 @@ var SqliteProviderStore = class {
       const row = this.#db.prepare("SELECT payload FROM provider_consents WHERE provider_id = ?").get(providerId);
       return row === void 0 ? void 0 : parseConsentRecord(JSON.parse(row.payload));
     },
-    put: async (record3) => {
-      const parsed = parseConsentRecord(record3);
+    put: async (record4) => {
+      const parsed = parseConsentRecord(record4);
       this.#db.prepare(`
         INSERT INTO provider_consents(provider_id, payload, updated_at)
         VALUES (?, ?, ?)
@@ -73484,28 +73943,28 @@ function parseConsentRecord(value) {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     throw new Error("Consent record must be an object");
   }
-  const record3 = value;
-  if (typeof record3.providerId !== "string" || typeof record3.consentKey !== "string") {
+  const record4 = value;
+  if (typeof record4.providerId !== "string" || typeof record4.consentKey !== "string") {
     throw new Error("Consent record identifiers are invalid");
   }
-  if (record3.decision !== "granted" && record3.decision !== "revoked") {
+  if (record4.decision !== "granted" && record4.decision !== "revoked") {
     throw new Error("Consent record decision is invalid");
   }
-  if (record3.grantedAt !== void 0 && typeof record3.grantedAt !== "string") {
+  if (record4.grantedAt !== void 0 && typeof record4.grantedAt !== "string") {
     throw new Error("Consent grantedAt is invalid");
   }
-  if (record3.revokedAt !== void 0 && typeof record3.revokedAt !== "string") {
+  if (record4.revokedAt !== void 0 && typeof record4.revokedAt !== "string") {
     throw new Error("Consent revokedAt is invalid");
   }
-  if (record3.dataCategories !== void 0) {
-    if (!Array.isArray(record3.dataCategories) || record3.dataCategories.length === 0) {
+  if (record4.dataCategories !== void 0) {
+    if (!Array.isArray(record4.dataCategories) || record4.dataCategories.length === 0) {
       throw new Error("Consent dataCategories are invalid");
     }
-    for (const category of record3.dataCategories) {
+    for (const category of record4.dataCategories) {
       if (!ConsentDataCategorySchema.safeParse(category).success) throw new Error("Consent dataCategories are invalid");
     }
   }
-  return record3;
+  return record4;
 }
 
 // src/search/types.ts
@@ -74183,8 +74642,8 @@ function candidateTouches(candidate) {
   }
   for (const action of candidate.actions) {
     if (!action || typeof action !== "object") continue;
-    const record3 = action;
-    const payload = record3.payload;
+    const record4 = action;
+    const payload = record4.payload;
     if (!payload || typeof payload !== "object" || Array.isArray(payload)) continue;
     const values = payload;
     for (const key of ["target", "field", "path"]) {
@@ -74193,25 +74652,25 @@ function candidateTouches(candidate) {
     if (Array.isArray(values.fields)) {
       for (const entry of values.fields) if (typeof entry === "string") touches.add(entry);
     }
-    if (record3.kind === "setIdentity") {
+    if (record4.kind === "setIdentity") {
       if (values.class !== void 0) touches.add("identity.class");
       if (values.ascendancy !== void 0) touches.add("identity.ascendancy");
       if (values.property === "class" || values.property === "ascendancy") touches.add(`identity.${values.property}`);
       if (values.property === "mainSkill" || values.property === "mainSocketGroup") touches.add("skills.mainSkill");
     }
-    if ((record3.kind === "setSkill" || record3.kind === "replaceSkillLinks") && values.mainSkill === true) {
+    if ((record4.kind === "setSkill" || record4.kind === "replaceSkillLinks") && values.mainSkill === true) {
       touches.add("skills.mainSkill");
     }
-    if (record3.kind === "setSkill" && values.mainGroup !== void 0) touches.add("skills.mainSkill");
-    if (record3.kind === "setConfig") {
+    if (record4.kind === "setSkill" && values.mainGroup !== void 0) touches.add("skills.mainSkill");
+    if (record4.kind === "setConfig") {
       const name = values.name ?? values.key ?? values.field;
       if (typeof name === "string") touches.add(`config.${name}`);
     }
-    if (record3.kind === "replaceItem" && typeof values.slot === "string") touches.add(`gear.${values.slot}`);
-    if (record3.kind === "replaceSkillLinks" && typeof values.group === "number") {
+    if (record4.kind === "replaceItem" && typeof values.slot === "string") touches.add(`gear.${values.slot}`);
+    if (record4.kind === "replaceSkillLinks" && typeof values.group === "number") {
       touches.add(`skills.groups.${values.group}.links`);
     }
-    if (record3.kind === "setTree") touches.add("tree.nodes");
+    if (record4.kind === "setTree") touches.add("tree.nodes");
   }
   return [...touches];
 }
@@ -74703,6 +75162,11 @@ var DEFAULT_NODE_DEPENDENCIES = {
     return { objective: normalizeObjectiveSpec(state.objective), objectiveConfirmed: true };
   },
   buildScenarios: (state) => ({ scenarios: defaultScenarios(state) }),
+  analyzeMechanics: (state) => ({ mechanicReport: analyzeBuildMechanics(state.snapshot) }),
+  inspectMechanics: (state) => {
+    if (state.mechanicReport === void 0) throw new Error("Mechanic report is required");
+    return { mechanicReport: state.mechanicReport };
+  },
   inspect: noop2,
   diagnose: noop2,
   planSearch: noop2,
@@ -74803,6 +75267,7 @@ function publicUpdate(update, state) {
   if (update.objective !== void 0) result.objective = update.objective;
   if (update.objectiveConfirmed !== void 0) result.objectiveConfirmed = update.objectiveConfirmed;
   if (update.scenarios !== void 0) result.scenarios = update.scenarios;
+  if (update.mechanicReport !== void 0) result.mechanicReport = update.mechanicReport;
   if (update.artifacts !== void 0) result.artifacts = { ...state.artifacts, ...update.artifacts };
   if (update.frontier !== void 0) result.frontier = update.frontier;
   if (update.selected !== void 0) result.selected = update.selected;
@@ -74819,6 +75284,9 @@ function validateNodeUpdate(update) {
   if (update.objective !== void 0) validated.objective = normalizeObjectiveSpec(update.objective);
   if (update.scenarios !== void 0) {
     validated.scenarios = update.scenarios.map((scenario) => ScenarioSpecSchema.parse(scenario));
+  }
+  if (update.mechanicReport !== void 0) {
+    validated.mechanicReport = BuildMechanicReportSchema.parse(update.mechanicReport);
   }
   if (update.frontier !== void 0) {
     validated.frontier = update.frontier.map((candidate) => CandidateSchema.parse(candidate));
@@ -74913,6 +75381,7 @@ var WorkflowStateAnnotation = Annotation.Root({
   objective: replace(() => void 0),
   objectiveConfirmed: replace(() => false),
   scenarios: replace(() => []),
+  mechanicReport: replace(() => void 0),
   artifacts: replace(() => ({})),
   frontier: replace(() => []),
   selected: replace(() => []),
@@ -74956,15 +75425,19 @@ var ApprovalDecisionSchema = external_exports.discriminatedUnion("decision", [
     reason: external_exports.string().optional()
   })
 ]);
+var MechanicReviewDecisionSchema = external_exports.object({
+  decision: external_exports.literal("cancel"),
+  reason: external_exports.string().optional()
+});
 function createWorkflowGraph(options = {}) {
   const dependencies = resolveNodeDependencies(options.nodes);
   const limits = resolveDeepLimits(options.limits);
   const now = options.now ?? Date.now;
   const checkpointer = options.checkpointer === void 0 ? new MemorySaver() : options.checkpointer;
-  const graph = new StateGraph(WorkflowStateAnnotation).addNode("CaptureBuild", wrapNode("CaptureBuild", dependencies.captureBuild, limits, now)).addNode("DraftObjective", wrapNode("DraftObjective", dependencies.draftObjective, limits, now)).addNode("ConfirmObjective", wrapNode("ConfirmObjective", dependencies.confirmObjective, limits, now)).addNode("BuildScenarios", wrapNode("BuildScenarios", dependencies.buildScenarios, limits, now)).addNode("Inspect", wrapNode("Inspect", dependencies.inspect, limits, now)).addNode("Diagnose", wrapNode("Diagnose", dependencies.diagnose, limits, now)).addNode("PlanSearch", wrapNode("PlanSearch", dependencies.planSearch, limits, now, { expensive: true })).addNode("SearchDomains", wrapNode("SearchDomains", dependencies.searchDomains, limits, now, { expensive: true })).addNode("MergePareto", wrapNode("MergePareto", dependencies.mergePareto, limits, now)).addNode("Verify", wrapNode("Verify", dependencies.verify, limits, now, { verify: true })).addNode("RefineSearch", wrapNode("RefineSearch", dependencies.refineSearch, limits, now, {
+  const graph = new StateGraph(WorkflowStateAnnotation).addNode("CaptureBuild", wrapNode("CaptureBuild", dependencies.captureBuild, limits, now)).addNode("DraftObjective", wrapNode("DraftObjective", dependencies.draftObjective, limits, now)).addNode("ConfirmObjective", wrapNode("ConfirmObjective", dependencies.confirmObjective, limits, now)).addNode("BuildScenarios", wrapNode("BuildScenarios", dependencies.buildScenarios, limits, now)).addNode("AnalyzeMechanics", wrapNode("AnalyzeMechanics", dependencies.analyzeMechanics, limits, now)).addNode("InspectMechanics", wrapNode("InspectMechanics", dependencies.inspectMechanics, limits, now)).addNode("MechanicGate", mechanicGateNode).addNode("Inspect", wrapNode("Inspect", dependencies.inspect, limits, now)).addNode("Diagnose", wrapNode("Diagnose", dependencies.diagnose, limits, now)).addNode("PlanSearch", wrapNode("PlanSearch", dependencies.planSearch, limits, now, { expensive: true })).addNode("SearchDomains", wrapNode("SearchDomains", dependencies.searchDomains, limits, now, { expensive: true })).addNode("MergePareto", wrapNode("MergePareto", dependencies.mergePareto, limits, now)).addNode("Verify", wrapNode("Verify", dependencies.verify, limits, now, { verify: true })).addNode("RefineSearch", wrapNode("RefineSearch", dependencies.refineSearch, limits, now, {
     expensive: true,
     refine: true
-  })).addNode("Explain", wrapNode("Explain", dependencies.explain, limits, now)).addNode("Preview", wrapNode("Preview", dependencies.preview, limits, now, { pause: true })).addNode("HumanApproval", humanApprovalNode).addNode("ApplyTransaction", transactionApplyNode).addNode("Reject", wrapNode("Reject", dependencies.reject, limits, now, { reject: true })).addNode("FinalVerify", wrapNode("FinalVerify", dependencies.finalVerify, limits, now, { final: true })).addEdge(START, "CaptureBuild").addEdge("CaptureBuild", "DraftObjective").addEdge("DraftObjective", "ConfirmObjective").addEdge("ConfirmObjective", "BuildScenarios").addEdge("BuildScenarios", "Inspect").addEdge("Inspect", "Diagnose").addEdge("Diagnose", "PlanSearch").addEdge("PlanSearch", "SearchDomains").addEdge("SearchDomains", "MergePareto").addEdge("MergePareto", "Verify").addConditionalEdges("Verify", routeAfterVerify, ["RefineSearch", "Explain"]).addEdge("RefineSearch", "SearchDomains").addEdge("Explain", "Preview").addConditionalEdges("Preview", routeAfterPreview, ["HumanApproval", "FinalVerify"]).addConditionalEdges("HumanApproval", routeAfterApproval, ["ApplyTransaction", "Reject"]).addEdge("ApplyTransaction", "FinalVerify").addEdge("Reject", "FinalVerify").addEdge("FinalVerify", END);
+  })).addNode("Explain", wrapNode("Explain", dependencies.explain, limits, now)).addNode("Preview", wrapNode("Preview", dependencies.preview, limits, now, { pause: true })).addNode("HumanApproval", humanApprovalNode).addNode("ApplyTransaction", transactionApplyNode).addNode("Reject", wrapNode("Reject", dependencies.reject, limits, now, { reject: true })).addNode("FinalVerify", wrapNode("FinalVerify", dependencies.finalVerify, limits, now, { final: true })).addEdge(START, "CaptureBuild").addEdge("CaptureBuild", "DraftObjective").addEdge("DraftObjective", "ConfirmObjective").addEdge("ConfirmObjective", "BuildScenarios").addEdge("BuildScenarios", "AnalyzeMechanics").addEdge("AnalyzeMechanics", "InspectMechanics").addEdge("InspectMechanics", "MechanicGate").addConditionalEdges("MechanicGate", routeAfterMechanicGate, ["Inspect", "FinalVerify"]).addEdge("Inspect", "Diagnose").addEdge("Diagnose", "PlanSearch").addEdge("PlanSearch", "SearchDomains").addEdge("SearchDomains", "MergePareto").addEdge("MergePareto", "Verify").addConditionalEdges("Verify", routeAfterVerify, ["RefineSearch", "Explain"]).addEdge("RefineSearch", "SearchDomains").addEdge("Explain", "Preview").addConditionalEdges("Preview", routeAfterPreview, ["HumanApproval", "FinalVerify"]).addConditionalEdges("HumanApproval", routeAfterApproval, ["ApplyTransaction", "Reject"]).addEdge("ApplyTransaction", "FinalVerify").addEdge("Reject", "FinalVerify").addEdge("FinalVerify", END);
   return graph.compile({
     checkpointer,
     name: options.name ?? "AIPathOfBuildingOptimizer"
@@ -75004,6 +75477,24 @@ function toOptimizationRun(state) {
 }
 function routeAfterVerify(state) {
   return state.stopReason === void 0 && state.needsRefinement ? "RefineSearch" : "Explain";
+}
+function routeAfterMechanicGate(state) {
+  return state.stopReason === "cancelled" || state.stopReason === "failed" ? "FinalVerify" : "Inspect";
+}
+function mechanicGateNode(state) {
+  const report = BuildMechanicReportSchema.parse(state.mechanicReport);
+  if (report.status !== "blocked") {
+    return { phase: "MechanicGate", status: "running", trace: "MechanicGate" };
+  }
+  const resumed = interrupt({ kind: "mechanic-review", runId: state.runId, report });
+  const decision = MechanicReviewDecisionSchema.parse(resumed);
+  return {
+    phase: "MechanicGate",
+    status: "cancelled",
+    stopReason: "cancelled",
+    error: decision.reason ?? "Critical Build mechanics require correction before optimization",
+    trace: "MechanicGate"
+  };
 }
 function routeAfterPreview(state) {
   return state.stopReason === "cancelled" || state.stopReason === "failed" ? "FinalVerify" : "HumanApproval";
@@ -75112,6 +75603,7 @@ var DefaultPlannerController = class {
         humanGatedTransactions: true,
         nativeLinkProbe: true,
         nativeEvidence: true,
+        mechanicAnalysis: true,
         tradeBroker: hello.capabilities.includes("tradeBroker"),
         providerConsent: this.#providerService !== void 0,
         providerConnectionTest: this.#providerService !== void 0 && hello.capabilities.includes("providerConnectionTest"),
@@ -75251,13 +75743,13 @@ var DefaultPlannerController = class {
     if (pending === void 0 || pending.consentKey !== parsed.consentKey || pending.payloadHash !== parsed.payloadHash) {
       throw new JsonRpcError(JsonRpcErrorCode.Conflict, "Consent preview is missing or stale");
     }
-    const record3 = await this.#providerService.grantConsent(
+    const record4 = await this.#providerService.grantConsent(
       parsed.providerId,
       parsed.consentKey,
       pending.dataCategories
     );
     this.#pendingConsent.delete(parsed.providerId);
-    return record3;
+    return record4;
   }
   async revokeConsent(params) {
     if (this.#providerService === void 0) throw providerUnavailable();
@@ -75307,6 +75799,12 @@ var DefaultPlannerController = class {
     createDefaultCoverageRegistry().assertComplete(snapshot.gameplayFieldPaths);
     this.#store.saveSnapshot(snapshot);
     return { snapshotFingerprint: snapshot.fingerprint, fingerprint: snapshot.fingerprint, captured: true };
+  }
+  analyzeBuild(params) {
+    const { snapshotFingerprint } = BuildAnalyzeParamsSchema.parse(params);
+    const snapshot = this.#store.getSnapshot(snapshotFingerprint);
+    if (snapshot === void 0) throw notFound(`Build snapshot not found: ${snapshotFingerprint}`);
+    return analyzeBuildMechanics(snapshot);
   }
   startRun(params, context2) {
     if (this.#closed) throw new JsonRpcError(JsonRpcErrorCode.InternalError, "Planner controller is closed");
@@ -75437,6 +75935,13 @@ var DefaultPlannerController = class {
         }
         operationSignal.throwIfAborted();
         const run2 = toOptimizationRun(output2);
+        if (output2.mechanicReport?.status === "blocked") {
+          const paused = { ...run2, status: "paused", updatedAt: (/* @__PURE__ */ new Date()).toISOString() };
+          this.#store.saveRun(paused);
+          context2.notify({ method: "run.mechanicsReady", params: { runId: run2.id, report: output2.mechanicReport } });
+          context2.notify({ method: "run.awaitingMechanicReview", params: { runId: run2.id, report: output2.mechanicReport } });
+          return { runId: run2.id, status: "paused", candidates: run2.selected, mechanicReport: output2.mechanicReport };
+        }
         this.#store.saveRun(run2);
         return { runId: run2.id, status: run2.status, candidates: run2.selected };
       }
@@ -75462,6 +75967,10 @@ var DefaultPlannerController = class {
       const state = output;
       const run = toOptimizationRun(state);
       this.#store.saveRun(run);
+      if (resume.decision === "cancel") {
+        await this.#releaseActive(run.id);
+        return { runId: run.id, status: run.status };
+      }
       if (resume.decision === "reject") {
         context2.notify({ method: "run.completed", params: { runId: run.id, candidates: run.selected } });
         await this.#releaseActive(run.id);
@@ -75620,6 +76129,15 @@ var DefaultPlannerController = class {
         return;
       }
       const run = toOptimizationRun(state);
+      if (state.mechanicReport !== void 0) {
+        notify({ method: "run.mechanicsReady", params: { runId, report: state.mechanicReport } });
+        if (state.mechanicReport.status === "blocked") {
+          const paused = { ...run, status: "paused", updatedAt: (/* @__PURE__ */ new Date()).toISOString() };
+          this.#store.saveRun(paused);
+          notify({ method: "run.awaitingMechanicReview", params: { runId, report: state.mechanicReport } });
+          return;
+        }
+      }
       this.#store.saveRun(run);
       if (run.status === "failed") {
         notify({ method: "run.failed", params: { runId, error: run.error ?? "Optimization failed" } });
@@ -75949,8 +76467,26 @@ var DefaultPlannerController = class {
         ruleset: context2.snapshot.ruleset,
         metrics: context2.snapshot.metrics,
         catalogEntries: context2.snapshot.contentCatalog?.length ?? 0,
-        graph: context2.snapshot.buildGraph
+        graph: context2.snapshot.buildGraph,
+        mechanics: analyzeBuildMechanics(context2.snapshot)
       }),
+      trace_mechanic: (args, context2) => {
+        const report = analyzeBuildMechanics(context2.snapshot);
+        const nodes = report.graph.nodes.filter(({ id }) => id === args.nodeId);
+        const edges = report.graph.edges.filter(({ from, to }) => from === args.nodeId || to === args.nodeId);
+        return { nodes, edges };
+      },
+      list_findings: (args, context2) => {
+        const findings = analyzeBuildMechanics(context2.snapshot).findings;
+        return args.severity === void 0 ? findings : findings.filter(({ severity }) => severity === args.severity);
+      },
+      describe_modifier: (args, context2) => {
+        for (const item of context2.snapshot.mechanicProjection.items) {
+          const modifier = item.modifierLines.find(({ id }) => id === args.modifierId);
+          if (modifier !== void 0) return { item: { id: item.id, name: item.name, active: item.active }, modifier };
+        }
+        return { error: "modifier_not_found" };
+      },
       diagnose_build: (_args, context2) => ({
         goals: context2.objective.goals,
         hardConstraints: context2.objective.hardConstraints,
@@ -76412,10 +76948,16 @@ async function evaluateCandidateSet(runId, snapshot, candidates, scenarios, evid
   }));
   const evaluations = await pool.evaluateBatch(jobs, signal);
   const byId = new Map(candidates.map((candidate) => [candidate.id, candidate]));
-  return evaluations.map((evaluation) => {
+  return evaluations.flatMap((evaluation) => {
     const candidate = byId.get(evaluation.candidateId);
     if (candidate === void 0) throw new Error(`Worker returned unknown candidate: ${evaluation.candidateId}`);
-    return {
+    const mechanicDiff = evaluation.candidateProjection === void 0 ? void 0 : diffMechanics(
+      analyzeBuildMechanics(snapshot),
+      snapshot.mechanicProjection,
+      evaluation.candidateProjection
+    );
+    if (mechanicDiff?.breaksCriticalMechanism === true) return [];
+    return [{
       ...candidate,
       metricsByScenario: evaluation.metricsByScenario,
       metadata: {
@@ -76431,9 +76973,13 @@ async function evaluateCandidateSet(runId, snapshot, candidates, scenarios, evid
         },
         ...evaluation.resolvedEvidence === void 0 ? {} : {
           resolvedEvidence: evaluation.resolvedEvidence
+        },
+        ...evaluation.candidateProjection === void 0 || mechanicDiff === void 0 ? {} : {
+          candidateProjection: evaluation.candidateProjection,
+          mechanicDiff
         }
       }
-    };
+    }];
   });
 }
 function assertScenarioMetricsMatch(expectedByScenario, actualByScenario) {
@@ -76482,7 +77028,8 @@ function publicCandidate(candidate, label, objective, peakMetrics, evidence2) {
     peakScenarioMetrics: exactScenarioMetrics(peakMetrics),
     actions: [...candidate.actions],
     evidence: nativeEvidence ?? [...evidence2],
-    hardConstraintsSatisfied: true
+    hardConstraintsSatisfied: true,
+    ...metadata["mechanicDiff"] === void 0 ? {} : { mechanicDiff: MechanicDiffSchema.parse(metadata["mechanicDiff"]) }
   };
 }
 function selectedCandidates(result, frontier, objective) {
@@ -76560,10 +77107,10 @@ function providerUnavailable() {
 function isRecord3(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
-function normalizeArrayField(record3, key) {
-  const value = record3[key];
+function normalizeArrayField(record4, key) {
+  const value = record4[key];
   if (isRecord3(value) && Object.keys(value).length === 0) {
-    record3[key] = [];
+    record4[key] = [];
   }
 }
 function canonicalScenario(value) {
@@ -76672,6 +77219,7 @@ function requestIdFrom(value) {
 var SUPPORTED_METHODS = /* @__PURE__ */ new Set([
   "hello",
   "build.capture",
+  "build.analyze",
   "run.start",
   "run.stream",
   "run.cancel",
@@ -76838,6 +77386,8 @@ var RpcRouter = class {
         return this.bind(this.controller.hello, parseParams(HelloParamsSchema));
       case "build.capture":
         return this.bind(this.controller.captureBuild, parseParams(BuildCaptureParamsSchema));
+      case "build.analyze":
+        return this.bind(this.controller.analyzeBuild, parseParams(BuildAnalyzeParamsSchema));
       case "run.start":
         return this.bind(this.controller.startRun, parseParams(RunStartParamsSchema));
       case "run.stream":

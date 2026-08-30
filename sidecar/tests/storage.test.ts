@@ -1,3 +1,4 @@
+import { EMPTY_PROJECTION_FINGERPRINT, emptyModifierProjection } from "./mechanicsFixture.js";
 import { describe, expect, it } from "vitest";
 import { SidecarDatabase } from "../src/storage/database.js";
 
@@ -5,7 +6,9 @@ describe("SidecarDatabase", () => {
   it("round-trips snapshots and cached evaluations", () => {
     const store = new SidecarDatabase(":memory:");
     const snapshot = {
-      schemaVersion: 2 as const,
+      schemaVersion: 3 as const,
+      mechanicProjection: emptyModifierProjection(),
+      mechanicProjectionFingerprint: EMPTY_PROJECTION_FINGERPRINT,
       xml: "<PathOfBuilding/>",
       fingerprint: "build:one",
       engineVersion: "test",
@@ -26,7 +29,9 @@ describe("SidecarDatabase", () => {
   it("persists a selected candidate that overlaps the frontier id", () => {
     const store = new SidecarDatabase(":memory:");
     const snapshot = {
-      schemaVersion: 2 as const,
+      schemaVersion: 3 as const,
+      mechanicProjection: emptyModifierProjection(),
+      mechanicProjectionFingerprint: EMPTY_PROJECTION_FINGERPRINT,
       xml: "<PathOfBuilding/>",
       fingerprint: "build:overlap",
       engineVersion: "test",
@@ -39,7 +44,7 @@ describe("SidecarDatabase", () => {
     };
     store.saveSnapshot(snapshot);
     const candidate = {
-      schemaVersion: 2 as const,
+      schemaVersion: 3 as const,
       id: "same-candidate",
       label: "Balanced" as const,
       summary: "Same selected and frontier candidate",
@@ -54,12 +59,12 @@ describe("SidecarDatabase", () => {
       actions: [], evidence: [], hardConstraintsSatisfied: true,
     };
     store.saveRun({
-      schemaVersion: 2,
+      schemaVersion: 3,
       id: "run:overlap",
       buildFingerprint: snapshot.fingerprint,
       status: "paused",
       objective: {
-        schemaVersion: 2,
+        schemaVersion: 3,
         primaryScenario: "mapping",
         scenarioWeights: { mapping: 0.55, standardBoss: 0.15, pinnacle: 0.15, uber: 0.15 },
         locks: { class: true, ascendancy: true, mainSkill: true, fields: [] },

@@ -1,7 +1,7 @@
 import { z } from "zod";
 
-export const SCHEMA_VERSION = 2 as const;
-export const PROTOCOL_VERSION = 3 as const;
+export const SCHEMA_VERSION = 3 as const;
+export const PROTOCOL_VERSION = 4 as const;
 
 export const CapabilitySchema = z.enum([
   "nativeLinkProbe",
@@ -11,6 +11,7 @@ export const CapabilitySchema = z.enum([
   "providerConnectionTest",
   "providerCompatibility",
   "objectiveDraft",
+  "mechanicAnalysis",
 ]);
 export type Capability = z.infer<typeof CapabilitySchema>;
 
@@ -148,6 +149,120 @@ export const ContentCatalogEntrySchema = z.object({
 });
 export type ContentCatalogEntry = z.infer<typeof ContentCatalogEntrySchema>;
 
+export const ModifierResolutionSchema = z.enum(["exact", "inferred", "unknown"]);
+export const ModifierParseStatusSchema = z.enum(["parsed", "partial", "unknown", "disabled"]);
+export const ItemLegalityStatusSchema = z.enum(["valid", "invalid", "unverifiable"]);
+
+export const ModifierProvenanceSchema = z.object({
+  sourceFamily: z.string().min(1),
+  sourceTable: z.string().min(1).optional(),
+  sourceModId: z.string().min(1).optional(),
+  donorItem: z.string().min(1).optional(),
+  resolution: ModifierResolutionSchema,
+  evidence: z.array(z.string().min(1)).default([]),
+  alternatives: z.array(z.string().min(1)).max(8).optional(),
+});
+
+export const ParsedModifierSchema = z.object({
+  name: z.string().min(1),
+  type: z.string().min(1),
+  classification: z.enum(["numeric", "boolean", "structured", "unknown"]),
+  value: z.unknown().optional(),
+  flags: z.number().int(),
+  keywordFlags: z.number().int(),
+  source: z.string().min(1).optional(),
+  tags: z.array(z.unknown()).default([]),
+});
+
+export const ModifierLineProjectionSchema = z.object({
+  id: z.string().min(1),
+  section: z.enum(["buff", "enchant", "scourge", "classRequirement", "implicit", "explicit", "crucible"]),
+  ordinal: z.number().int().positive(),
+  rawText: z.string(),
+  active: z.boolean(),
+  disabled: z.boolean(),
+  flags: z.array(z.string().min(1)).default([]),
+  modTags: z.array(z.string()).default([]),
+  modId: z.string().min(1).optional(),
+  newModId: z.string().min(1).optional(),
+  range: z.union([z.number(), z.array(z.number())]).optional(),
+  corruptedRange: z.number().optional(),
+  valueScalar: z.number().optional(),
+  extra: z.string().optional(),
+  parseStatus: ModifierParseStatusSchema,
+  provenance: ModifierProvenanceSchema,
+  parsedMods: z.array(ParsedModifierSchema).default([]),
+});
+export type ModifierLineProjection = z.infer<typeof ModifierLineProjectionSchema>;
+
+export const ItemLegalityFindingSchema = z.object({
+  status: z.enum(["invalid", "unverifiable"]),
+  code: z.string().min(1),
+  reason: z.string().min(1),
+  lineId: z.string().min(1).optional(),
+});
+
+export const ItemLegalitySchema = z.object({
+  version: z.number().int().positive(),
+  status: ItemLegalityStatusSchema,
+  findings: z.array(ItemLegalityFindingSchema).default([]),
+});
+
+export const ModifierItemProjectionSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().optional(),
+  title: z.string().optional(),
+  baseName: z.string().optional(),
+  type: z.string().optional(),
+  rarity: z.string().optional(),
+  itemLevel: z.number().optional(),
+  quality: z.number().optional(),
+  equipped: z.boolean(),
+  active: z.boolean(),
+  references: z.array(z.object({
+    itemSetId: z.string().min(1),
+    slot: z.string().min(1),
+    active: z.boolean(),
+    nodeId: z.union([z.string(), z.number()]).optional(),
+  })).default([]),
+  state: z.record(z.string(), z.boolean()).default({}),
+  legality: ItemLegalitySchema,
+  modifierLines: z.array(ModifierLineProjectionSchema).default([]),
+});
+
+export const ModifierProjectionSchema = z.object({
+  version: z.number().int().positive(),
+  inventory: z.object({
+    version: z.number().int().positive(),
+    sections: z.array(z.string().min(1)),
+    lineFlags: z.array(z.string().min(1)),
+    sourceFamilies: z.array(z.object({
+      name: z.string().min(1),
+      modifierCount: z.number().int().nonnegative(),
+    })),
+  }),
+  items: z.array(ModifierItemProjectionSchema),
+  modifierCount: z.number().int().nonnegative(),
+  activeModifierCount: z.number().int().nonnegative(),
+  unresolvedModifierCount: z.number().int().nonnegative(),
+  descriptions: z.object({
+    entries: z.array(z.object({
+      sourceTable: z.string().min(1),
+      modId: z.string().min(1),
+      type: z.string().optional(),
+      group: z.string().optional(),
+      affix: z.string().optional(),
+      level: z.number().optional(),
+      lines: z.array(z.string()).default([]),
+      modTags: z.array(z.string()).default([]),
+      donorItem: z.string().optional(),
+    })).default([]),
+    truncated: z.boolean(),
+  }),
+  fingerprint: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+});
+export type ModifierProjection = z.infer<typeof ModifierProjectionSchema>;
+
 export const BuildGraphSchema = z.object({
   nodes: z.array(
     z.object({
@@ -189,10 +304,60 @@ export const BuildSnapshotSchema = z.object({
   config: z.record(z.string(), z.unknown()).default({}),
   buildState: z.record(z.string(), z.unknown()).default({}),
   gameplayFieldPaths: z.array(z.string().min(1)).default([]),
+  mechanicProjection: ModifierProjectionSchema,
+  mechanicProjectionFingerprint: z.string().regex(/^sha256:[a-f0-9]{64}$/),
   contentCatalog: z.array(ContentCatalogEntrySchema).optional(),
   buildGraph: BuildGraphSchema.optional(),
 });
 export type BuildSnapshot = z.infer<typeof BuildSnapshotSchema>;
+
+export const MechanicFindingSchema = z.object({
+  id: z.string().min(1),
+  severity: z.enum(["info", "warning", "blocker"]),
+  code: z.string().min(1),
+  message: z.string().min(1),
+  itemId: z.string().min(1).optional(),
+  modifierLineId: z.string().min(1).optional(),
+  critical: z.boolean().default(false),
+  evidence: z.array(z.string().min(1)).default([]),
+});
+export type MechanicFinding = z.infer<typeof MechanicFindingSchema>;
+
+export const MechanicUnderstandingSchema = z.object({
+  mainSkillGroup: z.number().int().positive(),
+  mainSkills: z.array(z.object({
+    id: z.string().min(1),
+    name: z.string().min(1),
+    sourceItemId: z.string().min(1).optional(),
+    sourceModifierLineId: z.string().min(1).optional(),
+  })).default([]),
+  criticalNodeIds: z.array(z.string().min(1)).default([]),
+  verifiedChains: z.array(z.array(z.string().min(1))).default([]),
+});
+
+export const BuildMechanicReportSchema = z.object({
+  schemaVersion: z.literal(SCHEMA_VERSION),
+  snapshotFingerprint: z.string().min(1),
+  projectionFingerprint: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+  analysisFingerprint: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+  status: z.enum(["complete", "warning", "blocked"]),
+  summary: z.string().min(1),
+  understanding: MechanicUnderstandingSchema,
+  findings: z.array(MechanicFindingSchema),
+  graph: BuildGraphSchema,
+});
+export type BuildMechanicReport = z.infer<typeof BuildMechanicReportSchema>;
+
+export const MechanicDiffSchema = z.object({
+  baseProjectionFingerprint: z.string().min(1),
+  candidateProjectionFingerprint: z.string().min(1),
+  addedModifierLineIds: z.array(z.string()).default([]),
+  removedModifierLineIds: z.array(z.string()).default([]),
+  changedModifierLineIds: z.array(z.string()).default([]),
+  breaksCriticalMechanism: z.boolean(),
+  findings: z.array(MechanicFindingSchema).default([]),
+});
+export type MechanicDiff = z.infer<typeof MechanicDiffSchema>;
 
 export const ScenarioSpecSchema = z.object({
   id: ScenarioIdSchema,
@@ -401,6 +566,7 @@ export const CandidateSchema = z.object({
   actions: z.array(BuildActionSchema),
   evidence: z.array(ConditionEvidenceSchema).default([]),
   hardConstraintsSatisfied: z.boolean(),
+  mechanicDiff: MechanicDiffSchema.optional(),
   score: z.number().finite().optional(),
 });
 export type Candidate = z.infer<typeof CandidateSchema>;

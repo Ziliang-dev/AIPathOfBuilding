@@ -25,7 +25,8 @@ commit before publishing a release.
 | Capability | Current evidence and boundary |
 | --- | --- |
 | Planner objective UI | Goals, Scenario weights, hard constraints, Budget, Locks, candidate sources, exact Trade realm/league, and per-run confirmation are wired in `AIPlannerTab.lua` |
-| Protocol v3 | Schema version 2/protocol version 3, authenticated bidirectional loopback JSON-RPC, cancellation, timeouts, notifications, reverse Trade requests, provider compatibility negotiation, and checkpoint reconnect are aligned across TypeScript and Lua |
+| Protocol v4 | Schema version 3/protocol version 4, authenticated bidirectional loopback JSON-RPC, full PoB modifier projection, `build.analyze`, mechanic-report notifications/gate, cancellation, timeouts, reverse Trade requests, provider compatibility negotiation, and checkpoint reconnect are aligned across TypeScript and Lua |
+| Modifier and mechanism understanding | PoB-authored projection covers all seven item modifier sections and canonical line flags; generic parsed Mod values, Vestigial provenance, active/inactive item evidence, conservative legality, main-skill source tracing, LLM read-only inspection tools, and critical blocker gating are implemented |
 | Build capture and coverage | Sanitized XML, fingerprint, versions, metrics, config, gameplay paths, typed catalog, and graph validation cross the boundary; rollback XML remains local to the Transaction path |
 | Scenario and Condition Evidence | Current diagnostic plus four Sustainable and four Peak Scenarios, generic resolver rules, native source/uptime probes, conflict handling, and Candidate/Scenario proof fingerprints are connected |
 | Native link compatibility | Every proposed link Candidate is probed through PoB's native skill/support matrix; incomplete proof, unsupported gems, disabled/over-capacity links, stale Candidate fingerprints, and Apply-time proof drift fail closed |

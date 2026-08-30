@@ -1,3 +1,4 @@
+import { EMPTY_PROJECTION_FINGERPRINT, emptyModifierProjection } from "./mechanicsFixture.js";
 import { spawn, type ChildProcess } from "node:child_process";
 import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import net, { type Socket } from "node:net";
@@ -144,7 +145,9 @@ describe("packaged CLI", () => {
     expect(hello).toMatchObject({ protocolVersion: PROTOCOL_VERSION });
 
     const snapshot = {
-      schemaVersion: 2,
+      schemaVersion: 3,
+      mechanicProjection: emptyModifierProjection(),
+      mechanicProjectionFingerprint: EMPTY_PROJECTION_FINGERPRINT,
       xml: "<PathOfBuilding><Build level=\"90\"/><Config/><Skills/><Items/><Tree/><Party/></PathOfBuilding>",
       fingerprint: "smoke-build",
       engineVersion: "smoke-engine",
@@ -182,7 +185,7 @@ describe("packaged CLI", () => {
     const started = await client.request("run.start", {
       snapshotFingerprint: snapshot.fingerprint,
       objective: {
-        schemaVersion: 2,
+        schemaVersion: 3,
         primaryScenario: "mapping",
         scenarioWeights: { mapping: 0.55, standardBoss: 0.15, pinnacle: 0.15, uber: 0.15 },
         locks: { class: true, ascendancy: true, mainSkill: true, fields: [] },

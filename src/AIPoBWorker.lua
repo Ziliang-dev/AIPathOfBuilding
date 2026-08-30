@@ -67,6 +67,7 @@ local Scenario = require("Modules.AIPoB.Scenario")
 local Snapshot = require("Modules.AIPoB.Snapshot")
 local NativeLinkProbe = require("Modules.AIPoB.NativeLinkProbe")
 local NativeEvidence = require("Modules.AIPoB.NativeEvidence")
+local ModifierProjection = require("Modules.AIPoB.ModifierProjection")
 
 local function finiteMetrics(metrics)
 	local result = { }
@@ -99,6 +100,8 @@ local function evaluate(job)
 	local canonicalCandidateXml, sanitizeErr = Snapshot.SanitizeXML(candidateXml)
 	if not canonicalCandidateXml then error("candidate snapshot sanitization failed: " .. tostring(sanitizeErr)) end
 	local candidateFingerprint = Snapshot.Fingerprint(canonicalCandidateXml)
+	local candidateProjection, projectionErr = ModifierProjection.Capture(build)
+	if not candidateProjection then error("candidate modifier projection failed: " .. tostring(projectionErr)) end
 	if operation == "probe" then
 		local linkProbe, linkErr = NativeLinkProbe.Extract(build, payload.probeOptions)
 		if not linkProbe then error(linkErr) end
@@ -178,6 +181,7 @@ local function evaluate(job)
 		candidateId = job.candidateId,
 		operation = "evaluate",
 		candidateFingerprint = candidateFingerprint,
+		candidateProjection = candidateProjection,
 		metricsByScenario = metricsByScenario,
 		diagnostics = { },
 	}

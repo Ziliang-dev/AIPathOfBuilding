@@ -4,6 +4,7 @@ import { z } from "zod";
 import type {
   BuildAction,
   BuildSnapshot,
+  BuildMechanicReport,
   Candidate,
   CandidateLabel,
   ConditionEvidence,
@@ -19,13 +20,16 @@ import type {
 import {
   DomainGraph,
   createDefaultCoverageRegistry,
+  analyzeBuildMechanics,
   createDefaultMechanicAdapterRegistry,
+  diffMechanics,
   resolveConditionEvidence,
   type ConditionClaimInput,
 } from "./domain/index.js";
 import {
   BuildActionSchema,
   ConditionEvidenceSchema,
+  MechanicDiffSchema,
   PROTOCOL_VERSION,
   SCHEMA_VERSION,
   normalizeObjectiveSpec,
@@ -44,6 +48,7 @@ import {
   ConsentPreviewParamsSchema,
   ConsentRevokeParamsSchema,
   BuildCaptureParamsSchema,
+  BuildAnalyzeParamsSchema,
   CandidatePreviewParamsSchema,
   HelloParamsSchema,
   ObjectiveDraftParamsSchema,
@@ -191,6 +196,7 @@ export class DefaultPlannerController implements PlannerController {
         humanGatedTransactions: true,
         nativeLinkProbe: true,
         nativeEvidence: true,
+        mechanicAnalysis: true,
         tradeBroker: hello.capabilities.includes("tradeBroker"),
         providerConsent: this.#providerService !== undefined,
         providerConnectionTest: this.#providerService !== undefined
@@ -418,6 +424,13 @@ export class DefaultPlannerController implements PlannerController {
     return { snapshotFingerprint: snapshot.fingerprint, fingerprint: snapshot.fingerprint, captured: true };
   }
 
+  analyzeBuild(params: RpcParams): BuildMechanicReport {
+    const { snapshotFingerprint } = BuildAnalyzeParamsSchema.parse(params);
+    const snapshot = this.#store.getSnapshot(snapshotFingerprint);
+    if (snapshot === undefined) throw notFound(`Build snapshot not found: ${snapshotFingerprint}`);
+    return analyzeBuildMechanics(snapshot);
+  }
+
   startRun(params: RpcParams, context: PlannerControllerContext): unknown {
     if (this.#closed) throw new JsonRpcError(JsonRpcErrorCode.InternalError, "Planner controller is closed");
     this.#store.prune();
@@ -557,6 +570,13 @@ export class DefaultPlannerController implements PlannerController {
       }
       operationSignal.throwIfAborted();
       const run = toOptimizationRun(output);
+      if (output.mechanicReport?.status === "blocked") {
+        const paused: OptimizationRun = { ...run, status: "paused", updatedAt: new Date().toISOString() };
+        this.#store.saveRun(paused);
+        context.notify({ method: "run.mechanicsReady", params: { runId: run.id, report: output.mechanicReport } });
+        context.notify({ method: "run.awaitingMechanicReview", params: { runId: run.id, report: output.mechanicReport } });
+        return { runId: run.id, status: "paused", candidates: run.selected, mechanicReport: output.mechanicReport };
+      }
       this.#store.saveRun(run);
       return { runId: run.id, status: run.status, candidates: run.selected };
     }
@@ -584,6 +604,10 @@ export class DefaultPlannerController implements PlannerController {
     const run = toOptimizationRun(state);
     this.#store.saveRun(run);
 
+    if (resume.decision === "cancel") {
+      await this.#releaseActive(run.id);
+      return { runId: run.id, status: run.status };
+    }
     if (resume.decision === "reject") {
       context.notify({ method: "run.completed", params: { runId: run.id, candidates: run.selected } });
       await this.#releaseActive(run.id);
@@ -754,6 +778,15 @@ export class DefaultPlannerController implements PlannerController {
         return;
       }
       const run = toOptimizationRun(state);
+      if (state.mechanicReport !== undefined) {
+        notify({ method: "run.mechanicsReady", params: { runId, report: state.mechanicReport } });
+        if (state.mechanicReport.status === "blocked") {
+          const paused: OptimizationRun = { ...run, status: "paused", updatedAt: new Date().toISOString() };
+          this.#store.saveRun(paused);
+          notify({ method: "run.awaitingMechanicReview", params: { runId, report: state.mechanicReport } });
+          return;
+        }
+      }
       this.#store.saveRun(run);
       if (run.status === "failed") {
         notify({ method: "run.failed", params: { runId, error: run.error ?? "Optimization failed" } });
@@ -1133,7 +1166,25 @@ export class DefaultPlannerController implements PlannerController {
         metrics: context.snapshot.metrics,
         catalogEntries: context.snapshot.contentCatalog?.length ?? 0,
         graph: context.snapshot.buildGraph,
+        mechanics: analyzeBuildMechanics(context.snapshot),
       }),
+      trace_mechanic: (args, context) => {
+        const report = analyzeBuildMechanics(context.snapshot);
+        const nodes = report.graph.nodes.filter(({ id }) => id === args.nodeId);
+        const edges = report.graph.edges.filter(({ from, to }) => from === args.nodeId || to === args.nodeId);
+        return { nodes, edges };
+      },
+      list_findings: (args, context) => {
+        const findings = analyzeBuildMechanics(context.snapshot).findings;
+        return args.severity === undefined ? findings : findings.filter(({ severity }) => severity === args.severity);
+      },
+      describe_modifier: (args, context) => {
+        for (const item of context.snapshot.mechanicProjection.items) {
+          const modifier = item.modifierLines.find(({ id }) => id === args.modifierId);
+          if (modifier !== undefined) return { item: { id: item.id, name: item.name, active: item.active }, modifier };
+        }
+        return { error: "modifier_not_found" };
+      },
       diagnose_build: (_args, context) => ({
         goals: context.objective.goals,
         hardConstraints: context.objective.hardConstraints,
@@ -1669,10 +1720,18 @@ async function evaluateCandidateSet(
   }));
   const evaluations = await pool.evaluateBatch(jobs, signal);
   const byId = new Map(candidates.map((candidate) => [candidate.id, candidate]));
-  return evaluations.map((evaluation) => {
+  return evaluations.flatMap((evaluation) => {
     const candidate = byId.get(evaluation.candidateId);
     if (candidate === undefined) throw new Error(`Worker returned unknown candidate: ${evaluation.candidateId}`);
-    return {
+    const mechanicDiff = evaluation.candidateProjection === undefined
+      ? undefined
+      : diffMechanics(
+          analyzeBuildMechanics(snapshot),
+          snapshot.mechanicProjection,
+          evaluation.candidateProjection,
+        );
+    if (mechanicDiff?.breaksCriticalMechanism === true) return [];
+    return [{
       ...candidate,
       metricsByScenario: evaluation.metricsByScenario,
       metadata: {
@@ -1689,8 +1748,12 @@ async function evaluateCandidateSet(
         ...(evaluation.resolvedEvidence === undefined ? {} : {
           resolvedEvidence: evaluation.resolvedEvidence,
         }),
+        ...(evaluation.candidateProjection === undefined || mechanicDiff === undefined ? {} : {
+          candidateProjection: evaluation.candidateProjection,
+          mechanicDiff,
+        }),
       },
-    };
+    }];
   });
 }
 
@@ -1767,6 +1830,9 @@ function publicCandidate(
     actions: [...candidate.actions],
     evidence: nativeEvidence ?? [...evidence],
     hardConstraintsSatisfied: true,
+    ...(metadata["mechanicDiff"] === undefined
+      ? {}
+      : { mechanicDiff: MechanicDiffSchema.parse(metadata["mechanicDiff"]) }),
   };
 }
 

@@ -1,3 +1,4 @@
+import { EMPTY_PROJECTION_FINGERPRINT, emptyModifierProjection } from "./mechanicsFixture.js";
 import { MemorySaver } from "@langchain/langgraph";
 import { describe, expect, it, vi } from "vitest";
 import { DefaultPlannerController } from "../src/plannerController.js";
@@ -14,7 +15,7 @@ import { MemoryPlannerStore } from "../src/storage/index.js";
 import { InMemoryWorkerPool } from "../src/worker/index.js";
 
 const objective = {
-  schemaVersion: 2 as const,
+  schemaVersion: 3 as const,
   primaryScenario: "mapping" as const,
   scenarioWeights: { mapping: 0.55, standardBoss: 0.15, pinnacle: 0.15, uber: 0.15 },
   locks: { class: true, ascendancy: true, mainSkill: true, fields: [] },
@@ -99,7 +100,9 @@ describe("DefaultPlannerController", () => {
   it("fails closed on Trade and can cancel while worker startup is pending", async () => {
     const store = new MemoryPlannerStore();
     store.saveSnapshot({
-      schemaVersion: 2,
+      schemaVersion: 3,
+      mechanicProjection: emptyModifierProjection(),
+      mechanicProjectionFingerprint: EMPTY_PROJECTION_FINGERPRINT,
       xml: "<PathOfBuilding/>",
       fingerprint: "pending-build",
       engineVersion: "test",
@@ -155,7 +158,9 @@ describe("DefaultPlannerController", () => {
   it("persists the live Pareto frontier when cancelled during search", async () => {
     const store = new MemoryPlannerStore();
     store.saveSnapshot({
-      schemaVersion: 2,
+      schemaVersion: 3,
+      mechanicProjection: emptyModifierProjection(),
+      mechanicProjectionFingerprint: EMPTY_PROJECTION_FINGERPRINT,
       xml: "<PathOfBuilding/>",
       fingerprint: "cancel-search-build",
       engineVersion: "test",
@@ -236,7 +241,9 @@ describe("DefaultPlannerController", () => {
   it("emits run.failed instead of run.completed when workflow search fails", async () => {
     const store = new MemoryPlannerStore();
     store.saveSnapshot({
-      schemaVersion: 2,
+      schemaVersion: 3,
+      mechanicProjection: emptyModifierProjection(),
+      mechanicProjectionFingerprint: EMPTY_PROJECTION_FINGERPRINT,
       xml: "<PathOfBuilding/>",
       fingerprint: "failed-build",
       engineVersion: "test",
@@ -270,7 +277,9 @@ describe("DefaultPlannerController", () => {
   it("persists startup failures and refuses to resume terminal runs", async () => {
     const store = new MemoryPlannerStore();
     store.saveSnapshot({
-      schemaVersion: 2,
+      schemaVersion: 3,
+      mechanicProjection: emptyModifierProjection(),
+      mechanicProjectionFingerprint: EMPTY_PROJECTION_FINGERPRINT,
       xml: "<PathOfBuilding/>",
       fingerprint: "startup-failed-build",
       engineVersion: "test",
@@ -307,7 +316,7 @@ describe("DefaultPlannerController", () => {
     const store = new MemoryPlannerStore();
     const now = new Date().toISOString();
     store.saveRun({
-      schemaVersion: 2,
+      schemaVersion: 3,
       id: "completed-run",
       buildFingerprint: "completed-build",
       status: "completed",
@@ -352,7 +361,9 @@ describe("DefaultPlannerController", () => {
   it("allows budgeted catalog-backed unique sources while Trade stays fail-closed", async () => {
     const store = new MemoryPlannerStore();
     store.saveSnapshot({
-      schemaVersion: 2,
+      schemaVersion: 3,
+      mechanicProjection: emptyModifierProjection(),
+      mechanicProjectionFingerprint: EMPTY_PROJECTION_FINGERPRINT,
       xml: "<PathOfBuilding/>",
       fingerprint: "catalog-source-build",
       engineVersion: "test",
@@ -403,7 +414,9 @@ describe("DefaultPlannerController", () => {
   it("queries Trade dynamically and emits a fingerprint-bound importAndEquip candidate", async () => {
     const store = new MemoryPlannerStore();
     store.saveSnapshot({
-      schemaVersion: 2,
+      schemaVersion: 3,
+      mechanicProjection: emptyModifierProjection(),
+      mechanicProjectionFingerprint: EMPTY_PROJECTION_FINGERPRINT,
       xml: "<PathOfBuilding/>",
       fingerprint: "trade-build",
       engineVersion: "test",
@@ -493,7 +506,9 @@ describe("DefaultPlannerController", () => {
   it("injects the consent-gated OpenAI-compatible model into workflow nodes", async () => {
     const store = new MemoryPlannerStore();
     store.saveSnapshot({
-      schemaVersion: 2,
+      schemaVersion: 3,
+      mechanicProjection: emptyModifierProjection(),
+      mechanicProjectionFingerprint: EMPTY_PROJECTION_FINGERPRINT,
       xml: "<PathOfBuilding/>",
       fingerprint: "provider-build",
       engineVersion: "test",
@@ -584,7 +599,9 @@ describe("DefaultPlannerController", () => {
   it("re-evaluates all sustainable scenarios in a fresh pool before Apply", async () => {
     const store = new MemoryPlannerStore();
     store.saveSnapshot({
-      schemaVersion: 2,
+      schemaVersion: 3,
+      mechanicProjection: emptyModifierProjection(),
+      mechanicProjectionFingerprint: EMPTY_PROJECTION_FINGERPRINT,
       xml: "<PathOfBuilding/>",
       fingerprint: "apply-verify-build",
       engineVersion: "test",
@@ -637,7 +654,9 @@ describe("DefaultPlannerController", () => {
   it("aborts Apply verification with the request and emits no transaction", async () => {
     const store = new MemoryPlannerStore();
     store.saveSnapshot({
-      schemaVersion: 2,
+      schemaVersion: 3,
+      mechanicProjection: emptyModifierProjection(),
+      mechanicProjectionFingerprint: EMPTY_PROJECTION_FINGERPRINT,
       xml: "<PathOfBuilding/>",
       fingerprint: "apply-timeout-build",
       engineVersion: "test",
@@ -705,7 +724,9 @@ describe("DefaultPlannerController", () => {
   it("aborts worker startup when a resumed request expires", async () => {
     const store = new MemoryPlannerStore();
     store.saveSnapshot({
-      schemaVersion: 2,
+      schemaVersion: 3,
+      mechanicProjection: emptyModifierProjection(),
+      mechanicProjectionFingerprint: EMPTY_PROJECTION_FINGERPRINT,
       xml: "<PathOfBuilding/>",
       fingerprint: "resume-timeout-build",
       engineVersion: "test",
@@ -716,7 +737,7 @@ describe("DefaultPlannerController", () => {
     });
     const now = new Date().toISOString();
     store.saveRun({
-      schemaVersion: 2,
+      schemaVersion: 3,
       id: "resume-timeout-run",
       buildFingerprint: "resume-timeout-build",
       status: "paused",
@@ -763,7 +784,9 @@ describe("DefaultPlannerController", () => {
   it("serializes concurrent resume operations for one run", async () => {
     const store = new MemoryPlannerStore();
     store.saveSnapshot({
-      schemaVersion: 2,
+      schemaVersion: 3,
+      mechanicProjection: emptyModifierProjection(),
+      mechanicProjectionFingerprint: EMPTY_PROJECTION_FINGERPRINT,
       xml: "<PathOfBuilding/>",
       fingerprint: "resume-concurrent-build",
       engineVersion: "test",
@@ -774,7 +797,7 @@ describe("DefaultPlannerController", () => {
     });
     const now = new Date().toISOString();
     store.saveRun({
-      schemaVersion: 2,
+      schemaVersion: 3,
       id: "resume-concurrent-run",
       buildFingerprint: "resume-concurrent-build",
       status: "paused",
@@ -822,7 +845,9 @@ describe("DefaultPlannerController", () => {
   it("awaits startup work and leaves a resumable paused run on controller shutdown", async () => {
     const store = new MemoryPlannerStore();
     store.saveSnapshot({
-      schemaVersion: 2,
+      schemaVersion: 3,
+      mechanicProjection: emptyModifierProjection(),
+      mechanicProjectionFingerprint: EMPTY_PROJECTION_FINGERPRINT,
       xml: "<PathOfBuilding/>",
       fingerprint: "shutdown-build",
       engineVersion: "test",
@@ -855,7 +880,9 @@ describe("DefaultPlannerController", () => {
   it("rejects resume activation after controller shutdown starts", async () => {
     const store = new MemoryPlannerStore();
     store.saveSnapshot({
-      schemaVersion: 2,
+      schemaVersion: 3,
+      mechanicProjection: emptyModifierProjection(),
+      mechanicProjectionFingerprint: EMPTY_PROJECTION_FINGERPRINT,
       xml: "<PathOfBuilding/>",
       fingerprint: "closed-resume-build",
       engineVersion: "test",
@@ -866,7 +893,7 @@ describe("DefaultPlannerController", () => {
     });
     const now = new Date().toISOString();
     store.saveRun({
-      schemaVersion: 2,
+      schemaVersion: 3,
       id: "closed-resume-run",
       buildFingerprint: "closed-resume-build",
       status: "paused",

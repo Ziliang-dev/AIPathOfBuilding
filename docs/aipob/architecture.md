@@ -96,6 +96,7 @@ Request methods:
 
 - `hello`
 - `build.capture`
+- `build.analyze`
 - `run.start`
 - `run.stream`
 - `run.cancel`
@@ -121,6 +122,8 @@ Connection-scoped reverse requests from the sidecar to PoB:
 Server notifications:
 
 - `run.progress`
+- `run.mechanicsReady`
+- `run.awaitingMechanicReview`
 - `run.awaitingApproval`
 - `run.completed`
 - `run.failed`
@@ -132,13 +135,19 @@ The wire contract is defined by [`protocol.ts`](../../sidecar/src/protocol.ts),
 
 ### Versioned data contracts
 
-Protocol version `3` and schema version `2` currently cross the process
+Protocol version `4` and schema version `3` currently cross the process
 boundary. Principal validated values are:
 
 - `ObjectiveSpec`: confirmed goals, weights, hard constraints, Locks, Budget,
   search preset, and candidate sources;
 - `BuildSnapshot`: immutable XML, fingerprint, versions, metrics, config,
-  gameplay paths, catalog, and optional graph;
+  gameplay paths, catalog, optional graph, plus a PoB-authored
+  `ModifierProjection`. The projection enumerates every
+  item set, slot, modifier section, line flag, parsed `Mod` type, provenance,
+  and conservative item-legality result. Inactive items remain visible but do
+  not contribute active mechanic edges;
+- `BuildMechanicReport`: deterministic mechanism graph, main-skill source
+  chains, structured findings, and a projection-bound analysis fingerprint;
 - `ScenarioSpec`: enemy class, profile, modifiers, events, and assumptions;
 - `ConditionEvidence`: source chain, uptime, conflict, confidence, and status;
 - `BuildAction`: typed payload, dependencies, preconditions, cost, and

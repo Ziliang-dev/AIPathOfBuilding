@@ -221,3 +221,20 @@ must report the failure instead of claiming success.
 Do not copy league-specific item tables or volatile numeric mechanics into this
 page. Use [Reference sources](../reference-sources.md) and add the relevant PoE
 version when a game rule is necessary to explain an adapter.
+
+## Modifier understanding and mechanism gate
+
+- PoB owns item parsing, modifier tables, Vestigial donor mappings, and Build
+  activity state. The sidecar stores only the bounded projection/index/cache.
+- Projection covers `buff`, `enchant`, `scourge`, `classRequirement`,
+  `implicit`, `explicit`, and `crucible` lines plus every canonical line flag.
+- All parsed `Mod` types cross the boundary generically. Unknown structured
+  values remain typed as unknown; they are never guessed into a numeric rule.
+- Inactive item sets and unequipped items are inspectable evidence, never active
+  mechanic sources.
+- Structural invalidity on an active item blocks optimization. Unverifiable
+  evidence blocks only when it lies on the critical main mechanism or a hard
+  constraint; otherwise it is a warning.
+- `AnalyzeMechanics`, `InspectMechanics`, and `MechanicGate` run before search.
+  There is no user override for a critical blocker; correct the Build and
+  recapture it.

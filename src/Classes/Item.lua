@@ -111,28 +111,7 @@ for _, curInfluenceInfo in ipairs(influenceInfo) do
 end
 
 ---@enum (key) LineFlags
-local lineFlags = {
-	["crafted"] = true,
-	["crucible"] = true,
-	["custom"] = true,
-	["disabled"] = true,
-	["eater"] = true,
-	["enchant"] = true,
-	["exarch"] = true,
-	["fractured"] = true,
-	["implicit"] = true,
-	["scourge"] = true,
-	["synthesis"] = true,
-	["mutated"] = true,
-	["unscalable"] = true,
-	["prefix"] = true,
-	["suffix"] = true,
-	-- this is not actually present in advanced copy strings unlike desecration
-	-- in poe2. this is currently only added as a hack for cane of kulemak and
-	-- should be added based on mod tags after matching a mod in the future
-	["unveiled"] = true,
-	["vestigial"] = true,
-}
+local lineFlags = itemLib.modLineFlags
 
 -- Special function to store unique instances of modifier on specific item slots
 -- that require special handling for ItemConditions. Only called if line #224 is

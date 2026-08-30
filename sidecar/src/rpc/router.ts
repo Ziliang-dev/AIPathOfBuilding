@@ -1,5 +1,6 @@
 import type { ZodType } from "zod";
 import {
+  BuildAnalyzeParamsSchema,
   BuildCaptureParamsSchema,
   CandidatePreviewParamsSchema,
   ConsentGrantParamsSchema,
@@ -76,6 +77,7 @@ function requestIdFrom(value: unknown): JsonRpcId | null {
 const SUPPORTED_METHODS = new Set([
   "hello",
   "build.capture",
+  "build.analyze",
   "run.start",
   "run.stream",
   "run.cancel",
@@ -264,6 +266,8 @@ export class RpcRouter {
         return this.bind(this.controller.hello, parseParams(HelloParamsSchema));
       case "build.capture":
         return this.bind(this.controller.captureBuild, parseParams(BuildCaptureParamsSchema));
+      case "build.analyze":
+        return this.bind(this.controller.analyzeBuild, parseParams(BuildAnalyzeParamsSchema));
       case "run.start":
         return this.bind(this.controller.startRun, parseParams(RunStartParamsSchema));
       case "run.stream":

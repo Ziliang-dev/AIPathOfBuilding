@@ -1,5 +1,6 @@
 import {
   BuildSnapshotSchema,
+  BuildMechanicReportSchema,
   CandidateSchema,
   ObjectiveSpecDraftSchema,
   ScenarioSpecSchema,
@@ -9,6 +10,7 @@ import {
   type DeepLimits,
   type ScenarioSpec,
 } from "../schemas.js";
+import { analyzeBuildMechanics } from "../domain/mechanics.js";
 import {
   createCurrentDiagnosticScenario,
   generateStandardScenarios,
@@ -40,6 +42,8 @@ export interface WorkflowNodeDependencies {
   draftObjective: WorkflowNodeHandler;
   confirmObjective: WorkflowNodeHandler;
   buildScenarios: WorkflowNodeHandler;
+  analyzeMechanics: WorkflowNodeHandler;
+  inspectMechanics: WorkflowNodeHandler;
   inspect: WorkflowNodeHandler;
   diagnose: WorkflowNodeHandler;
   planSearch: WorkflowNodeHandler;
@@ -68,6 +72,11 @@ export const DEFAULT_NODE_DEPENDENCIES: WorkflowNodeDependencies = {
     return { objective: normalizeObjectiveSpec(state.objective), objectiveConfirmed: true };
   },
   buildScenarios: (state) => ({ scenarios: defaultScenarios(state) }),
+  analyzeMechanics: (state) => ({ mechanicReport: analyzeBuildMechanics(state.snapshot) }),
+  inspectMechanics: (state) => {
+    if (state.mechanicReport === undefined) throw new Error("Mechanic report is required");
+    return { mechanicReport: state.mechanicReport };
+  },
   inspect: noop,
   diagnose: noop,
   planSearch: noop,
@@ -201,6 +210,7 @@ function publicUpdate(update: WorkflowNodeUpdate, state: WorkflowState): Workflo
   if (update.objective !== undefined) result.objective = update.objective;
   if (update.objectiveConfirmed !== undefined) result.objectiveConfirmed = update.objectiveConfirmed;
   if (update.scenarios !== undefined) result.scenarios = update.scenarios;
+  if (update.mechanicReport !== undefined) result.mechanicReport = update.mechanicReport;
   if (update.artifacts !== undefined) result.artifacts = { ...state.artifacts, ...update.artifacts };
   if (update.frontier !== undefined) result.frontier = update.frontier;
   if (update.selected !== undefined) result.selected = update.selected;
@@ -218,6 +228,9 @@ function validateNodeUpdate(update: WorkflowNodeUpdate): WorkflowNodeUpdate {
   if (update.objective !== undefined) validated.objective = normalizeObjectiveSpec(update.objective);
   if (update.scenarios !== undefined) {
     validated.scenarios = update.scenarios.map((scenario) => ScenarioSpecSchema.parse(scenario));
+  }
+  if (update.mechanicReport !== undefined) {
+    validated.mechanicReport = BuildMechanicReportSchema.parse(update.mechanicReport);
   }
   if (update.frontier !== undefined) {
     validated.frontier = update.frontier.map((candidate) => CandidateSchema.parse(candidate));

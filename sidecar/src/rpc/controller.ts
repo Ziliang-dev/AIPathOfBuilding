@@ -2,6 +2,7 @@ import type { z } from "zod";
 import type { TradeCatalogCancel, TradeCatalogQuery, TradeCatalogResult } from "../schemas.js";
 import {
   BuildCaptureParamsSchema,
+  BuildAnalyzeParamsSchema,
   CandidatePreviewParamsSchema,
   ConsentGrantParamsSchema,
   ConsentPreviewParamsSchema,
@@ -16,6 +17,8 @@ import {
   ProviderStatusParamsSchema,
   RunCancelParamsSchema,
   RunAwaitingApprovalNotificationSchema,
+  RunAwaitingMechanicReviewNotificationSchema,
+  RunMechanicsReadyNotificationSchema,
   RunCompletedNotificationSchema,
   RunFailedNotificationSchema,
   RunProgressNotificationSchema,
@@ -30,6 +33,7 @@ export type RpcParams = Record<string, unknown>;
 
 export type HelloParams = z.infer<typeof HelloParamsSchema>;
 export type BuildCaptureParams = z.infer<typeof BuildCaptureParamsSchema>;
+export type BuildAnalyzeParams = z.infer<typeof BuildAnalyzeParamsSchema>;
 export type RunStartParams = z.infer<typeof RunStartParamsSchema>;
 export type RunCancelParams = z.infer<typeof RunCancelParamsSchema>;
 export type RunStreamParams = z.infer<typeof RunStreamParamsSchema>;
@@ -49,6 +53,8 @@ export type ObjectiveDraftParams = z.infer<typeof ObjectiveDraftParamsSchema>;
 
 export type RunNotificationMethod =
   | "run.progress"
+  | "run.mechanicsReady"
+  | "run.awaitingMechanicReview"
   | "run.awaitingApproval"
   | "run.completed"
   | "run.failed"
@@ -56,6 +62,8 @@ export type RunNotificationMethod =
 
 export type RunNotification =
   | { method: "run.progress"; params: z.infer<typeof RunProgressNotificationSchema> }
+  | { method: "run.mechanicsReady"; params: z.infer<typeof RunMechanicsReadyNotificationSchema> }
+  | { method: "run.awaitingMechanicReview"; params: z.infer<typeof RunAwaitingMechanicReviewNotificationSchema> }
   | { method: "run.awaitingApproval"; params: z.infer<typeof RunAwaitingApprovalNotificationSchema> }
   | { method: "run.completed"; params: z.infer<typeof RunCompletedNotificationSchema> }
   | { method: "run.failed"; params: z.infer<typeof RunFailedNotificationSchema> }
@@ -77,6 +85,7 @@ export interface PlannerControllerContext {
 export interface PlannerController {
   hello(params: HelloParams, context: PlannerControllerContext): Promise<unknown> | unknown;
   captureBuild(params: BuildCaptureParams, context: PlannerControllerContext): Promise<unknown> | unknown;
+  analyzeBuild(params: BuildAnalyzeParams, context: PlannerControllerContext): Promise<unknown> | unknown;
   startRun(params: RunStartParams, context: PlannerControllerContext): Promise<unknown> | unknown;
   streamRun(params: RunStreamParams, context: PlannerControllerContext): Promise<unknown> | unknown;
   cancelRun(params: RunCancelParams, context: PlannerControllerContext): Promise<unknown> | unknown;

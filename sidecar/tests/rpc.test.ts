@@ -1,3 +1,4 @@
+import { EMPTY_PROJECTION_FINGERPRINT, emptyModifierProjection } from "./mechanicsFixture.js";
 import net, { type AddressInfo, type Socket } from "node:net";
 import { once } from "node:events";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -19,6 +20,7 @@ function createController(overrides: Partial<PlannerController> = {}): PlannerCo
   return {
     hello: async () => ({ ok: true }),
     captureBuild: async () => ({ captured: true }),
+    analyzeBuild: async () => ({ status: "complete" }),
     startRun: async () => ({ runId: "run-1" }),
     streamRun: async () => ({ status: "running" }),
     cancelRun: async () => ({ cancelled: true }),
@@ -239,7 +241,7 @@ describe("RpcServer", () => {
         request(7, "run.start", {
           snapshotFingerprint: "fingerprint",
           objective: {
-            schemaVersion: 2,
+            schemaVersion: 3,
             goals: [{ metric: "TotalDPS", direction: "maximize" }],
           },
         }),
@@ -274,7 +276,9 @@ describe("RpcServer", () => {
       [
         request(10, "build.capture", {
           snapshot: {
-            schemaVersion: 2,
+            schemaVersion: 3,
+            mechanicProjection: emptyModifierProjection(),
+            mechanicProjectionFingerprint: EMPTY_PROJECTION_FINGERPRINT,
             xml: "<PathOfBuilding/>",
             fingerprint: "fingerprint",
             engineVersion: "dev",
@@ -421,7 +425,7 @@ describe("RPC Lua adapter normalization", () => {
     const input = {
       snapshotFingerprint: "fingerprint",
       objective: {
-        schemaVersion: 2,
+        schemaVersion: 3,
         primaryScenario: "guardian",
         scenarioWeights: { mapping: 0.55, boss: 0.15, guardian: 0.15, uberPinnacle: 0.15 },
         goals: {},

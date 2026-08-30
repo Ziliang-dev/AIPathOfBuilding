@@ -1,3 +1,4 @@
+import { EMPTY_PROJECTION_FINGERPRINT, emptyModifierProjection } from "./mechanicsFixture.js";
 import { Command, MemorySaver } from "@langchain/langgraph";
 import { describe, expect, it, vi } from "vitest";
 import type { BuildSnapshot, Candidate, ObjectiveSpec } from "../src/schemas.js";
@@ -13,7 +14,7 @@ import {
 } from "../src/workflow/index.js";
 
 const objective: ObjectiveSpec = {
-  schemaVersion: 2,
+  schemaVersion: 3,
   primaryScenario: "mapping",
   scenarioWeights: { mapping: 0.55, standardBoss: 0.15, pinnacle: 0.15, uber: 0.15 },
   locks: { class: true, ascendancy: true, mainSkill: true, fields: [] },
@@ -24,7 +25,9 @@ const objective: ObjectiveSpec = {
 };
 
 const snapshot: BuildSnapshot = {
-  schemaVersion: 2,
+  schemaVersion: 3,
+  mechanicProjection: emptyModifierProjection(),
+  mechanicProjectionFingerprint: EMPTY_PROJECTION_FINGERPRINT,
   xml: "<PathOfBuilding/>",
   fingerprint: "build-fingerprint",
   engineVersion: "2.67.2",
@@ -43,7 +46,7 @@ const snapshot: BuildSnapshot = {
 };
 
 const candidate: Candidate = {
-  schemaVersion: 2,
+  schemaVersion: 3,
   id: "balanced-1",
   label: "Balanced",
   summary: "More damage without losing defence",

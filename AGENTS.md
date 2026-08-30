@@ -78,6 +78,11 @@ external command exit code.
 
 ## Post-update CI artifact sync
 
+- After completing agent-authored feature or fix work, automatically commit the
+  complete verified change and push the current branch unless the user
+  explicitly requests no commit or no push. Treat commit, push, exact-HEAD CI
+  completion, and qualifying artifact synchronization as part of the feature's
+  definition of done.
 - Do not create a scheduled task, heartbeat, polling daemon, or self-hosted
   runner for local artifact synchronization.
 - After an agent-authored repository update is committed and pushed, wait for

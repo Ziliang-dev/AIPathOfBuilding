@@ -9,6 +9,7 @@ import {
 import { z } from "zod";
 import {
   BuildSnapshotSchema,
+  BuildMechanicReportSchema,
   ObjectiveSpecDraftSchema,
   OptimizationRunSchema,
   SCHEMA_VERSION,
@@ -26,6 +27,7 @@ import {
 import {
   WorkflowStateAnnotation,
   type ApprovalDecision,
+  type MechanicReviewDecision,
   type WorkflowInput,
   type WorkflowState,
   type WorkflowStateUpdate,
@@ -45,6 +47,11 @@ const ApprovalDecisionSchema = z.discriminatedUnion("decision", [
   }),
 ]);
 
+const MechanicReviewDecisionSchema = z.object({
+  decision: z.literal("cancel"),
+  reason: z.string().optional(),
+});
+
 export interface CreateWorkflowGraphOptions {
   nodes?: Partial<WorkflowNodeDependencies>;
   limits?: Partial<DeepLimits>;
@@ -53,7 +60,11 @@ export interface CreateWorkflowGraphOptions {
   name?: string;
 }
 
-export function createWorkflowGraph(options: CreateWorkflowGraphOptions = {}) {
+export interface WorkflowGraph {
+  invoke(input: unknown, config?: unknown): Promise<unknown>;
+}
+
+export function createWorkflowGraph(options: CreateWorkflowGraphOptions = {}): WorkflowGraph {
   const dependencies = resolveNodeDependencies(options.nodes);
   const limits = resolveDeepLimits(options.limits);
   const now = options.now ?? Date.now;
@@ -64,6 +75,9 @@ export function createWorkflowGraph(options: CreateWorkflowGraphOptions = {}) {
     .addNode("DraftObjective", wrapNode("DraftObjective", dependencies.draftObjective, limits, now))
     .addNode("ConfirmObjective", wrapNode("ConfirmObjective", dependencies.confirmObjective, limits, now))
     .addNode("BuildScenarios", wrapNode("BuildScenarios", dependencies.buildScenarios, limits, now))
+    .addNode("AnalyzeMechanics", wrapNode("AnalyzeMechanics", dependencies.analyzeMechanics, limits, now))
+    .addNode("InspectMechanics", wrapNode("InspectMechanics", dependencies.inspectMechanics, limits, now))
+    .addNode("MechanicGate", mechanicGateNode)
     .addNode("Inspect", wrapNode("Inspect", dependencies.inspect, limits, now))
     .addNode("Diagnose", wrapNode("Diagnose", dependencies.diagnose, limits, now))
     .addNode("PlanSearch", wrapNode("PlanSearch", dependencies.planSearch, limits, now, { expensive: true }))
@@ -84,7 +98,10 @@ export function createWorkflowGraph(options: CreateWorkflowGraphOptions = {}) {
     .addEdge("CaptureBuild", "DraftObjective")
     .addEdge("DraftObjective", "ConfirmObjective")
     .addEdge("ConfirmObjective", "BuildScenarios")
-    .addEdge("BuildScenarios", "Inspect")
+    .addEdge("BuildScenarios", "AnalyzeMechanics")
+    .addEdge("AnalyzeMechanics", "InspectMechanics")
+    .addEdge("InspectMechanics", "MechanicGate")
+    .addConditionalEdges("MechanicGate", routeAfterMechanicGate, ["Inspect", "FinalVerify"])
     .addEdge("Inspect", "Diagnose")
     .addEdge("Diagnose", "PlanSearch")
     .addEdge("PlanSearch", "SearchDomains")
@@ -102,7 +119,7 @@ export function createWorkflowGraph(options: CreateWorkflowGraphOptions = {}) {
   return graph.compile({
     checkpointer,
     name: options.name ?? "AIPathOfBuildingOptimizer",
-  });
+  }) as unknown as WorkflowGraph;
 }
 
 export function createWorkflowInput(input: WorkflowInput): WorkflowInput {
@@ -145,6 +162,31 @@ function routeAfterVerify(state: WorkflowState): "RefineSearch" | "Explain" {
   return state.stopReason === undefined && state.needsRefinement
     ? "RefineSearch"
     : "Explain";
+}
+
+function routeAfterMechanicGate(state: WorkflowState): "Inspect" | "FinalVerify" {
+  return state.stopReason === "cancelled" || state.stopReason === "failed"
+    ? "FinalVerify"
+    : "Inspect";
+}
+
+function mechanicGateNode(state: WorkflowState): WorkflowStateUpdate {
+  const report = BuildMechanicReportSchema.parse(state.mechanicReport);
+  if (report.status !== "blocked") {
+    return { phase: "MechanicGate", status: "running", trace: "MechanicGate" };
+  }
+  const resumed = interrupt<
+    { kind: "mechanic-review"; runId: string; report: typeof report },
+    MechanicReviewDecision
+  >({ kind: "mechanic-review", runId: state.runId, report });
+  const decision = MechanicReviewDecisionSchema.parse(resumed);
+  return {
+    phase: "MechanicGate",
+    status: "cancelled",
+    stopReason: "cancelled",
+    error: decision.reason ?? "Critical Build mechanics require correction before optimization",
+    trace: "MechanicGate",
+  };
 }
 
 function routeAfterPreview(state: WorkflowState): "HumanApproval" | "FinalVerify" {

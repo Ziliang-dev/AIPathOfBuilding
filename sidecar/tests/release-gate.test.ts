@@ -1,3 +1,4 @@
+import { EMPTY_PROJECTION_FINGERPRINT, emptyModifierProjection } from "./mechanicsFixture.js";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -51,6 +52,8 @@ function snapshotFor(
 ): BuildSnapshot {
   return {
     schemaVersion: SCHEMA_VERSION,
+    mechanicProjection: emptyModifierProjection(),
+    mechanicProjectionFingerprint: EMPTY_PROJECTION_FINGERPRINT,
     xml: `<PathOfBuilding><Build targetVersion="3_0" /></PathOfBuilding>`,
     fingerprint: `fingerprint:${spec.id}`,
     engineVersion: "test-engine",

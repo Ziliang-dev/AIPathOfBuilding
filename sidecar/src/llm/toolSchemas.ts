@@ -21,6 +21,21 @@ const InspectBuildArgumentsSchema = z
   })
   .strict();
 
+const TraceMechanicArgumentsSchema = z.object({
+  snapshotId: IdentifierSchema,
+  nodeId: IdentifierSchema,
+}).strict();
+
+const ListFindingsArgumentsSchema = z.object({
+  snapshotId: IdentifierSchema,
+  severity: z.enum(["info", "warning", "blocker"]).optional(),
+}).strict();
+
+const DescribeModifierArgumentsSchema = z.object({
+  snapshotId: IdentifierSchema,
+  modifierId: IdentifierSchema,
+}).strict();
+
 const DiagnoseBuildArgumentsSchema = z
   .object({
     snapshotId: IdentifierSchema,
@@ -76,6 +91,9 @@ const PlanProgressionArgumentsSchema = z
 
 export const HIGH_LEVEL_TOOL_SCHEMAS = {
   inspect_build: InspectBuildArgumentsSchema,
+  trace_mechanic: TraceMechanicArgumentsSchema,
+  list_findings: ListFindingsArgumentsSchema,
+  describe_modifier: DescribeModifierArgumentsSchema,
   diagnose_build: DiagnoseBuildArgumentsSchema,
   search_build: SearchBuildArgumentsSchema,
   refine_search: RefineSearchArgumentsSchema,
@@ -91,6 +109,9 @@ export type HighLevelToolArguments<TName extends HighLevelToolName> = z.infer<
 
 const TOOL_DESCRIPTIONS: Record<HighLevelToolName, string> = {
   inspect_build: "Read a normalized build snapshot and its domain graph.",
+  trace_mechanic: "Trace one mechanic node through verified Build graph edges.",
+  list_findings: "List structured mechanic findings, optionally filtered by severity.",
+  describe_modifier: "Describe one projected item modifier and its PoB provenance.",
   diagnose_build: "Diagnose weaknesses against a confirmed objective and scenarios.",
   search_build: "Run deterministic candidate search over selected build domains.",
   refine_search: "Refine an existing deterministic search using a narrower focus.",

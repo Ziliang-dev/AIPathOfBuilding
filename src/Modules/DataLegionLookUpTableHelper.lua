@@ -5,6 +5,26 @@
 --
 local loadJewelFile = require("Modules.DataJewelFileLoader")
 
+local function validGloriousVanityData(value)
+	if type(value) ~= "string" then return false end
+	local nodeCount = data.nodeIDList and tonumber(data.nodeIDList.size)
+	local seedMin = data.timelessJewelSeedMin and data.timelessJewelSeedMin[1]
+	local seedMax = data.timelessJewelSeedMax and data.timelessJewelSeedMax[1]
+	if not nodeCount or not seedMin or not seedMax then return false end
+	local seedSize = seedMax - seedMin + 1
+	local sizesLength = nodeCount * seedSize + 1
+	if #value < sizesLength then return false end
+	for index = 1, sizesLength do if not value:byte(index) then return false end end
+	local payloadLength = 0
+	for _, node in pairs(data.nodeIDList) do
+		if type(node) == "table" and node.index ~= nil then
+			if type(node.size) ~= "number" or node.size < 0 then return false end
+			payloadLength = payloadLength + node.size
+		end
+	end
+	return #value >= nodeCount * seedSize + payloadLength
+end
+
 -- lazy load a specific timeless jewel type
 -- valid values: "Glorious Vanity", "Lethal Pride", "Brutal Restraint", "Militant Faith", "Elegant Hubris"
 -- nodeID is needed for "Glorious Vanity"
@@ -43,7 +63,11 @@ local function loadTimelessJewel(jewelType, nodeID)
 
 	ConPrintf("LOADING")
 
-	local jewelData = loadJewelFile(data.timelessJewelTypes[jewelType]:gsub("%s+", ""))
+	local jewelData = loadJewelFile(
+		data.timelessJewelTypes[jewelType]:gsub("%s+", ""),
+		true,
+		jewelType == 1 and validGloriousVanityData or nil
+	)
 
 	if jewelData then
 		if jewelType == 1 then -- "Glorious Vanity"
