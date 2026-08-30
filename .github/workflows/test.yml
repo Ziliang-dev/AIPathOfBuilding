@@ -19,7 +19,12 @@ jobs:
     container: ghcr.io/pathofbuildingcommunity/pathofbuilding-tests:latest
     steps:
       - name: Install git dependency
-        run: apk add git
+        run: |
+          for attempt in 1 2 3; do
+            apk add --no-cache git && exit 0
+            if [ "$attempt" -lt 3 ]; then sleep 5; fi
+          done
+          exit 1
       - name: Checkout
         uses: actions/checkout@v4
       - name: Regenerate ModCache

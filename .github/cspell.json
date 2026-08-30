@@ -1,0 +1,17 @@
+{
+  "version": "0.2",
+  "import": ["../.cspell/cspell.json"],
+  "dictionaryDefinitions": [
+    {
+      "name": "aipob-project",
+      "path": "./cspell-aipob.txt",
+      "addWords": true
+    }
+  ],
+  "dictionaries": ["aipob-project"],
+  "ignorePaths": [
+    "../spec/AIPoBGolden/**",
+    "../sidecar/dist/**",
+    "../sidecar/pnpm-lock.yaml"
+  ]
+}

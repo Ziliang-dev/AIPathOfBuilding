@@ -1,63 +1,206 @@
-# Path of Building Community
-## Welcome to Path of Building, an offline build planner for Path of Exile!
+# AIPathOfBuilding
 
-<p float="middle">
-  <img alt="Tree tab" src="https://github.com/user-attachments/assets/0826b7ab-84ba-440f-be52-2f216f13e75c" width="48%" />
-  <img alt="Items tab" src="https://github.com/user-attachments/assets/e5af1326-7e22-43d8-ab12-aa5500da611a" width="48%" />
-</p>
+AIPathOfBuilding (AIPoB) adds a local, graph-based build optimizer to the Path
+of Building Community fork. Path of Building's Lua engine remains authoritative
+for build state, game data, and calculated metrics. A TypeScript sidecar manages
+the resumable search workflow and communicates with PoB through authenticated
+loopback JSON-RPC.
 
-### Features
-* Comprehensive offence + defence calculations:
-  * Calculate your skill DPS, damage over time, life/mana/ES totals and much more!
-  * Can factor in auras, buffs, charges, curses, monster resistances and more, to estimate your effective DPS
-  * Also calculates life/mana reservations
-  * Shows a summary of character stats in the side bar, as well as a detailed calculations breakdown tab which can show you how the stats were derived
-  * Supports all skills and support gems, and most passives and item modifiers
-    * Throughout the program, supported modifiers will show in blue and unsupported ones in red
-  * Full support for minions
-  * Support for party play and support builds
-* Passive skill tree planner:
-  * Support for jewels including most radius/conversion and timeless jewels
-  * Features alternate path tracing (mouse over a sequence of nodes while holding shift, then click to allocate them all)
-  * Fully integrated with the offence/defence calculations; see exactly how each node will affect your character!
-  * Can import PathOfExile.com and PoEPlanner.com passive tree links; links shortened with PoEURL.com also work
-* Skill planner:
-  * Add any number of main or supporting skills to your build
-  * Supporting skills (auras, curses, buffs) can be toggled on and off
-  * Automatically applies Socketed Gem modifiers from the item a skill is socketed into
-  * Automatically applies support gems granted by items
-* Item planner:
-  * Add items from in game by copying and pasting them straight into the program!
-  * Automatically adds quality to non-corrupted items
-  * Search the trade site for the most impactful items
-  * Fully integrated with the offence/defence calculations; see exactly how much of an upgrade a given item is!
-  * Contains a searchable database of all uniques that are currently in game (and some that aren't yet!)
-    * You can choose the modifier rolls when you add a unique to your build
-    * Includes all league-specific items and legacy variants
-  * Features an item crafting system:
-    * You can select from any of the game's base item types
-    * You can select prefix/suffix modifiers from lists
-    * Custom modifiers can be added, with Master and Essence modifiers available
-  * Also contains a database of rare item templates:
-    * Allows you to create rare items for your build to approximate the gear you will be using
-    * Choose which modifiers appear on each item, and the rolls for each modifier, to suit your needs
-    * Has templates that should cover the majority of builds
-* Other features:
-  * You can import passive tree, items, and skills from existing characters
-  * Share builds with other users by generating a share code
-  * Automatic updating; most updates will only take a couple of seconds to apply
+> [!IMPORTANT]
+> This branch is an implementation baseline, not a published release. The six
+> completion packages below are connected, and Windows portable/NSIS plus the
+> real-PoB process release gates pass in GitHub Actions. Code signing and
+> publication are still required for a public release. Check the
+> [capability matrix](docs/aipob/status-and-roadmap.md) before relying on a
+> feature.
 
-## Download
-Head over to the [Releases](https://github.com/PathOfBuildingCommunity/PathOfBuilding/releases) page to download the install wizard or portable zip.
+## Implementation status
 
-## Changelog
-You can find the full version history [here](CHANGELOG.md).
+This section is a short project summary. The authoritative, release-baselined
+matrix is [Status and roadmap](docs/aipob/status-and-roadmap.md).
 
-## Contribute
-You can find instructions on how to contribute code and bug reports [here](CONTRIBUTING.md).
+### Connected
+
+- Structured Objectives with goals, Scenario weights, Budget, Locks, hard
+  constraints, candidate-source controls, and explicit confirmation
+- Immutable Build capture with XML serialization, gameplay-field coverage,
+  engine/content versions, baseline metrics, and fingerprint validation
+- Current diagnostic plus Mapping, Standard Boss, Guardian/Pinnacle, and Uber
+  Pinnacle Scenarios, each with Sustainable and Peak profiles
+- Typed Condition Evidence core with trigger legality, uptime threshold,
+  conflicts, and bounded variants
+- Deterministic search over typed proposals exported by the current PoB Build
+- Isolated PoB worker evaluation, hard-constraint checking, Pareto filtering,
+  and Offence, Balanced, and Defence candidate views
+- Non-mutating Candidate Preview
+- Human-approved Transactional Apply with fresh verification, dependency
+  ordering, rollback, and recovery journal
+- Authenticated loopback JSON-RPC, cancellation, persistent workflow
+  checkpoints, reconnect/resume support, structured failure handling, and
+  bidirectional protocol-v3 Trade/provider requests
+- PoB-native link compatibility probes plus candidate/scenario-bound Condition
+  Evidence, uptime, and proof fingerprints
+- Player, minion, spectre, Animate Guardian, party, Bloodline, Pact, advanced
+  passive, and seasonal equipment adapters for `3_29` and `3_29_ruthless`
+- Dynamic, Budget-bound Trade/catalog queries in the authenticated PoB process;
+  seller/account data stays there, while the sidecar receives sanitized typed
+  catalog items and emits fingerprint-bound `importAndEquip` actions
+- OpenAI-compatible provider presets plus manual setup, Auto/advanced
+  Chat/Responses routing, semantic reasoning, optional `/models` discovery,
+  Bearer or loopback-no-key auth, API keys stored only under the
+  `AIPathOfBuilding/LLM/*` Windows Credential Manager namespace, exact one-shot
+  connection testing, revocable first-send consent, ephemeral Planner Chat,
+  and deterministic fallback
+- Versioned Golden corpus and release gate covering both 3.29 rulesets,
+  mechanic adapters, graph nodes, candidate actions, metrics, and all AIPoB Lua
+  specs
+- Deterministic bundle/manifest ordering; full PoB portable and canonical NSIS
+  packaging pinned to Node `24.20.0` x64 / ABI `137`, with a hidden native
+  sidecar launcher; apply, reject, failure, restart, and real-PoB worker E2E jobs
+- Latest-successful-CI portable synchronization with full package verification,
+  idempotent run tracking, and safe latest/pending replacement
+
+### Partially implemented
+
+| Capability | Implemented | Still missing |
+| --- | --- | --- |
+| Unique and target-Rare candidates | Objective fields, UI controls, source policy, typed catalog actions, costs, and search adapters | Main-process external proposal catalog |
+| Workflow refinement | Conditional graph, bounded refinement pass, recursion limits, and convergence limits | Richer runtime refinement policy and multi-round strategy |
+| Skill optimization | Native compatibility matrix and proof barrier for every proposed link Candidate | Broader complete-link candidate generation across the full gem catalog |
+| Item and passive optimization | Dynamic Trade items, seasonal equipment, existing item swaps, passive paths, masteries, secondary ascendancy, overrides, and point checks | Cross-slot enabling packages and broader cluster/anoint generation |
+| Golden corpus breadth | Standard and Ruthless representative Builds plus actor/season projections, candidates, graph nodes, and four Sustainable Scenarios | More archetypes, loadouts, trigger/rotation, and negative/conflict regression cases |
+| Progression planning | Progression DAG primitives and action type | End-to-end level/Budget milestones and Planner presentation |
+| Release operation | Canonical portable/NSIS scripts, Windows CI gates, and a successful full release-gate run | Code signing and publication |
+
+### Remaining roadmap
+
+- Main-process proposal catalogs for non-Trade Unique and target-Rare sources.
+- Broader full-catalog skill-link and passive candidate generation.
+- More Golden Builds for trigger/rotation, loadout, negative, and conflict
+  cases.
+- Complete cross-domain enabling packages and affected-domain regeneration.
+- End-to-end progression milestone planning.
+- Publish and sign the Windows artifacts produced by the verified canonical
+  pipeline.
+
+## Requirements
+
+- WSL2 Ubuntu with Bash and Python 3.10+
+- Node.js 24.20.0 x64 for the release-compatible development path
+- pnpm 11.19.0
+- Docker or local LuaJIT/Busted for PoB tests
+
+GitHub Actions supplies Docker/Busted, MSVC, NSIS, Python, and the exact Windows
+Node runtime for release gates. Local installation of those packaging tools is
+optional.
+
+The repository never downloads or commits a Node executable. API keys, OAuth
+tokens, SQLite data, logs, `.env` files, and local credentials must not enter
+source control.
+
+## Development quick start
+
+Run from the repository root:
+
+```bash
+python3 scripts/aipob.py install-sidecar
+python3 scripts/aipob.py check-sidecar
+python3 scripts/aipob.py build-sidecar
+python3 scripts/aipob.py check-manifest
+python3 scripts/aipob.py release-gate
+```
+
+Launch the checked-out PoB development runtime, open a Build with an enabled
+active main skill, and select **AI Build Planner**. The sidecar starts lazily
+when LLM setup or a confirmed search needs it. Provider presets select safe Auto
+defaults; Advanced exposes API route, reasoning, and auth overrides. **Test
+Connection** sends one fixed required-tool request through the resolved path and
+must pass before **Configure** is enabled. Without a configured and consented
+provider, the CLI uses deterministic fallback. Provider keys are never loaded
+from a project file or `.env`.
+
+Detailed setup and current UI behavior: [Getting started](docs/aipob/getting-started.md).
+
+## Run the latest verified CI portable
+
+Download the latest successful portable artifact for the current Git branch,
+verify the complete payload, and retain only the managed latest copy:
+
+```bash
+python3 scripts/aipob.py sync-ci-windows
+./artifacts/ci-latest/app/Path\ of\ Building.exe
+```
+
+Repeated checks do not download the same Actions run again. A workspace watcher
+that holds only the `ci-latest` directory no longer blocks promotion: the
+synchronizer transactionally exchanges its verified contents and rolls back on
+failure. If AIPoB holds an actual package file open, the replacement remains at
+`artifacts/ci-pending` until the next check. Other paths under `artifacts/` are
+never deleted.
+
+## Wiki
+
+[`docs/index.md`](docs/index.md) is the versioned Wiki home.
+
+- Users: [Overview](docs/aipob/overview.md) → [Getting started](docs/aipob/getting-started.md) → [Workflows](docs/aipob/workflows.md)
+- Maintainers: [Architecture](docs/aipob/architecture.md) → [Domain rules](docs/aipob/domain-rules.md) → [Development](docs/aipob/development.md)
+- Development agents: read [`AGENTS.md`](AGENTS.md), the current architecture,
+  domain rules, and relevant ADRs before changing domain behavior
+
+## Windows packages
+
+Supply Node.js 24.20.0 x64. The portable packaging script validates the version,
+architecture, ABI, native SQLite binding, WinCred helper, hidden sidecar
+launcher, manifest, and hashes.
+It writes a package-local `manifest.xml` with the exact update branch and
+`platform="win32"`; the repository manifest remains in upstream Dev Mode form:
+
+```bash
+python3 scripts/aipob.py package-windows \
+  --node-exe /mnt/c/Tools/node-v24-win-x64/node.exe \
+  --update-branch codex/aipob-v2-completion
+```
+
+Default output:
+
+```text
+artifacts/AIPathOfBuilding-AIPoB-windows-x64.zip
+```
+
+Node, `better-sqlite3`, WinCred helper, and hidden sidecar launcher are
+installer-owned. A Node major, native ABI, or launcher change requires a new
+installer or portable package.
+
+Build the canonical NSIS installer from that verified ZIP:
+
+```bash
+python3 scripts/aipob.py package-installer-windows \
+  --package artifacts/AIPathOfBuilding-AIPoB-windows-x64.zip \
+  --output artifacts/AIPathOfBuilding-AIPoB-Setup.exe
+python3 scripts/aipob.py verify-installer-windows \
+  --installer artifacts/AIPathOfBuilding-AIPoB-Setup.exe \
+  --package artifacts/AIPathOfBuilding-AIPoB-windows-x64.zip
+```
+
+## Contributing
+
+Read [CONTRIBUTING.md](CONTRIBUTING.md) for upstream PoB contribution practices
+and [AIPoB development](docs/aipob/development.md) for the cross-language
+workflow, tests, generated bundle, manifest, and packaging rules.
+
+## Upstream Path of Building
+
+This project is based on
+[Path of Building Community](https://github.com/PathOfBuildingCommunity/PathOfBuilding),
+the offline build planner for Path of Exile. Upstream PoB provides the
+calculator, build format, game data, item/skill/tree planners, import/export,
+Trade integration, and application runtime. AIPoB does not replace those
+systems.
+
+Upstream developer documentation is preserved and indexed from the
+[Wiki home](docs/index.md#upstream-path-of-building-developer-references).
 
 ## Licence
-[MIT](https://opensource.org/licenses/MIT)
 
-For 3rd-party licences, see [LICENSE](LICENSE.md).
-The licencing information is considered to be part of the documentation.
+[MIT](https://opensource.org/licenses/MIT). See [LICENSE.md](LICENSE.md) for PoB
+and third-party licensing information; it is part of the documentation.

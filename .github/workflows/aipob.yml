@@ -1,0 +1,338 @@
+name: AIPoB Sidecar
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - "sidecar/**"
+      - "scripts/**"
+      - "native/**"
+      - "installer/**"
+      - "src/Modules/AIPoB/**"
+      - "src/Classes/AIPlannerTab.lua"
+      - "src/AIPoBWorker.lua"
+      - "src/Modules/Build.lua"
+      - "spec/System/TestAIPoB*_spec.lua"
+      - "spec/System/TestAIPlannerTab_spec.lua"
+      - "spec/AIPoBGolden/**"
+      - ".github/workflows/aipob.yml"
+      - ".github/workflows/installer.yml"
+      - "manifest.cfg"
+      - "manifest.xml"
+      - "runtime/**"
+      - "update_manifest.py"
+  pull_request:
+    branches: [dev]
+    paths:
+      - "sidecar/**"
+      - "scripts/**"
+      - "native/**"
+      - "installer/**"
+      - "src/Modules/AIPoB/**"
+      - "src/Classes/AIPlannerTab.lua"
+      - "src/AIPoBWorker.lua"
+      - "src/Modules/Build.lua"
+      - "spec/System/TestAIPoB*_spec.lua"
+      - "spec/System/TestAIPlannerTab_spec.lua"
+      - "spec/AIPoBGolden/**"
+      - ".github/workflows/aipob.yml"
+      - ".github/workflows/installer.yml"
+      - "manifest.cfg"
+      - "manifest.xml"
+      - "runtime/**"
+      - "update_manifest.py"
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  sidecar:
+    name: Node ${{ matrix.node }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [24.20.0]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate command scripts
+        run: |
+          python3 -m py_compile scripts/aipob.py scripts/ci_sync.py scripts/windows_package.py scripts/windows_e2e.py
+          python3 -m unittest discover -s tests -p "test_*.py"
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.19.0
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+          cache-dependency-path: sidecar/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm --dir sidecar install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm --dir sidecar run --if-present lint
+
+      - name: Typecheck
+        run: pnpm --dir sidecar run check
+
+      - name: Build release bundle
+        run: pnpm --dir sidecar run build
+
+      - name: Test
+        run: pnpm --dir sidecar run test
+
+      - name: Verify release entry
+        run: test -f sidecar/dist/server.cjs
+
+      - name: Verify manifest sidecar entry
+        if: matrix.node == '24.20.0'
+        run: python3 scripts/aipob.py check-manifest
+
+  windows-package:
+    name: Windows portable package
+    needs: sidecar-bundle
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.19.0
+
+      - name: Install Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.20.0
+          cache: pnpm
+          cache-dependency-path: sidecar/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm --dir sidecar install --frozen-lockfile
+
+      - name: Configure MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Build WinCred helper
+        run: python scripts/aipob.py build-wincred
+
+      - name: Build hidden sidecar launcher
+        run: python scripts/aipob.py build-sidecar-launcher
+
+      - name: Download canonical sidecar bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: aipob-sidecar-bundle
+          path: sidecar/dist
+
+      - name: Generate manifest from canonical bundle
+        run: python update_manifest.py --quiet --in-place
+
+      - name: Assemble portable package
+        run: |
+          python scripts/aipob.py package-windows \
+            --sidecar-bundle "${{ github.workspace }}/sidecar/dist/server.cjs" \
+            --output "${{ runner.temp }}/AIPathOfBuilding-AIPoB-windows-x64" \
+            --update-branch "${{ github.head_ref || github.ref_name }}" \
+            --skip-build
+
+      - name: Verify portable package
+        run: python scripts/aipob.py verify-package-windows --package "${{ runner.temp }}/AIPathOfBuilding-AIPoB-windows-x64.zip"
+
+      - name: Upload package
+        uses: actions/upload-artifact@v4
+        with:
+          name: AIPathOfBuilding-AIPoB-windows-x64
+          path: ${{ runner.temp }}/AIPathOfBuilding-AIPoB-windows-x64.zip
+          if-no-files-found: error
+
+  sidecar-bundle:
+    name: Canonical Node 24 sidecar bundle
+    needs: sidecar
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.19.0
+
+      - name: Install Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.20.0
+          cache: pnpm
+          cache-dependency-path: sidecar/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm --dir sidecar install --frozen-lockfile
+
+      - name: Build canonical sidecar bundle
+        run: pnpm --dir sidecar run build
+
+      - name: Upload canonical sidecar bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: aipob-sidecar-bundle
+          path: sidecar/dist/server.cjs
+          if-no-files-found: error
+
+  windows-e2e:
+    name: Windows packaged E2E
+    needs: windows-package
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        transaction: [apply, reject, fail]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Download portable package
+        uses: actions/download-artifact@v4
+        with:
+          name: AIPathOfBuilding-AIPoB-windows-x64
+          path: ${{ runner.temp }}/aipob-package
+
+      - name: Run packaged E2E
+        run: python scripts/aipob.py e2e-windows --package "${{ runner.temp }}/aipob-package/AIPathOfBuilding-AIPoB-windows-x64.zip" --transaction-mode "${{ matrix.transaction }}"
+
+  windows-e2e-restart:
+    name: Windows checkpoint restart E2E
+    needs: windows-package
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Download portable package
+        uses: actions/download-artifact@v4
+        with:
+          name: AIPathOfBuilding-AIPoB-windows-x64
+          path: ${{ runner.temp }}/aipob-package
+
+      - name: Run checkpoint restart E2E
+        run: python scripts/aipob.py e2e-windows --package "${{ runner.temp }}/aipob-package/AIPathOfBuilding-AIPoB-windows-x64.zip" --transaction-mode apply --restart-before-apply
+
+  windows-e2e-pob:
+    name: Windows packaged PoB-process E2E
+    needs: windows-package
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Download portable package
+        uses: actions/download-artifact@v4
+        with:
+          name: AIPathOfBuilding-AIPoB-windows-x64
+          path: ${{ runner.temp }}/aipob-package
+
+      - name: Run real PoB worker E2E
+        run: python scripts/aipob.py e2e-windows --package "${{ runner.temp }}/aipob-package/AIPathOfBuilding-AIPoB-windows-x64.zip" --transaction-mode apply --use-packaged-pob
+
+  windows-installer:
+    name: Windows canonical NSIS installer
+    needs: windows-package
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Download portable package
+        uses: actions/download-artifact@v4
+        with:
+          name: AIPathOfBuilding-AIPoB-windows-x64
+          path: ${{ runner.temp }}/aipob-package
+
+      - name: Install NSIS
+        run: choco install nsis --yes --no-progress
+
+      - name: Build installer from canonical staging
+        run: python scripts/aipob.py package-installer-windows --package "${{ runner.temp }}/aipob-package/AIPathOfBuilding-AIPoB-windows-x64.zip" --output "${{ runner.temp }}/AIPathOfBuilding-AIPoB-Setup.exe"
+
+      - name: Verify silent install against canonical staging
+        run: python scripts/aipob.py verify-installer-windows --installer "${{ runner.temp }}/AIPathOfBuilding-AIPoB-Setup.exe" --package "${{ runner.temp }}/aipob-package/AIPathOfBuilding-AIPoB-windows-x64.zip"
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: AIPathOfBuilding-AIPoB-Setup
+          path: ${{ runner.temp }}/AIPathOfBuilding-AIPoB-Setup.exe
+          if-no-files-found: error
+
+  golden-gate:
+    name: Golden corpus release gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.19.0
+
+      - name: Install Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.20.0
+          cache: pnpm
+          cache-dependency-path: sidecar/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm --dir sidecar install --frozen-lockfile
+
+      - name: Run release gate
+        run: python3 scripts/aipob.py release-gate
+
+  release-gate:
+    name: AIPoB release gate
+    needs: [sidecar, sidecar-bundle, windows-package, windows-e2e, windows-e2e-restart, windows-e2e-pob, windows-installer, golden-gate]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Release gate passed
+        run: echo 'AIPoB quality, canonical bundle, package verifier, and Windows E2E passed.'

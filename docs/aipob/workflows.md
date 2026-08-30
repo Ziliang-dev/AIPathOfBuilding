@@ -1,0 +1,204 @@
+# Planner Workflows
+
+This page separates the visible user workflow from the internal runtime graph.
+All build changes end at the same explicit approval boundary.
+
+## User workflow
+
+### 1. Open and describe
+
+Open an existing PoB build and select **AI Build Planner**. Choose a preset,
+describe the desired outcome, set structured survival floors if needed, select
+the primary Scenario, choose an optional Budget, and review the default Locks.
+The selected main socket group must contain an enabled active skill before
+search. Level 1 remains valid when that skill exists.
+
+Free-text constraint notes are drafting context only. Minimum EHP and minimum
+worst-case maximum hit are the structured hard constraints currently exposed by
+the UI.
+
+### 2. Confirm
+
+Select **Confirm this objective before search**. The Start button remains
+disabled until confirmation. Any objective edit clears confirmation.
+
+### 3. Understand
+
+Select **Analyze Build**. The sidecar extracts complete facts for weapon sets 1
+and 2. The configured model pages and inspects active entities, submits typed
+Claims, and later critiques coverage. Local rules compile critical Claims into
+isolated PoB counterfactual experiments. The UI reports phase, entity coverage,
+model calls, experiments, Claims, Proofs, redundant sources, and blockers.
+
+An exact verified cached report may be reused. A blocked report cannot be
+overridden. Missing Provider configuration, current consent, or connectivity
+blocks new analysis.
+
+### 4. Search
+
+Select **Start**. PoB launches the sidecar on demand, performs the protocol
+handshake, captures the active Build, exports its current content catalog, and
+starts a run against the captured fingerprint.
+
+Start requires an exact audited `VerifiedBuildMechanicReport` and a live
+OpenAI-compatible Provider. It reuses or creates the report, then injects the
+model into planning, refinement, and explanation. Typed, Budget-scoped Trade
+queries may also run at the search barrier through PoB's authenticated broker.
+
+### 5. Compare
+
+The run evaluates candidates against four Sustainable Scenarios and may also
+calculate four Peak profiles. The sidecar maintains a Pareto frontier and
+returns up to three views: Offence, Balanced, and Defence.
+
+The candidate card shows summary, primary-Scenario metrics, cost, and action
+count. Peak metrics remain secondary and do not satisfy Sustainable hard
+constraints.
+
+### 6. Preview
+
+Select **Preview**. The sidecar loads the persisted verified Candidate and
+returns its typed action, cost, metric, Scenario, Peak, and evidence diff.
+Preview never invokes a worker or the Transaction module. Fresh worker
+re-evaluation occurs before Apply.
+
+### 7. Apply or leave unchanged
+
+Select **Apply** and confirm the dialog. The sidecar freshly verifies the
+candidate and hard constraints, then sends a `transaction.apply` notification.
+PoB performs the Transaction and returns `transaction.result`.
+
+Closing, cancelling, rejecting, or declining the confirmation leaves the active
+Build unchanged.
+
+## Runtime workflow
+
+### Capture
+
+PoB serializes the active Build, captures metrics and version information,
+enumerates gameplay field paths, and calculates a fingerprint. The sidecar
+rejects a snapshot with no coverage-audit paths and stores the accepted
+snapshot under its fingerprint.
+
+### Objective normalization
+
+The sidecar validates schema version, goals, weights, Locks, Budget, hard
+constraints, and candidate sources. Scenario weights must sum to 1. When no
+Budget is present, external item sources are forced off.
+
+### Scenario construction
+
+The workflow creates:
+
+- one unranked Current diagnostic Scenario;
+- Mapping, Standard Boss, Guardian/Pinnacle, and Uber Pinnacle Sustainable
+  Scenarios; and
+- a Peak counterpart for each ranked Scenario.
+
+Only the four Sustainable Scenarios are required for apply verification.
+
+### Inspect, diagnose, and plan
+
+Before the optimization graph, the Mechanic Understanding subgraph extracts
+complete facts, asks the model for typed Claims, validates coverage, runs local
+PoB proofs, asks the model for an independent critique, and repairs up to three
+times. The model sees only paged local facts and Proofs. It cannot generate an
+experiment mutation, Build Action, Candidate, Transaction, or raw Lua.
+
+The resulting verified report guides PlanSearch, RefineSearch, and Explain.
+Every provider request is redacted and blocked until consent matches the current
+endpoint, model, categories, policy, and payload.
+
+Start treats `mechanicAnalysisFingerprint` as an exact-cache hint. A matching
+report is reused; a stale or absent hint runs the same understanding subgraph,
+persists the new verified fingerprint, and continues. A blocked replacement
+still rejects Start.
+
+Provider setup has a separate pre-configuration check. Opening **LLM Setup**
+starts the sidecar without starting search. Auto resolves provider dialect and
+reasoning behavior; Advanced permits explicit overrides. A one-shot
+authorization permits exactly one fixed synthetic required-tool probe and
+nothing else. Success creates a short-lived ticket bound to exact settings and
+credential fingerprint. Configure consumes it, then enters the existing
+first-send consent workflow. No automatic dialect retry creates a second
+provider request.
+
+### Search and evaluate
+
+The controller builds the Domain Graph, applies registered mechanic adapters,
+resolves Condition Evidence, expands typed catalog proposals, and creates a
+zero-action baseline Candidate. If enabled, it asks PoB for bounded Trade
+catalog pages; PoB retains OAuth, rate limits, seller identity, and raw Trade
+responses. The sidecar receives sanitized typed items only. Trade failure adds
+a warning and does not abort local search. Worker processes evaluate batches
+against the PoB calculator.
+
+Every proposed skill link passes a native PoB compatibility probe before
+evaluation. Accepted evidence is complete, non-truncated, scenario-bound, and
+fingerprint-bound. Actor and season adapters project player, minion, spectre,
+Animate Guardian, party, Bloodline, Pact, advanced passive, and seasonal
+equipment state for `3_29` and `3_29_ruthless`.
+
+Candidates that violate hard constraints, Locks, Budget, graph availability, or
+action invariants are removed. Remaining Candidates enter the Pareto frontier.
+
+### Select and pause
+
+The selection layer chooses at most three labelled representatives. The
+Workflow Graph emits `run.awaitingApproval` and persists an interrupt. The
+active Build remains untouched while paused.
+
+### Fresh verification and transaction
+
+Before sending Apply, the sidecar verifies:
+
+- the Candidate fingerprint still matches the captured Snapshot;
+- the Candidate proof fingerprint still matches its native link and Condition
+  Evidence inputs;
+- all four Sustainable Scenario metrics can be reproduced;
+- metric differences remain within the implemented tolerance; and
+- hard constraints still pass.
+
+PoB then performs its own preflight in a sandbox, orders the action dependency
+graph, checks preconditions and build fingerprint, applies all actions, rebuilds
+the Build, rechecks metrics, and verifies all Sustainable Scenarios.
+
+If any step fails, PoB restores the captured XML and verifies the restored
+fingerprint. The result reports whether rollback succeeded.
+
+## Cancellation and recovery
+
+- A cancel request aborts pending startup, active workers, and the run.
+- Mechanic analysis has its own cancellable analysis ID and progress stream.
+- Cancelled, completed, and failed runs are terminal.
+- Provider failure during PlanSearch, RefineSearch, or Explain checkpoints the
+  run at `awaitingProvider`; the UI exposes only Retry LLM or Cancel.
+- A nonterminal persisted run can reconnect through `run.stream` and
+  `run.resume`.
+- Restart recovery requires the persistent LangGraph checkpoint database.
+- An applied transaction awaiting acknowledgement is also recorded in
+  `AIPathOfBuilding-transaction-journal.json` under the PoB user path.
+- On reconnect, PoB reconciles the transaction result or restores the saved
+  rollback Snapshot if the sidecar cannot complete the audit.
+
+## Run limits
+
+The Deep preset currently defines these upper bounds:
+
+| Limit | Default |
+| --- | ---: |
+| Workflow recursions | 40 |
+| Wall time | 30 minutes |
+| Candidate × Sustainable Scenario evaluations | 100,000 |
+| Model calls | 16 |
+| No-improvement convergence rounds | 3 |
+| Duplicate tool-call limit | 3 |
+| Mechanic repair rounds | 3 |
+| Critical mechanic experiments | 1,024 |
+
+Mechanic analysis has no total wall-time SLA; individual Provider requests keep
+their timeout and the user may cancel. Reaching any limit without convergence
+creates a blocked report. Optimization never switches to deterministic fallback.
+
+See [Architecture](architecture.md) for module ownership and
+[Domain rules](domain-rules.md) for candidate invariants.

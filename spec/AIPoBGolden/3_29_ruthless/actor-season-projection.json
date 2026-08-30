@@ -1,0 +1,95 @@
+{
+  "schemaVersion": 1,
+  "ruleset": "3_29_ruthless",
+  "gameplayFieldPaths": [
+    "Build.targetVersion",
+    "Build.bloodline.id",
+    "Build.pacts.0",
+    "Build.Spectre.0",
+    "Build.TimelessData.jewelTypeId",
+    "Skills.groups.0.gems.0",
+    "Items.Seasonal.grafts.0",
+    "Tree.Spec.Overrides.0",
+    "Party.Aura"
+  ],
+  "contentCatalog": [
+    {
+      "id": "pob:actors",
+      "domain": "actor",
+      "kind": "currentBuild",
+      "available": true,
+      "data": {
+        "actors": [
+          { "id": "actor:player", "kind": "player", "source": "Build" },
+          { "id": "actor:minion:zombie", "kind": "minion", "skillId": "RaiseZombie" },
+          { "id": "actor:spectre:kitava-cultist", "kind": "spectre", "spectreId": "Metadata/Monsters/KitavaCultist", "known": true },
+          { "id": "actor:animate-guardian", "kind": "animateGuardian", "itemSetId": 2 },
+          { "id": "actor:party:Aura", "kind": "party", "buffer": "Aura", "textHash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "sourceStatus": "manual" }
+        ],
+        "season": {
+          "bloodline": { "id": "Warlock", "name": "Warlock Bloodline" },
+          "pacts": [{ "id": "Pact of Power", "name": "Pact of Power" }],
+          "timeless": { "jewelTypeId": 9, "conquerorTypeId": 1, "jewelSocketId": 61419 },
+          "overrides": [{ "nodeId": 37999, "dn": "Tattoo of the Tawhoa Shaman", "isTattoo": true }],
+          "items": {
+            "grafts": [{ "itemId": "ruthless-graft-1", "baseName": "Uul-Netol Graft" }],
+            "tinctures": [{ "itemId": "ruthless-tincture-1", "baseName": "Prismatic Tincture" }],
+            "foulborn": [{ "itemId": "ruthless-foulborn-1", "baseName": "Voll's Devotion", "foulborn": true }]
+          }
+        }
+      }
+    },
+    {
+      "id": "pob:tree",
+      "domain": "tree",
+      "kind": "currentBuild",
+      "available": true,
+      "data": {
+        "secondaryAscendancy": { "id": "Warlock", "name": "Warlock Bloodline", "selected": true },
+        "season": {
+          "timeless": { "jewelTypeId": 9, "conquerorTypeId": 1, "jewelSocketId": 61419 },
+          "overrides": [{ "nodeId": 37999, "dn": "Tattoo of the Tawhoa Shaman", "isTattoo": true }],
+          "runegrafts": [{ "nodeId": 4492, "dn": "Runegraft of the Agile", "overrideType": "AlternateMastery" }]
+        }
+      }
+    },
+    {
+      "id": "pob:skills",
+      "domain": "skills",
+      "kind": "currentBuild",
+      "available": true,
+      "data": { "groups": [{ "index": 1, "gems": [{ "name": "Raise Zombie" }, { "name": "Pact of Power" }] }] }
+    },
+    {
+      "id": "pob:items",
+      "domain": "gear",
+      "kind": "currentBuild",
+      "available": true,
+      "data": {
+        "items": [
+          { "id": "ruthless-graft-1", "type": "Graft", "baseName": "Uul-Netol Graft" },
+          { "id": "ruthless-tincture-1", "type": "Tincture", "baseName": "Prismatic Tincture" },
+          { "id": "ruthless-foulborn-1", "type": "Amulet", "baseName": "Voll's Devotion", "foulborn": true }
+        ]
+      }
+    }
+  ],
+  "candidates": [
+    {
+      "domain": "identity",
+      "actions": [{ "id": "golden:ruthless-secondary", "kind": "selectSecondaryAscendancy", "description": "Select reviewed ruthless secondary ascendancy", "payload": { "secondaryAscendClassId": 1 } }]
+    },
+    {
+      "domain": "tree",
+      "actions": [{ "id": "golden:ruthless-override", "kind": "setTreeOverride", "description": "Apply reviewed ruthless passive override", "payload": { "nodeId": 37999, "name": "Tattoo of the Tawhoa Shaman", "overrideType": "AlternateMastery" } }]
+    },
+    {
+      "domain": "actor",
+      "actions": [{ "id": "golden:ruthless-party", "kind": "setPartyBuffer", "description": "Apply approved ruthless party aura buffer", "payload": { "buffer": "Aura", "catalogId": "golden:ruthless:party:aura", "sourceHash": "sha256:98d1e502edc4fcb32ce3ecc421cf7d1324fcabd4833540deb97765bda410b19b", "text": "Aura effect: ruthless golden fixture" } }]
+    },
+    {
+      "domain": "gear",
+      "actions": [{ "id": "golden:ruthless-graft", "kind": "importAndEquip", "description": "Import reviewed ruthless seasonal graft", "payload": { "catalogId": "golden:ruthless:graft:1", "slot": "Graft1", "itemRaw": "Rarity: Rare\nRuthless Golden Graft\nUul-Netol Graft", "itemHash": "sha256:0cfe39f03331148a386c0a6bb2341b0520d454606aa0aa964ac6a1dc60a4b46a", "source": "seasonal" } }]
+    }
+  ]
+}

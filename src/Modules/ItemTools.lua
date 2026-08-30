@@ -412,3 +412,38 @@ itemLib.wiki = {
 	end,
 	triggered = false
 }
+
+-- Canonical item modifier-line structure. Parsers, serializers and downstream
+-- projections must share these names so new modifier kinds cannot disappear at
+-- a process boundary.
+itemLib.modLineSections = {
+	{ name = "buff", field = "buffModLines" },
+	{ name = "enchant", field = "enchantModLines" },
+	{ name = "scourge", field = "scourgeModLines" },
+	{ name = "classRequirement", field = "classRequirementModLines" },
+	{ name = "implicit", field = "implicitModLines" },
+	{ name = "explicit", field = "explicitModLines" },
+	{ name = "crucible", field = "crucibleModLines" },
+}
+
+itemLib.modLineFlags = {
+	crafted = true,
+	crucible = true,
+	custom = true,
+	disabled = true,
+	eater = true,
+	enchant = true,
+	exarch = true,
+	fractured = true,
+	implicit = true,
+	scourge = true,
+	synthesis = true,
+	mutated = true,
+	unscalable = true,
+	prefix = true,
+	suffix = true,
+	-- Advanced copy does not currently include this tag. PoB synthesises it for
+	-- legacy cases such as Cane of Kulemak.
+	unveiled = true,
+	vestigial = true,
+}

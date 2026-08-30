@@ -149,8 +149,8 @@
     Contains file name : SHA-1 hash pairings used to determine which files to update.
 * **README.md**
     Project overview
-* **runtime-win32.zip**
-    Contains PoB executable, update executable, compiled libraries `libcurl` (HTTPS requests), `lcurl` (libcurl bindings for Lua), `lua51` (LuaJIT 5.1), `lzip` (DEFLATE), `SimpleGraphic` (custom 2D graphics host), Lua libraries for Base64, JSON, SHA-1, XML, and fonts.
+* **runtime/**
+    Contains the version-controlled PoB executable, update executable, compiled libraries `libcurl` (HTTPS requests), `lcurl` (libcurl bindings for Lua), `lua51` (LuaJIT 5.1), `lzip` (DEFLATE), `SimpleGraphic` (custom 2D graphics host), Lua libraries for Base64, JSON, SHA-2, XML, and fonts. The Windows package gate copies this tree directly so the packaged host cannot drift from the tested runtime.
 * **tree-2_6.zip**
 * **tree-3_6.zip**
 * **tree-3_7.zip**

@@ -4,6 +4,9 @@
 .vscode/
 *.code-workspace
 inspect.lua
+__pycache__/
+.pytest_cache/
+*.pyc
 
 # Development files
 *.lnk
@@ -22,6 +25,23 @@ runtime/lua/debugger.lua
 
 # Release
 manifest-updated.xml
+artifacts/
+
+# AIPoB generated state and portable runtime
+sidecar/node_modules/
+sidecar/runtime/
+sidecar/coverage/
+sidecar/.cache/
+sidecar/data/
+sidecar/logs/
+sidecar/*.sqlite
+sidecar/*.sqlite-shm
+sidecar/*.sqlite-wal
+sidecar/.env
+sidecar/.env.*
+!sidecar/.env.example
+*.pem
+*.key
 
 # GGPK Export
 src/Export/ggpk/metadata/

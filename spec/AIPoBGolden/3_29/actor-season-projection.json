@@ -1,0 +1,97 @@
+{
+  "schemaVersion": 1,
+  "ruleset": "3_29",
+  "gameplayFieldPaths": [
+    "Build.targetVersion",
+    "Build.bloodline.id",
+    "Build.pacts.0",
+    "Build.Spectre.0",
+    "Build.TimelessData.jewelTypeId",
+    "Skills.groups.0.gems.0",
+    "Items.Seasonal.grafts.0",
+    "Tree.Spec.Overrides.0",
+    "Party.Aura"
+  ],
+  "contentCatalog": [
+    {
+      "id": "pob:actors",
+      "domain": "actor",
+      "kind": "currentBuild",
+      "available": true,
+      "data": {
+        "actors": [
+          { "id": "actor:player", "kind": "player", "source": "Build" },
+          { "id": "actor:minion:zombie", "kind": "minion", "skillId": "RaiseZombie" },
+          { "id": "actor:spectre:kitava-cultist", "kind": "spectre", "spectreId": "Metadata/Monsters/KitavaCultist", "known": true },
+          { "id": "actor:animate-guardian", "kind": "animateGuardian", "itemSetId": 2 },
+          { "id": "actor:party:Aura", "kind": "party", "buffer": "Aura", "textHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "sourceStatus": "manual" }
+        ],
+        "season": {
+          "bloodline": { "id": "Farrul", "name": "Farrul Bloodline" },
+          "pacts": [{ "id": "Pact of Beidat", "name": "Pact of Beidat" }],
+          "timeless": { "jewelTypeId": 9, "conquerorTypeId": 1, "jewelSocketId": 61419 },
+          "overrides": [{ "nodeId": 37999, "dn": "Tattoo of the Tawhoa Shaman", "isTattoo": true }],
+          "items": {
+            "grafts": [{ "itemId": "graft-1", "baseName": "Uul-Netol Graft" }],
+            "tinctures": [{ "itemId": "tincture-1", "baseName": "Prismatic Tincture" }],
+            "foulborn": [{ "itemId": "foulborn-1", "baseName": "Voll's Devotion", "foulborn": true }]
+          }
+        }
+      }
+    },
+    {
+      "id": "pob:tree",
+      "domain": "tree",
+      "kind": "currentBuild",
+      "available": true,
+      "data": {
+        "secondaryAscendancy": { "id": "Farrul", "name": "Farrul Bloodline", "selected": true },
+        "season": {
+          "timeless": { "jewelTypeId": 9, "conquerorTypeId": 1, "jewelSocketId": 61419 },
+          "overrides": [{ "nodeId": 37999, "dn": "Tattoo of the Tawhoa Shaman", "isTattoo": true }],
+          "runegrafts": [{ "nodeId": 4492, "dn": "Runegraft of the Agile", "overrideType": "AlternateMastery" }]
+        }
+      }
+    },
+    {
+      "id": "pob:skills",
+      "domain": "skills",
+      "kind": "currentBuild",
+      "available": true,
+      "data": {
+        "groups": [{ "index": 1, "gems": [{ "name": "Raise Zombie" }, { "name": "Pact of Beidat" }] }]
+      }
+    },
+    {
+      "id": "pob:items",
+      "domain": "gear",
+      "kind": "currentBuild",
+      "available": true,
+      "data": {
+        "items": [
+          { "id": "graft-1", "type": "Graft", "baseName": "Uul-Netol Graft" },
+          { "id": "tincture-1", "type": "Tincture", "baseName": "Prismatic Tincture" },
+          { "id": "foulborn-1", "type": "Amulet", "baseName": "Voll's Devotion", "foulborn": true }
+        ]
+      }
+    }
+  ],
+  "candidates": [
+    {
+      "domain": "identity",
+      "actions": [{ "id": "golden:secondary", "kind": "selectSecondaryAscendancy", "description": "Select reviewed secondary ascendancy", "payload": { "secondaryAscendClassId": 1 } }]
+    },
+    {
+      "domain": "tree",
+      "actions": [{ "id": "golden:override", "kind": "setTreeOverride", "description": "Apply reviewed passive override", "payload": { "nodeId": 37999, "name": "Tattoo of the Tawhoa Shaman", "overrideType": "AlternateMastery" } }]
+    },
+    {
+      "domain": "actor",
+      "actions": [{ "id": "golden:party", "kind": "setPartyBuffer", "description": "Apply approved party aura buffer", "payload": { "buffer": "Aura", "catalogId": "golden:party:aura", "sourceHash": "sha256:a42d82fdcc6cdc958b38cccadb043b6522ab8e67162551dc8c04d7ba56fbca8e", "text": "Aura effect: golden fixture" } }]
+    },
+    {
+      "domain": "gear",
+      "actions": [{ "id": "golden:graft", "kind": "importAndEquip", "description": "Import reviewed seasonal graft", "payload": { "catalogId": "golden:graft:1", "slot": "Graft1", "itemRaw": "Rarity: Rare\nGolden Graft\nUul-Netol Graft", "itemHash": "sha256:6bff71b5ec6ff350a4cb767697c809c0a52b5e33483b57b48455543efc927cd0", "source": "seasonal" } }]
+    }
+  ]
+}

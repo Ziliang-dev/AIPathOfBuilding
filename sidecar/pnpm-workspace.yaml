@@ -1,0 +1,8 @@
+allowBuilds:
+  better-sqlite3: true
+  esbuild: true
+minimumReleaseAgeExclude:
+  - '@langchain/langgraph-sdk@1.10.0'
+  - '@langchain/langgraph@1.4.13'
+  - '@langchain/protocol@0.0.19'
+  - openai@7.8.0

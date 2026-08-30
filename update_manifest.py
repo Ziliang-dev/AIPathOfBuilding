@@ -20,8 +20,8 @@ def _exclude_file(file_patterns: set[str], path: pathlib.Path) -> bool:
 def _exclude_directory(directory_names: set[str], path: pathlib.Path) -> bool:
     """Whether to exclude a directory. Doesn't consider any files in directories."""
     return any(
-        len(path.parts) <= 1
-        or all(a == b for a, b in zip(directory.split("/"), path.parts))
+        len(path.parts) > 1
+        and all(a == b for a, b in zip(directory.split("/"), path.parts))
         for directory in directory_names
     )
 
@@ -73,10 +73,11 @@ def create_manifest(version: str | None = None, replace: bool = False) -> None:
         logging.critical(f"Manifest configuration file not found in path '{base_path}'")
         return
 
-    base_url = "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/{branch}/"
+    base_url = "https://raw.githubusercontent.com/Ziliang-dev/AIPathOfBuilding/{branch}/"
     parts: list[dict[str, str]] = []
     for part in config.sections():
-        url = base_url + config[part]["path"]
+        part_path = config[part]["path"].strip()
+        url = base_url if part_path in {"", "."} else base_url + part_path
         url_with_trailing_slash = url if url.endswith("/") else url + "/"
         attributes = (
             {"part": part, "platform": "win32", "url": url_with_trailing_slash}

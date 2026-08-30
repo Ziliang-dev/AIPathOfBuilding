@@ -11,7 +11,11 @@ on:
               description: 'Enter the location of edited release notes to use'
               required: false
 jobs:
+  aipob-release-gate:
+    uses: ./.github/workflows/aipob.yml
+
   release:
+    needs: aipob-release-gate
     runs-on: ubuntu-latest
     steps:
             - name: Checkout

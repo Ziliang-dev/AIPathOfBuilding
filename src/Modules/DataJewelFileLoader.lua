@@ -5,9 +5,60 @@
 --
 local t_concat = table.concat
 
-local function loadJewelFile(jewelTypeName, cacheUncompressed)
+local function defaultValidator(value)
+	return type(value) == "string" and #value > 0
+end
+
+local function readValidated(path, validator)
+	local file = io.open(path, "rb")
+	if not file then return nil end
+	local value = file:read("*a")
+	file:close()
+	if validator(value) then return value end
+	return nil
+end
+
+local function writeCacheAtomically(path, value, validator)
+	if not validator(value) then return nil, "jewel data validation failed" end
+	local suffix = tostring(os.time()) .. "." .. tostring(math.random(1, 999999999))
+	local temporaryPath = path .. ".tmp." .. suffix
+	local file = io.open(temporaryPath, "wb")
+	if not file then return nil, "cannot open temporary jewel cache" end
+	local ok, err = file:write(value)
+	if ok then file:flush() end
+	file:close()
+	if not ok then
+		os.remove(temporaryPath)
+		return nil, tostring(err)
+	end
+	if not readValidated(temporaryPath, validator) then
+		os.remove(temporaryPath)
+		return nil, "temporary jewel cache verification failed"
+	end
+	if readValidated(path, validator) then
+		os.remove(temporaryPath)
+		return true
+	end
+	-- The target is a generated cache. Remove only this exact invalid target so
+	-- Windows can atomically promote the verified same-directory temporary file.
+	os.remove(path)
+	local renamed, renameErr = os.rename(temporaryPath, path)
+	if not renamed then
+		-- Another worker may have won the race. Accept only its verified result.
+		if readValidated(path, validator) then
+			os.remove(temporaryPath)
+			return true
+		end
+		os.remove(temporaryPath)
+		return nil, tostring(renameErr)
+	end
+	return true
+end
+
+local function loadJewelFile(jewelTypeName, cacheUncompressed, validator)
 	local jewelPath = "/Data/TimelessJewelData/" .. jewelTypeName
 	local scriptPath = GetScriptPath()
+	validator = type(validator) == "function" and validator or defaultValidator
 	if scriptPath == "" then
 		-- The desktop app supplies its script folder. Headless tests may start in
 		-- either the repository root or the src folder, so check both locations.
@@ -43,14 +94,9 @@ local function loadJewelFile(jewelTypeName, cacheUncompressed)
 
 	if uncompressedFileAttr.modified and uncompressedFileAttr.modified > (compressedFileAttr.modified or 0) then
 		ConPrintf("Uncompressed jewel data is up-to-date, loading " .. uncompressedFileAttr.fileName)
-		local uncompressedFile = io.open(scriptPath .. jewelPath .. ".bin", "rb")
-		if uncompressedFile then
-			local jewelData = uncompressedFile:read("*a")
-			uncompressedFile:close()
-			if jewelData then
-				return jewelData
-			end
-		end
+		local jewelData = readValidated(scriptPath .. jewelPath .. ".bin", validator)
+		if jewelData then return jewelData end
+		ConPrintf("Rejected invalid uncompressed jewel cache " .. scriptPath .. jewelPath .. ".bin")
 	end
 
 	if cacheUncompressed then
@@ -81,13 +127,14 @@ local function loadJewelFile(jewelTypeName, cacheUncompressed)
 		return
 	end
 
-	local jewelData = Inflate(compressedData)
+	local inflateOk, jewelData = pcall(Inflate, compressedData)
+	if not inflateOk or not validator(jewelData) then
+		ConPrintf("Failed to validate inflated jewel data: " .. jewelTypeName)
+		return
+	end
 	if cacheUncompressed then
-		local uncompressedFile = io.open(scriptPath .. jewelPath .. ".bin", "wb+")
-		if uncompressedFile then
-			uncompressedFile:write(jewelData)
-			uncompressedFile:close()
-		end
+		local wrote, writeErr = writeCacheAtomically(scriptPath .. jewelPath .. ".bin", jewelData, validator)
+		if not wrote then ConPrintf("Failed to publish jewel cache: " .. tostring(writeErr)) end
 	end
 	return jewelData
 end

@@ -10,6 +10,9 @@ local xml = require("xml")
 local sha1 = require("sha1")
 local curl = require("lcurl.safe")
 local lzip = require("lzip")
+local updateScriptPath, updateScriptFallback = GetScriptPath()
+updateScriptPath = updateScriptPath or updateScriptFallback or "."
+local UpdatePaths = dofile(updateScriptPath .. "/Modules/AIPoB/UpdatePaths.lua")
 
 local globalRetryLimit = 10
 local function downloadFileText(source, file)
@@ -88,17 +91,13 @@ end
 
 ConPrintf("Checking for update...")
 
--- Use built-in helpers to obtain absolute paths without spawning a shell.
-local scriptPath, scriptFallback = GetScriptPath()
-scriptPath = scriptPath or scriptFallback or "."
-local runtimePath, runtimeFallback = GetRuntimePath()
-runtimePath = runtimePath or runtimeFallback or scriptPath
-
 -- Load and process local manifest
 local localVer
 local localPlatform, localBranch
 local localFiles = { }
-local localManXML = xml.LoadXMLFile(scriptPath.."/manifest.xml")
+local paths, localManXML = UpdatePaths.Resolve(xml)
+local scriptPath = paths.scriptPath
+local updatePath = paths.updatePath
 local localSource
 local runtimeExecutable
 if localManXML and localManXML[1].elem == "PoBVersion" then
@@ -113,13 +112,8 @@ if localManXML and localManXML[1].elem == "PoBVersion" then
 					localSource = node.attrib.url
 				end
 			elseif node.elem == "File" then
-				local fullPath
 				node.attrib.name = node.attrib.name:gsub("{space}", " ")
-				if node.attrib.part == "runtime" then
-					fullPath = runtimePath .. "/" .. node.attrib.name
-				else
-					fullPath = scriptPath .. "/" .. node.attrib.name
-				end
+				local fullPath = UpdatePaths.FilePath(paths, node.attrib.name, node.attrib.part)
 				localFiles[node.attrib.name] = { sha1 = node.attrib.sha1, part = node.attrib.part, platform = node.attrib.platform, fullPath = fullPath }
 				if node.attrib.part == "runtime" and node.attrib.name:match("Path of Building") then
 					runtimeExecutable = fullPath
@@ -156,12 +150,7 @@ if remoteManXML and remoteManXML[1].elem == "PoBVersion" then
 				remoteSources[node.attrib.part][node.attrib.platform or "any"] = node.attrib.url
 			elseif node.elem == "File" then
 				if not node.attrib.platform or node.attrib.platform == localPlatform then
-					local fullPath
-					if node.attrib.part == "runtime" then
-						fullPath = runtimePath .. "/" .. node.attrib.name
-					else
-						fullPath = scriptPath .. "/" .. node.attrib.name
-					end
+					local fullPath = UpdatePaths.FilePath(paths, node.attrib.name, node.attrib.part)
 					remoteFiles[node.attrib.name] = { sha1 = node.attrib.sha1, part = node.attrib.part, platform = node.attrib.platform, fullPath = fullPath }
 				end
 			end
@@ -209,11 +198,11 @@ if #updateFiles == 0 and #deleteFiles == 0 then
 	return "none"
 end
 
-MakeDir("Update")
+MakeDir(updatePath)
 ConPrintf("Downloading update...")
 
 -- Download changelog
-downloadFile(localSource, "changelog.txt", scriptPath.."/changelog.txt")
+downloadFile(localSource, "changelog.txt", paths.installPath.."/changelog.txt")
 
 -- Download files that need updating
 local failedFile = false
@@ -225,13 +214,13 @@ for index, data in ipairs(updateFiles) do
 	local partSources = remoteSources[data.part]
 	local source = partSources[localPlatform] or partSources["any"]
 	source = source:gsub("{branch}", localBranch)
-	local fileName = scriptPath.."/Update/"..data.name:gsub("[\\/]","{slash}")
+	local fileName = updatePath.."/"..data.name:gsub("[\\/]","{slash}")
 	data.updateFileName = fileName
 	local zipName = source:match("/([^/]+%.zip)$")
 	if zipName then
 		if not zipFiles[zipName] then
 			ConPrintf("Downloading %s...", zipName)
-			local zipFileName = scriptPath.."/Update/"..zipName
+			local zipFileName = updatePath.."/"..zipName
 			downloadFile(source, "", zipFileName)
 			zipFiles[zipName] = lzip.open(zipFileName)
 		end
@@ -279,7 +268,7 @@ for index, data in ipairs(updateFiles) do
 end
 for name, zip in pairs(zipFiles) do
 	zip:Close()
-	os.remove(scriptPath.."/Update/"..name)
+	os.remove(updatePath.."/"..name)
 end
 if failedFile then
 	ConPrintf("Update failed: one or more files couldn't be downloaded")
@@ -297,7 +286,7 @@ end
 for name, data in pairs(remoteFiles) do
 	table.insert(localManXML, { elem = "File", attrib = { name = data.name, sha1 = data.sha1, part = data.part, platform = data.platform } })
 end 
-xml.SaveXMLFile(localManXML, scriptPath.."/Update/manifest.xml")
+xml.SaveXMLFile(localManXML, updatePath.."/manifest.xml")
 
 -- Build list of operations to apply the update
 local updateMode = "normal"
@@ -322,17 +311,17 @@ end
 for _, data in pairs(deleteFiles) do
 	table.insert(ops, 'delete "'..data.fullPath..'"')
 end
-table.insert(ops, 'move "'..scriptPath..'/Update/manifest.xml" "'..scriptPath..'/manifest.xml"')
+table.insert(ops, 'move "'..updatePath..'/manifest.xml" "'..paths.manifestPath..'"')
 if updateMode == "basic" then
 	-- Update script will need to relaunch the normal environment after updating
 	table.insert(opsRuntime, 'start "'..runtimeExecutable..'"')
-	local opRuntimeFile = io.open(scriptPath.."/Update/opFileRuntime.txt", "w+")
+	local opRuntimeFile = io.open(updatePath.."/opFileRuntime.txt", "w+")
 	opRuntimeFile:write(table.concat(opsRuntime, "\n"))
 	opRuntimeFile:close()
 end
 
 -- Write operations file
-local opFile = io.open(scriptPath.."/Update/opFile.txt", "w+")
+local opFile = io.open(updatePath.."/opFile.txt", "w+")
 opFile:write(table.concat(ops, "\n"))
 opFile:close()
 
