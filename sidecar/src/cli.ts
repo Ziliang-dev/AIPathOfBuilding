@@ -6,7 +6,7 @@ import { parseArgs, type SidecarConfig } from "./config.js";
 import { DefaultPlannerController, type WorkerPoolFactory } from "./plannerController.js";
 import { RpcServer } from "./rpc/index.js";
 import { MetricSetSchema, PROTOCOL_VERSION } from "./schemas.js";
-import { MechanicExperimentResultSchema } from "./mechanics/index.js";
+import { MechanicExperimentResultSchema } from "./mechanics/experiments.js";
 import { WinCredClient } from "./credentials/index.js";
 import {
   ConsentManager,

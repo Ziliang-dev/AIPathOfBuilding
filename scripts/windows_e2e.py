@@ -39,11 +39,11 @@ socket.on('data', chunk => {
       const observation = {
         context: experiment.context,
         fingerprint: 'sha256:' + '1'.repeat(64),
-        projectionFingerprint: 'sha256:' + '2'.repeat(64),
+        projectionFingerprint: 'sha256:' + '0'.repeat(64),
         nativeProbeFingerprint: 'sha256:' + '3'.repeat(64),
         evidenceFingerprint: 'sha256:' + '4'.repeat(64),
         metrics: { combinedDps: 1000000, effectiveHitPool: 50000, worstCaseMaxHit: 20000 },
-        skills: [], conditions: [], activeItemIds: [], activeModifierIds: [], activePassiveIds: [],
+        skills: [], conditions: [], activeItemIds: ['1'], activeModifierIds: ['item:1:explicit:1'], activePassiveIds: [],
         configValues: {}, resources: {}, cooldowns: {}, durations: {},
         contributions: { combinedDps: 1000000, effectiveHitPool: 50000, worstCaseMaxHit: 20000 },
       };
@@ -85,8 +85,8 @@ socket.on('data', chunk => {
 
 
 MECHANIC_SOURCE_IDS = [
-    "weaponSet1:item:e2e:explicit:1:parsed:1",
-    "weaponSet2:item:e2e:explicit:1:parsed:1",
+    "weaponSet1:item:1:explicit:1",
+    "weaponSet2:item:1:explicit:1",
 ]
 
 
@@ -96,6 +96,7 @@ class FixtureProvider:
     def __init__(self) -> None:
         self._sequence = 0
         self._lock = threading.Lock()
+        self.trace: list[str] = []
         provider = self
 
         class Handler(BaseHTTPRequestHandler):
@@ -173,9 +174,29 @@ class FixtureProvider:
                 outputs.append(decoded.get("output"))
         return outputs
 
+    @staticmethod
+    def _tool_errors(messages: list[Any]) -> list[Any]:
+        errors: list[Any] = []
+        for message in messages:
+            if not isinstance(message, dict) or message.get("role") != "tool":
+                continue
+            content = message.get("content")
+            if not isinstance(content, str):
+                continue
+            try:
+                decoded = json.loads(content)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(decoded, dict) and decoded.get("ok") is False:
+                errors.append(decoded.get("output"))
+        return errors
+
     def _completion(self, payload: dict[str, Any]) -> dict[str, Any]:
         names = self._tool_names(payload)
         messages = payload.get("messages", [])
+        tool_errors = self._tool_errors(messages)
+        if tool_errors:
+            raise ValueError(f"fixture mechanic tool rejected: {tool_errors[-1]}")
         message_text = "\n".join(
             str(message.get("content", ""))
             for message in messages
@@ -209,7 +230,7 @@ class FixtureProvider:
                     entity for page in pages for entity in page["entities"]
                     if isinstance(entity, dict) and isinstance(entity.get("id"), str)
                 ]
-                required_kinds = {"modifierLine", "skill", "support", "passive", "config", "condition", "actorBuff", "seasonMechanic"}
+                required_kinds = {"item", "modifierLine", "skill", "support", "passive", "config", "condition", "actorBuff", "seasonMechanic"}
                 sources = [entity for entity in entities if entity.get("active") is True and entity.get("kind") in required_kinds]
                 if not sources:
                     sources = [entity for entity in entities if entity["id"] in MECHANIC_SOURCE_IDS]
@@ -222,13 +243,42 @@ class FixtureProvider:
                 if pending:
                     tool_name, arguments = "inspect_mechanic_entity", {"entityIds": pending[:100]}
                 else:
+                    inspected_entities = {
+                        entity["id"]: entity
+                        for output in outputs if isinstance(output, list)
+                        for entity in output if isinstance(entity, dict) and isinstance(entity.get("id"), str)
+                    }
+                    detailed_entities = [inspected_entities.get(entity["id"], entity) for entity in entities]
                     claims: list[dict[str, Any]] = []
                     for source in sources:
                         context = source.get("context")
-                        targets = [
-                            entity for entity in entities
-                            if entity.get("context") == context and entity.get("kind") == "item" and entity["id"] != source["id"]
-                        ]
+                        if source.get("kind") == "item":
+                            targets = [
+                                entity for entity in detailed_entities
+                                if entity.get("active") is True and entity.get("context") == context
+                                and entity.get("kind") == "modifierLine"
+                                and isinstance(entity.get("data"), dict)
+                                and entity["data"].get("itemEntityId") == source["id"]
+                            ]
+                        elif source.get("kind") == "modifierLine":
+                            targets = [
+                                entity for entity in detailed_entities
+                                if entity.get("active") is True and entity.get("context") == context
+                                and entity.get("kind") == "parsedModifier"
+                                and entity["id"].startswith(source["id"] + ":parsed:")
+                            ]
+                        elif source.get("kind") == "config":
+                            source_data = inspected_entities.get(source["id"], source).get("data", {})
+                            config_key = source_data.get("configKey") if isinstance(source_data, dict) else None
+                            targets = [
+                                entity for entity in detailed_entities
+                                if entity.get("active") is True and entity.get("context") == context
+                                and entity.get("kind") == "condition" and isinstance(entity.get("data"), dict)
+                                and isinstance(entity["data"].get("observationId"), str)
+                                and entity["data"]["observationId"].split(":", 1)[-1] == config_key
+                            ]
+                        else:
+                            targets = []
                         if not targets:
                             continue
                         claims.append({
@@ -237,8 +287,32 @@ class FixtureProvider:
                             "targetId": targets[0]["id"],
                             "context": context,
                             "statement": "E2E fixture relation is covered by exact local PoB provenance.",
-                            "evidenceIds": [source["id"]],
+                            "evidenceIds": [source["id"], targets[0]["id"]],
                         })
+                    covered_ids = {
+                        entity_id
+                        for claim in claims
+                        for entity_id in (claim["sourceId"], claim["targetId"])
+                    }
+                    def claim_required(source: dict[str, Any]) -> bool:
+                        detailed = inspected_entities.get(source["id"], source)
+                        data = detailed.get("data") if isinstance(detailed.get("data"), dict) else {}
+                        if source.get("kind") == "config":
+                            return isinstance(data.get("nativeSources"), list) and bool(data["nativeSources"])
+                        if source.get("kind") == "condition":
+                            return isinstance(data.get("sources"), list) and bool(data["sources"])
+                        return True
+
+                    uncovered_ids = sorted(
+                        source["id"] for source in sources
+                        if claim_required(source) and source["id"] not in covered_ids
+                    )
+                    if uncovered_ids:
+                        uncovered = {
+                            entity_id: inspected_entities.get(entity_id, {}).get("data")
+                            for entity_id in uncovered_ids
+                        }
+                        raise ValueError(f"fixture has no exact semantic relation for required entities: {uncovered}")
                     tool_name, arguments = "submit_mechanic_claims", {"claims": claims, "complete": True}
 
         tool_calls = [] if tool_name is None else [{
@@ -246,6 +320,13 @@ class FixtureProvider:
             "type": "function",
             "function": {"name": tool_name, "arguments": json.dumps(arguments, separators=(",", ":"))},
         }]
+        selection_detail = ""
+        if tool_name == "submit_mechanic_claims" and isinstance(arguments, dict):
+            selection_detail = f" claims={len(arguments.get('claims', []))}"
+        self.trace.append(
+            f"offered={','.join(names)} outputs={len(self._tool_outputs(messages))} "
+            f"selected={tool_name or 'message'}{selection_detail}"
+        )
         return {
             "id": f"chatcmpl-{self._next_id()}",
             "object": "chat.completion",
@@ -294,7 +375,10 @@ class RpcClient:
         self.writer.write(json.dumps(request, separators=(",", ":")) + "\n")
         self.writer.flush()
         while True:
-            message = self.read()
+            try:
+                message = self.read()
+            except TimeoutError as error:
+                fail(f"RPC {method} timed out after {self.connection.gettimeout()} seconds: {error}")
             if message.get("id") == request_id:
                 if message.get("error") is not None:
                     fail(f"RPC {method} failed: {message['error'].get('message', message['error'])}")
@@ -307,15 +391,24 @@ class RpcClient:
             if message.get("method") == method:
                 self.notifications.pop(index)
                 return message.get("params", {})
-            if message.get("method") == "run.failed":
+            if message.get("method") in {"run.failed", "mechanics.failed"}:
                 self.notifications.pop(index)
-                fail(f"Packaged workflow failed: {message.get('params', {}).get('error', 'unknown error')}")
+                fail(
+                    f"Packaged workflow {message.get('method')} failed: "
+                    f"{message.get('params', {}).get('error', 'unknown error')}"
+                )
         while True:
-            message = self.read()
+            try:
+                message = self.read()
+            except TimeoutError as error:
+                fail(f"Notification {method} timed out after {self.connection.gettimeout()} seconds: {error}")
             if message.get("method") == method:
                 return message.get("params", {})
-            if message.get("method") == "run.failed":
-                fail(f"Packaged workflow failed: {message.get('params', {}).get('error', 'unknown error')}")
+            if message.get("method") in {"run.failed", "mechanics.failed"}:
+                fail(
+                    f"Packaged workflow {message.get('method')} failed: "
+                    f"{message.get('params', {}).get('error', 'unknown error')}"
+                )
             if message.get("method") is not None:
                 self.notifications.append(message)
 
@@ -422,7 +515,10 @@ def base_snapshot(schema_version: int) -> dict[str, Any]:
             '<Config activeConfigSet="1"><ConfigSet id="1" title="Default">'
             '<Input name="bandit" string="None"/><Input name="pantheonMajorGod" string="None"/>'
             '<Input name="pantheonMinorGod" string="None"/><Input name="enemyIsBoss" string="None"/>'
-            '</ConfigSet></Config><Skills/><Items/><Tree/><Party/></PathOfBuilding>'
+            '</ConfigSet></Config><Skills/><Items activeItemSet="1">'
+            '<Item id="1">Rarity: RARE\nE2E Grasp\nIron Gauntlets\nImplicits: 0\n+10 to maximum Life</Item>'
+            '<ItemSet id="1"><Slot name="Gloves" itemId="1"/></ItemSet>'
+            '</Items><Tree/><Party/></PathOfBuilding>'
         ),
         "fingerprint": "e2e-build",
         "engineVersion": "e2e-engine",
@@ -436,24 +532,25 @@ def base_snapshot(schema_version: int) -> dict[str, Any]:
             "version": 1,
             "inventory": {"version": 1, "sections": ["explicit"], "lineFlags": [], "sourceFamilies": []},
             "items": [{
-                "id": "e2e", "name": "E2E inactive inventory item", "equipped": False, "active": False,
-                "references": [], "state": {}, "legality": {"version": 1, "status": "valid", "findings": []},
+                "id": "1", "name": "E2E Grasp", "equipped": True, "active": True,
+                "references": [{"itemSetId": "1", "slot": "Gloves", "active": True}],
+                "state": {}, "legality": {"version": 1, "status": "valid", "findings": []},
                 "modifierLines": [{
-                    "id": "item:e2e:explicit:1", "section": "explicit", "ordinal": 1,
-                    "rawText": "1% increased E2E fixture value", "active": False, "disabled": False,
+                    "id": "item:1:explicit:1", "section": "explicit", "ordinal": 1,
+                    "rawText": "+10 to maximum Life", "active": True, "disabled": False,
                     "flags": [], "modTags": [], "parseStatus": "parsed",
                     "provenance": {
-                        "sourceFamily": "explicit", "sourceTable": "e2e", "sourceModId": "E2EFixture",
-                        "resolution": "exact", "evidence": ["e2e:fixture"],
+                        "sourceFamily": "explicit", "sourceTable": "e2e", "sourceModId": "E2ELife",
+                        "resolution": "exact", "evidence": ["e2e:life"],
                     },
                     "parsedMods": [{
-                        "name": "E2EFixture", "type": "INC", "classification": "numeric",
-                        "value": 1, "flags": 0, "keywordFlags": 0, "tags": [],
+                        "name": "Life", "type": "BASE", "classification": "numeric",
+                        "value": 10, "flags": 0, "keywordFlags": 0, "tags": [],
                     }],
                 }],
             }],
             "modifierCount": 1,
-            "activeModifierCount": 0,
+            "activeModifierCount": 1,
             "unresolvedModifierCount": 0,
             "descriptions": {"entries": [], "truncated": False},
             "fingerprint": projection_fingerprint,
@@ -561,7 +658,7 @@ def e2e_windows(args: argparse.Namespace) -> None:
         ready_path = data_directory / "ready.json"
         token = ("e2e-" + os.urandom(16).hex()).ljust(40, "x")
         worker_count = "1" if use_packaged_pob else "2"
-        rpc_timeout = 180 if use_packaged_pob else 60
+        rpc_timeout = 600 if use_packaged_pob else 60
         arguments = [
             str(node), str(bundle), "--host", "127.0.0.1", "--port", "0",
             "--session-token", token, "--data-dir", str(data_directory), "--ready-file", str(ready_path),
@@ -585,9 +682,24 @@ def e2e_windows(args: argparse.Namespace) -> None:
                 fail("E2E hello protocol mismatch.")
             configure_fixture_provider(rpc, provider.base_url)
             rpc.request("build.capture", {"snapshot": base_snapshot(schema_version)})
-            started = rpc.request("run.start", {"snapshotFingerprint": "e2e-build", "objective": objective(schema_version)})
+            mechanic_started = rpc.request("mechanics.start", {"snapshotFingerprint": "e2e-build"})
+            mechanic_completed = rpc.notification("mechanics.completed")
+            mechanic_report = mechanic_completed.get("report", {})
+            if mechanic_report.get("status") != "verified":
+                fail(
+                    f"Packaged mechanic analysis blocked: {mechanic_report.get('blockers', [])}; "
+                    f"provider trace={provider.trace[-20:]}"
+                )
+            print(f"Packaged mechanic report verified: {mechanic_report['analysisFingerprint']}", flush=True)
+            started = rpc.request("run.start", {
+                "snapshotFingerprint": "e2e-build",
+                "objective": objective(schema_version),
+                "mechanicAnalysisFingerprint": mechanic_report["analysisFingerprint"],
+            })
             run_id = str(started["runId"])
+            print(f"Packaged optimization started: {run_id}", flush=True)
             awaiting = rpc.notification("run.awaitingApproval")
+            print(f"Packaged optimization awaiting approval: {run_id}", flush=True)
             candidate_id = str(awaiting["candidates"][0]["id"])
             preview = rpc.request("candidate.preview", {"runId": run_id, "candidateId": candidate_id})
             if preview["baseFingerprint"] != "e2e-build":

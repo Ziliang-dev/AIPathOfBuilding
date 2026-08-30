@@ -364,6 +364,8 @@ export const MechanicSkillObservationSchema = z.object({
     id: z.string().min(1).max(512),
     name: z.string().min(1).max(512),
     fromItem: z.boolean().default(false),
+    sourceGroup: z.number().int().positive().optional(),
+    sourceGem: z.number().int().positive().optional(),
   })).max(64).default([]),
 });
 
@@ -378,7 +380,9 @@ export const MechanicObservationSchema = z.object({
   conditions: z.array(z.object({
     id: z.string().min(1).max(512),
     actor: z.string().min(1).max(128),
+    value: z.unknown().optional(),
     sources: z.array(z.string().min(1).max(512)).max(128).default([]),
+    dependencies: z.array(z.string().min(1).max(512)).max(4096).default([]),
   })).max(4096),
   activeItemIds: z.array(z.string().min(1).max(512)).max(100_000),
   activeModifierIds: z.array(z.string().min(1).max(512)).max(100_000),
@@ -413,6 +417,7 @@ export const MechanicObservationDeltaSchema = z.object({
   addedPassiveIds: z.array(z.string()).default([]),
   removedPassiveIds: z.array(z.string()).default([]),
   contributionChanges: z.record(z.string(), z.object({ before: z.number().optional(), after: z.number().optional() })).default({}),
+  configChanges: z.record(z.string(), z.object({ before: z.unknown().optional(), after: z.unknown().optional() })).default({}),
   resourceChanges: z.record(z.string(), z.object({ before: z.number().optional(), after: z.number().optional() })).default({}),
   cooldownChanges: z.record(z.string(), z.object({ before: z.number().optional(), after: z.number().optional() })).default({}),
   durationChanges: z.record(z.string(), z.object({ before: z.number().optional(), after: z.number().optional() })).default({}),

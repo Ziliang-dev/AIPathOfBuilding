@@ -10,7 +10,7 @@
 	<File name="help.txt" part="default" sha1="e486cb63a78f5ca355430b67fa23e02fd30f5771" />
 	<File name="LICENSE.md" part="default" sha1="c77635aa1ba0a2ffe8eb72f93b3376e3a3d2041a" />
 	<File name="_SimpleGraphic.def.lua" part="program" sha1="5e3bf32e522d10b947954e588754375ac46a7171" />
-	<File name="AIPoBWorker.lua" part="program" sha1="b722f3456c32b7eb2658b70c5ac95c0550037be8" />
+	<File name="AIPoBWorker.lua" part="program" sha1="67a7ecb2fdccf6d45decb4e0d085a965b52dd51f" />
 	<File name="Assets/ascendancypassiveheaderleft.png" part="program" sha1="6a65683dcc3b14382dc083198fe9361454e91b15" />
 	<File name="Assets/ascendancypassiveheadermiddle.png" part="program" sha1="79ccf100c4154d8f65544e2b32d44a612b7007c0" />
 	<File name="Assets/ascendancypassiveheaderright.png" part="program" sha1="dbb86c1b8b51019379e52cd1f8b2a9edee07a3f6" />
@@ -124,7 +124,7 @@
 	<File name="Assets/veiledicon.png" part="program" sha1="035479a7ee7847969ef50ff428e3bee897fba671" />
 	<File name="Assets/vestigialicon.png" part="program" sha1="ecb5dd4b9aed1cac0c1a677b18838ae9c62744d7" />
 	<File name="Assets/warlordicon.png" part="program" sha1="cca050c84884f5c0bb1380ece51d3c4b32be4900" />
-	<File name="Classes/AIPlannerTab.lua" part="program" sha1="842b3e01bba42a2f77140f1829e10359ce59642d" />
+	<File name="Classes/AIPlannerTab.lua" part="program" sha1="4a5491993f63a86cc642c776eccfc770632bb76b" />
 	<File name="Classes/BuildListControl.lua" part="program" sha1="f60f0d7f6aecbe851db896913cd1aa707c7fb304" />
 	<File name="Classes/ButtonControl.lua" part="program" sha1="dd46384fc87d495e7ef5a11803cfc70360ac8bf1" />
 	<File name="Classes/CalcBreakdownControl.lua" part="program" sha1="5526a0f111020dcdb390ef6ebfcd8d3f7cdc2eb4" />
@@ -149,7 +149,7 @@
 	<File name="Classes/GemSelectControl.lua" part="program" sha1="8954e020052121d13122873b578b87e0bb7c60fc" />
 	<File name="Classes/GemTooltip.lua" part="program" sha1="11a6d37e2e2cb86f4b1a130968db7fd4154da6c2" />
 	<File name="Classes/ImportTab.lua" part="program" sha1="c90ed141decea20fc4ebac4d9f256ac6b0480b9b" />
-	<File name="Classes/Item.lua" part="program" sha1="f7a525c1ebd84434206ddd3a8bfe05659d84ca32" />
+	<File name="Classes/Item.lua" part="program" sha1="f328669ba841c32838e0c8aa11c61c6fd20dd576" />
 	<File name="Classes/ItemDBControl.lua" part="program" sha1="6bc84148c700c72a034bc4c2e020ff3bfb798b4a" />
 	<File name="Classes/ItemListControl.lua" part="program" sha1="01546a91c647cb978ffb757cbe75a7afaa2d0cba" />
 	<File name="Classes/ItemSetListControl.lua" part="program" sha1="5ff494b708b1b633f0cf4157e30ad295c1044ed4" />
@@ -383,26 +383,30 @@
 	<File name="Launch.lua" part="program" sha1="49aa75bfb3aa68bd38daf6b6870012794e40cf89" />
 	<File name="LaunchServer.lua" part="program" sha1="f15bdfbedaf887e19556490dce49b720f8365379" />
 	<File name="Modules/AddImplicitPopup.lua" part="program" sha1="f68d391d10b95c0feef70b7e8e82326a745dcb3b" />
-	<File name="Modules/AIPoB/ActorSeason.lua" part="program" sha1="c73606db105b5f0c96e08d9b15554305bffe46ce" />
-	<File name="Modules/AIPoB/BuildAction.lua" part="program" sha1="80ccbd0eec697682999997747e0972b40ec7929a" />
+	<File name="Modules/AIPoB/ActorSeason.lua" part="program" sha1="18cdece562cc9177d743330bdea5602f2fa4055e" />
+	<File name="Modules/AIPoB/BuildAction.lua" part="program" sha1="d20a991b628d7e2b54c974be2b79d00db9738bb5" />
 	<File name="Modules/AIPoB/BuildSandbox.lua" part="program" sha1="8ddac39913f5e613f729f1c65f13550913b20f80" />
 	<File name="Modules/AIPoB/BuildState.lua" part="program" sha1="25aeb2ae71b4ab1a6ea264c0387e9b50857a9264" />
 	<File name="Modules/AIPoB/ConditionEvidence.lua" part="program" sha1="fcc33bad73f28da0ab7953b1e4cfbffdcd047ad7" />
-	<File name="Modules/AIPoB/ContentCatalog.lua" part="program" sha1="9bc1d52854341a12c52c5e2d7283edd3b255c4ef" />
+	<File name="Modules/AIPoB/ContentCatalog.lua" part="program" sha1="335d44241e0d84c218ad3f2d0d3eeb7b68222b40" />
 	<File name="Modules/AIPoB/ItemImport.lua" part="program" sha1="59d3b55415cc816d7f65729ece8a8aafde59dfd7" />
+	<File name="Modules/AIPoB/ItemMechanicProbe.lua" part="program" sha1="9256720a158903a658ca5b2a65b886deecdaa375" />
+	<File name="Modules/AIPoB/MechanicExperiment.lua" part="program" sha1="f06af0e3be9cd79c0fdebf85220da2f715f79149" />
 	<File name="Modules/AIPoB/Metrics.lua" part="program" sha1="b5232d46f44c1930d96cc58f9f20a0f84b9fef90" />
-	<File name="Modules/AIPoB/NativeEvidence.lua" part="program" sha1="47bfd417ab67d1c85743f4883b4eee11d2f537e6" />
-	<File name="Modules/AIPoB/NativeLinkProbe.lua" part="program" sha1="d528c84e3e485183b338e3b5713e79252c7f7fb0" />
-	<File name="Modules/AIPoB/PlannerController.lua" part="program" sha1="bc24e3cb9e3e2633a8371f961b48479f084359c0" />
-	<File name="Modules/AIPoB/RpcClient.lua" part="program" sha1="1a6765b7eb13e748f9d9e92c4fee5f0b88fc8da4" />
+	<File name="Modules/AIPoB/ModifierCatalog.lua" part="program" sha1="94192cafb600ae5d4def05858bc7fa4c9b95e2bc" />
+	<File name="Modules/AIPoB/ModifierProjection.lua" part="program" sha1="2dc8a882d52b6a4431ec4919e3a93c662afa6982" />
+	<File name="Modules/AIPoB/NativeEvidence.lua" part="program" sha1="f5ae7a01c97945b416c1bb73fc730b3d1b736f3e" />
+	<File name="Modules/AIPoB/NativeLinkProbe.lua" part="program" sha1="4526115dff9190a3d0cc61ba90537b43c48316c4" />
+	<File name="Modules/AIPoB/PlannerController.lua" part="program" sha1="47252cc604036f8090c2d668c2ab82ab29dfabbb" />
+	<File name="Modules/AIPoB/RpcClient.lua" part="program" sha1="a5996057bc667d9f2b06b1f175e64a0775e250a9" />
 	<File name="Modules/AIPoB/Scenario.lua" part="program" sha1="20f9fbd369dd8430776aa19013d60acb84510c48" />
-	<File name="Modules/AIPoB/SidecarLauncher.lua" part="program" sha1="981483876ae4f54db2a0a69dc349808a69758c8a" />
-	<File name="Modules/AIPoB/Snapshot.lua" part="program" sha1="fdfa83aca6daa227cce16db340471b6f65ba8aa0" />
+	<File name="Modules/AIPoB/SidecarLauncher.lua" part="program" sha1="856d707ebe6643cd49cdefe502ad896f00418515" />
+	<File name="Modules/AIPoB/Snapshot.lua" part="program" sha1="a48ce0d260ac60a6fc797e3b4dc458b78a49063a" />
 	<File name="Modules/AIPoB/TradeBroker.lua" part="program" sha1="fe917188951700492d7f62ad634f1f65880c129c" />
 	<File name="Modules/AIPoB/Transaction.lua" part="program" sha1="a86d681b5f190a03a1d597fa6014a6e8bfb13db5" />
 	<File name="Modules/AIPoB/TransactionJournal.lua" part="program" sha1="bf9c92ae9c1f1498797cebe79cb759dc82a4395d" />
 	<File name="Modules/AIPoB/UpdatePaths.lua" part="program" sha1="f0220558a7dfc033875b6721892e9df7f61533dd" />
-	<File name="Modules/AIPoB/Util.lua" part="program" sha1="ae1f32d4c93630e629cdfc050cf87638081d46dd" />
+	<File name="Modules/AIPoB/Util.lua" part="program" sha1="1bab08aab342459ab75176394f80d2deb750400f" />
 	<File name="Modules/Build.lua" part="program" sha1="fb6c8e5e099912c8d016d997adc892ec45992de3" />
 	<File name="Modules/BuildDisplayStats.lua" part="program" sha1="ffc4da3b13c3d50f3580b452622429f0bd7e70ab" />
 	<File name="Modules/BuildList.lua" part="program" sha1="91fec0b660ea19330f433d87ef9b2d7467be6d50" />
@@ -427,10 +431,10 @@
 	<File name="Modules/ConfigVisibility.lua" part="program" sha1="ad4a825bfe36dc94dca1ac7033d815110fd46d3c" />
 	<File name="Modules/Data.lua" part="program" sha1="2afa85856c780e926d878b33f63628336466a6cb" />
 	<File name="Modules/DataAbyssJewelLookUpTableHelper.lua" part="program" sha1="c95c4e8af0e9ab9c2abec801e5a279952754cf05" />
-	<File name="Modules/DataJewelFileLoader.lua" part="program" sha1="b8ec2fa593a005bbd9d46a858aa122eafd13cf77" />
-	<File name="Modules/DataLegionLookUpTableHelper.lua" part="program" sha1="40ed81537142296d67827de9f25930f2daac8ccf" />
+	<File name="Modules/DataJewelFileLoader.lua" part="program" sha1="27f290db28bd4815edd970473ac0951107f84eae" />
+	<File name="Modules/DataLegionLookUpTableHelper.lua" part="program" sha1="001367f4a0df45008e551b2d499aef8e9329fd09" />
 	<File name="Modules/ItemSlotHelper.lua" part="program" sha1="4b7d441f9ade5d57c413aa1f8f8067b654cfb927" />
-	<File name="Modules/ItemTools.lua" part="program" sha1="3fbd7aba963b6a67eb5c1d213112fc6a3e681952" />
+	<File name="Modules/ItemTools.lua" part="program" sha1="44d77a80b6dba2bc6fda1027810e98d3a3b13d21" />
 	<File name="Modules/Main.lua" part="program" sha1="ded64c6fe8e5653979824497da4c784501cdf92a" />
 	<File name="Modules/ModParser.lua" part="program" sha1="7a94b92d4055573bbc6fadc022d6d94a9fed6e65" />
 	<File name="Modules/ModTools.lua" part="program" sha1="c987491da4021b5bdc4744b5eec84fb5995284cf" />
@@ -596,7 +600,7 @@
 	<File name="vcruntime140_1.dll" part="runtime" runtime="win32" sha1="a0330279d3d0d47f19ed984726e25260b547a228" />
 	<File name="zlib1.dll" part="runtime" runtime="win32" sha1="49f1ccf17328fca0a831555a35b8eacb1e845ae0" />
 	<File name="zstd.dll" part="runtime" runtime="win32" sha1="83f0e34e2b7e689a25255b98d74b2fee34e6d390" />
-	<File name="sidecar/dist/server.cjs" part="sidecar" sha1="e4a15033ef79d642f20ab149a43afb9d7f70b9ee" />
+	<File name="sidecar/dist/server.cjs" part="sidecar" sha1="86f547e5390291cb011b290fc3181ea9712b7544" />
 	<File name="TreeData/2_6/skill_sprite-3-32f639bbfc42783ca7ec218a787dd918.jpg" part="tree" sha1="dc7a2a0383847ac28eade8a31a57a8bfa7b298e4" />
 	<File name="TreeData/2_6/skill_sprite-active-3-3e73c4c4534433ecfc340c7287093bd5.png" part="tree" sha1="baa878007cfac73bee50958d25617b95c0e73a2d" />
 	<File name="TreeData/2_6/skill_sprite-active-3-7798fabab8a21829831293c20ac9c414.jpg" part="tree" sha1="526654400851f032d3d2f46980c0ecc077aa0c4c" />

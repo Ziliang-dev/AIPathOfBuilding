@@ -149,14 +149,33 @@ function numericChanges(
   return result;
 }
 
+function valueChanges(
+  before: Readonly<Record<string, unknown>>,
+  after: Readonly<Record<string, unknown>>,
+): Record<string, { before?: unknown; after?: unknown }> {
+  const result: Record<string, { before?: unknown; after?: unknown }> = {};
+  for (const key of [...new Set([...Object.keys(before), ...Object.keys(after)])].sort()) {
+    const left = before[key];
+    const right = after[key];
+    const equal = left === undefined && right === undefined
+      || left !== undefined && right !== undefined && canonicalHash(left) === canonicalHash(right);
+    if (equal) continue;
+    result[key] = {
+      ...(left === undefined ? {} : { before: left }),
+      ...(right === undefined ? {} : { after: right }),
+    };
+  }
+  return result;
+}
+
 export function diffMechanicObservations(
   baseline: MechanicObservation,
   diagnostic: MechanicObservation,
 ): MechanicObservationDelta {
   const skillDelta = stringSetDelta(baseline.skills.map(({ id }) => id), diagnostic.skills.map(({ id }) => id));
   const supportDelta = stringSetDelta(
-    baseline.skills.flatMap(({ supports }) => supports.map(({ id }) => id)),
-    diagnostic.skills.flatMap(({ supports }) => supports.map(({ id }) => id)),
+    baseline.skills.flatMap((skill) => skill.supports.map(({ id }) => `${skill.id}:${id}`)),
+    diagnostic.skills.flatMap((skill) => skill.supports.map(({ id }) => `${skill.id}:${id}`)),
   );
   const conditionDelta = stringSetDelta(baseline.conditions.map(({ id }) => id), diagnostic.conditions.map(({ id }) => id));
   const modifierDelta = stringSetDelta(baseline.activeModifierIds, diagnostic.activeModifierIds);
@@ -167,14 +186,16 @@ export function diffMechanicObservations(
   const cooldownChanges = numericChanges(baseline.cooldowns, diagnostic.cooldowns);
   const durationChanges = numericChanges(baseline.durations, diagnostic.durations);
   const contributionChanges = numericChanges(baseline.contributions, diagnostic.contributions);
+  const configChanges = valueChanges(baseline.configValues, diagnostic.configValues);
   const contributionChanged = supportDelta.added.length + supportDelta.removed.length
     + conditionDelta.added.length + conditionDelta.removed.length
-    + modifierDelta.added.length + modifierDelta.removed.length
     + skillDelta.added.length + skillDelta.removed.length
-    + itemDelta.added.length + itemDelta.removed.length
-    + passiveDelta.added.length + passiveDelta.removed.length
     + Object.keys(contributionChanges).length > 0;
-  const changed = contributionChanged || skillDelta.added.length + skillDelta.removed.length > 0
+  const changed = contributionChanged
+    || modifierDelta.added.length + modifierDelta.removed.length
+      + itemDelta.added.length + itemDelta.removed.length
+      + passiveDelta.added.length + passiveDelta.removed.length > 0
+    || Object.keys(configChanges).length > 0
     || Object.keys(metricChanges).length + Object.keys(resourceChanges).length
       + Object.keys(cooldownChanges).length + Object.keys(durationChanges).length > 0;
   const withoutFingerprint = {
@@ -194,6 +215,7 @@ export function diffMechanicObservations(
     addedPassiveIds: passiveDelta.added,
     removedPassiveIds: passiveDelta.removed,
     contributionChanges,
+    configChanges,
     resourceChanges,
     cooldownChanges,
     durationChanges,
@@ -217,6 +239,7 @@ export function compileMechanicExperiments(
   const entities = new Map(facts.entities.map((entity) => [entity.id, entity]));
   return claims.map((claim) => {
     const source = entities.get(claim.sourceId);
+    const target = entities.get(claim.targetId);
     if (source === undefined) return { claim, exactEvidenceIds: [] };
     const data = source.data;
     let intervention: MechanicIntervention | undefined;
@@ -268,9 +291,19 @@ export function compileMechanicExperiments(
       if (typeof data.buffer === "string") intervention = { kind: "suppress_actor_buff", buffer: data.buffer };
     }
     const needsCounterfactual = claim.critical || claim.ambiguous;
+    const requiredEvidenceIds = [source.id, ...(target === undefined ? [] : [target.id])];
+    const supplementalEvidenceIds = [...new Set([
+      source.fingerprint,
+      ...source.provenance.flatMap(({ evidence, sourceId, fingerprint }) => [sourceId, fingerprint, ...evidence]),
+      ...(target === undefined ? [] : [
+        target.fingerprint,
+        ...target.provenance.flatMap(({ evidence, sourceId, fingerprint }) => [sourceId, fingerprint, ...evidence]),
+      ]),
+    ])].filter((id) => !requiredEvidenceIds.includes(id)).sort();
+    const exactEvidenceIds = [...requiredEvidenceIds, ...supplementalEvidenceIds].slice(0, 256);
     return {
       claim,
-      exactEvidenceIds: source.provenance.flatMap(({ evidence, sourceId }) => [sourceId, ...evidence]),
+      exactEvidenceIds,
       ...(needsCounterfactual && intervention !== undefined ? {
         experiment: { id: `experiment:${claim.id}`, claimId: claim.id, context: claim.context, intervention },
       } : {}),

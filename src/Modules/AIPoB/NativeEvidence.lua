@@ -39,24 +39,51 @@ local function outputRatios(output, prefix, result, visited)
 	return result
 end
 
-local function sourceId(actor, condition, mod, index)
+local function evidenceId(kind, actor, condition, mod, index)
 	local source = mod and (mod.source or mod.name)
-	return table.concat({ tostring(actor), tostring(condition), tostring(source or "native"), tostring(index) }, ":")
+	return table.concat({ tostring(kind), tostring(actor), tostring(condition), tostring(source or "native"), tostring(index) }, ":")
 end
 
-local function sourceFacts(actor, condition, mods, options, ratios)
+local function orderedMods(mods)
+	local result = { }
+	for _, entry in ipairs(type(mods) == "table" and mods or { }) do
+		local mod = type(entry) == "table" and entry.mod or entry
+		if type(mod) == "table" then table.insert(result, mod) end
+	end
+	table.sort(result, function(left, right)
+		local leftKey = tostring(left.source or left.name or "native") .. "|" .. tostring(left.name or "")
+		local rightKey = tostring(right.source or right.name or "native") .. "|" .. tostring(right.name or "")
+		return leftKey < rightKey
+	end)
+	return result
+end
+
+local function dependencyFacts(actor, condition, mods)
+	local result = { }
+	for index, mod in ipairs(orderedMods(mods)) do
+		table.insert(result, {
+			id = evidenceId("dependency", actor, condition, mod, index),
+			name = tostring(mod.name or "unknown"),
+			source = tostring(mod.source or "unknown"),
+			reason = "PoB modifier consumes this condition",
+		})
+	end
+	return result
+end
+
+local function sourceMods(modDB, condition)
+	if type(modDB) ~= "table" or type(modDB.Tabulate) ~= "function" then return { } end
+	local ok, entries = pcall(modDB.Tabulate, modDB, "FLAG", nil, "Condition:" .. tostring(condition))
+	if not ok or type(entries) ~= "table" then return { } end
+	return entries
+end
+
+local function sourceFacts(actor, condition, modDB, options, ratios)
 	local result = { }
 	local conditionMap = type(options.conditions) == "table" and options.conditions or { }
 	local mapping = type(conditionMap[condition]) == "table" and conditionMap[condition] or { }
-	local orderedMods = { }
-	for _, mod in ipairs(type(mods) == "table" and mods or { }) do table.insert(orderedMods, mod) end
-	table.sort(orderedMods, function(left, right)
-		local leftKey = tostring(left and (left.source or left.name) or "native") .. "|" .. tostring(left and left.name or "")
-		local rightKey = tostring(right and (right.source or right.name) or "native") .. "|" .. tostring(right and right.name or "")
-		return leftKey < rightKey
-	end)
-	for index, mod in ipairs(orderedMods) do
-		local id = sourceId(actor, condition, mod, index)
+	for index, mod in ipairs(orderedMods(sourceMods(modDB, condition))) do
+		local id = evidenceId("source", actor, condition, mod, index)
 		local source = {
 			id = id,
 			trigger = mapping.trigger or "unknown",
@@ -66,7 +93,7 @@ local function sourceFacts(actor, condition, mods, options, ratios)
 			resourcesSustainable = mapping.resourcesSustainable ~= false,
 			requiresAdds = mapping.requiresAdds == true,
 			peakOnly = mapping.peakOnly == true,
-			reason = mapping.reason or "PoB native condition source",
+			reason = mapping.reason or "PoB native condition FLAG source",
 		}
 		local uptime = numeric(mapping.uptime)
 		if not uptime and type(mapping.uptimeKey) == "string" then uptime = numeric(ratios[mapping.uptimeKey]) end
@@ -79,29 +106,50 @@ local function sourceFacts(actor, condition, mods, options, ratios)
 	return result
 end
 
+local function currentCondition(modDB, condition)
+	if type(modDB) ~= "table" then return nil end
+	local value = type(modDB.conditions) == "table" and modDB.conditions[condition] or nil
+	if value ~= nil then
+		local valueType = type(value)
+		if valueType == "string" or valueType == "number" or valueType == "boolean" then return value end
+		return true
+	end
+	if type(modDB.Flag) == "function" then
+		local ok, flagged = pcall(modDB.Flag, modDB, nil, "Condition:" .. tostring(condition))
+		if ok and flagged then return true end
+	end
+end
+
+local function conditionIsActive(value)
+	return value ~= nil and value ~= false and value ~= 0 and value ~= ""
+end
+
 local function collectClaims(env, options, ratios)
 	local claims = { }
 	local seen = { }
-	local function collect(actor, values)
+	local function collect(actor, values, modDB)
 		values = type(values) == "table" and values or { }
 		for _, condition in ipairs(Util.sortedKeys(values or { })) do
 			local mods = values[condition]
 			local key = tostring(actor) .. ":" .. tostring(condition)
 			if not seen[key] then
 				seen[key] = true
+				local value = currentCondition(modDB, condition)
 				table.insert(claims, {
 					condition = tostring(condition),
 					configKey = tostring(condition),
-					value = true,
-					sources = sourceFacts(actor, condition, mods, options, ratios),
+					value = value,
+					active = conditionIsActive(value),
+					sources = sourceFacts(actor, condition, modDB, options, ratios),
+					dependencies = dependencyFacts(actor, condition, mods),
 					actor = tostring(actor),
 				})
 			end
 		end
 	end
-	collect("player", env.conditionsUsed)
-	collect("minion", env.minionConditionsUsed)
-	collect("enemy", env.enemyConditionsUsed)
+	collect("player", env.conditionsUsed, env.player and env.player.modDB or env.modDB)
+	collect("minion", env.minionConditionsUsed, env.minion and env.minion.modDB)
+	collect("enemy", env.enemyConditionsUsed, env.enemyDB)
 	table.sort(claims, function(left, right)
 		return left.condition == right.condition and left.actor < right.actor or left.condition < right.condition
 	end)
@@ -114,13 +162,20 @@ local function claimFingerprint(build, claims, ratios)
 		tostring(_G.dataVersion or build.targetVersion or "unknown"),
 	}
 	for _, claim in ipairs(claims) do
-		table.insert(parts, tostring(claim.actor) .. ":" .. tostring(claim.condition))
+		table.insert(parts, tostring(claim.actor) .. ":" .. tostring(claim.condition)
+			.. ":" .. tostring(claim.active) .. ":" .. tostring(claim.value))
 		for _, source in ipairs(claim.sources or { }) do
 			table.insert(parts, table.concat({
 				tostring(source.id), tostring(source.trigger), tostring(source.uptime or ""),
 				tostring(source.confidence), tostring(source.valid), tostring(source.reason or ""),
 				table.concat(source.triggerChain or { }, ">"),
 				tostring(source.resourcesSustainable), tostring(source.requiresAdds), tostring(source.peakOnly),
+			}, "|"))
+		end
+		for _, dependency in ipairs(claim.dependencies or { }) do
+			table.insert(parts, table.concat({
+				tostring(dependency.id), tostring(dependency.name),
+				tostring(dependency.source), tostring(dependency.reason),
 			}, "|"))
 		end
 	end

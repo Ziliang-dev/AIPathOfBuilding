@@ -17,6 +17,7 @@ import {
   type MechanicCoverageEntrySchema,
   type MechanicFact,
   type MechanicFactBundle,
+  type MechanicObservationDelta,
   type MechanicProof,
   type VerifiedBuildMechanicReport,
 } from "../schemas.js";
@@ -182,6 +183,29 @@ function progress(
   });
 }
 
+function boundedLimit(value: number | undefined, fallback: number, maximum: number, minimum = 0): number {
+  const candidate = value ?? fallback;
+  return Number.isFinite(candidate)
+    ? Math.min(maximum, Math.max(minimum, Math.floor(candidate)))
+    : Math.min(maximum, Math.max(minimum, fallback));
+}
+
+function modelCallLimit(dependencies: MechanicUnderstandingDependencies): number {
+  return boundedLimit(dependencies.maxModelCalls, 16, 16);
+}
+
+function repairRoundLimit(dependencies: MechanicUnderstandingDependencies): number {
+  return boundedLimit(dependencies.maxRepairRounds, 3, 3);
+}
+
+function experimentLimit(dependencies: MechanicUnderstandingDependencies): number {
+  return boundedLimit(dependencies.maxExperiments, 1024, 1024);
+}
+
+function repeatedToolCallLimit(dependencies: MechanicUnderstandingDependencies): number {
+  return boundedLimit(dependencies.duplicateCallLimit, 3, 3, 1);
+}
+
 function cacheKey(snapshot: BuildSnapshot, facts: MechanicFactBundle, descriptor: MechanicProviderDescriptor): string {
   return `sha256:${canonicalHash({
     namespace: "mechanic-understanding:v4",
@@ -231,8 +255,10 @@ function localCriticality(
   facts: ReadonlyMap<string, MechanicFact>,
   rawClaims: readonly MechanicClaimInput[],
 ): boolean {
-  if (claim.relation === "triggers" || claim.relation === "consumes" || claim.relation === "requires") return true;
   const source = facts.get(claim.sourceId);
+  const target = facts.get(claim.targetId);
+  if (source?.kind === "item" && target?.kind === "modifierLine" && claim.relation === "grants") return false;
+  if (claim.relation === "triggers" || claim.relation === "consumes" || claim.relation === "requires") return true;
   if (source?.kind === "config") {
     const nativeSources = source.data.nativeSources;
     if (!Array.isArray(nativeSources) || nativeSources.length === 0) return true;
@@ -296,10 +322,28 @@ function normalizeClaims(facts: MechanicFactBundle, inputs: readonly MechanicCla
   return claims.sort((left, right) => left.id.localeCompare(right.id));
 }
 
-function requiredClaimEntity(entity: MechanicFact): boolean {
-  return entity.active && [
+function requiredInspectionEntity(entity: MechanicFact): boolean {
+  if (!entity.active) return false;
+  if (entity.kind === "actor") return entity.data.kind !== "player";
+  return [
+    "item",
     "modifierLine", "skill", "support", "passive", "config", "condition", "actorBuff", "seasonMechanic",
   ].includes(entity.kind);
+}
+
+function requiredClaimEntity(entity: MechanicFact): boolean {
+  if (!requiredInspectionEntity(entity)) return false;
+  if (entity.kind === "config") return Array.isArray(entity.data.nativeSources) && entity.data.nativeSources.length > 0;
+  if (entity.kind === "condition") return Array.isArray(entity.data.sources) && entity.data.sources.length > 0;
+  return true;
+}
+
+function factBundleBlockers(facts: MechanicFactBundle): string[] {
+  return [...new Set([
+    ...facts.missingScopes.map((scope) => `Required PoB fact scope missing: ${scope}`),
+    ...facts.truncatedScopes.map((scope) => `Required PoB fact scope truncated: ${scope}`),
+    ...(facts.complete ? [] : ["Required PoB fact bundle is incomplete"]),
+  ])].sort();
 }
 
 function validateCoverage(
@@ -316,9 +360,10 @@ function validateCoverage(
   for (const context of facts.contexts) {
     for (const domain of ["skills", "gear", "tree", "config", "actor", "offence", "resource", "defence", "condition", "inventory"] as const) {
       const entities = facts.entities.filter((entity) => entity.context === context && entity.domain === domain && entity.active);
-      const required = entities.filter(requiredClaimEntity);
-      const missingInspection = required.filter(({ id }) => !inspected.has(id)).map(({ id }) => id);
-      const missingClaims = required.filter(({ id }) => !claimed.has(id)).map(({ id }) => id);
+      const requiredInspection = entities.filter(requiredInspectionEntity);
+      const requiredClaims = entities.filter(requiredClaimEntity);
+      const missingInspection = requiredInspection.filter(({ id }) => !inspected.has(id)).map(({ id }) => id);
+      const missingClaims = requiredClaims.filter(({ id }) => !claimed.has(id)).map(({ id }) => id);
       for (const id of missingInspection) blockers.push(`LLM did not inspect required entity ${id}`);
       for (const id of missingClaims) blockers.push(`LLM submitted no mechanism claim for required entity ${id}`);
       coverage.push({
@@ -342,14 +387,25 @@ function validateCoverage(
   for (const [key, relations] of pairRelations) {
     if (relations.has("conflicts") && relations.size > 1) blockers.push(`Contradictory relations for ${key}`);
   }
+  const entityById = new Map(facts.entities.map((entity) => [entity.id, entity]));
+  for (const claim of claims) {
+    const source = entityById.get(claim.sourceId);
+    const target = entityById.get(claim.targetId);
+    if (source === undefined || target === undefined) {
+      blockers.push(`Claim ${claim.id} references an unknown mechanic entity`);
+    } else if (source.context !== claim.context || target.context !== claim.context) {
+      blockers.push(`Claim ${claim.id} crosses mechanic contexts`);
+    } else if (!source.active || !target.active) {
+      blockers.push(`Claim ${claim.id} references inactive inventory-only state`);
+    }
+  }
   if (claims.length === 0) blockers.push("LLM submitted no mechanic claims");
-  if (!facts.complete) blockers.push(...facts.missingScopes.map((scope) => `Required PoB fact scope missing: ${scope}`));
-  blockers.push(...facts.truncatedScopes.map((scope) => `Required PoB fact scope truncated: ${scope}`));
+  blockers.push(...factBundleBlockers(facts));
   return { claims, coverage, blockers: [...new Set(blockers)].sort(), warnings };
 }
 
 function sourceIsExact(source: MechanicFact | undefined): boolean {
-  if (source === undefined || source.provenance.length === 0) return false;
+  if (source === undefined || !source.active || source.provenance.length === 0) return false;
   if (source.kind === "modifierLine") {
     if (source.data.parseStatus !== "parsed") return false;
     const value = source.data.modifierProvenance;
@@ -360,23 +416,140 @@ function sourceIsExact(source: MechanicFact | undefined): boolean {
   return source.provenance.every(({ kind }) => kind !== "projection" || source.active);
 }
 
+function changed(record: Readonly<Record<string, unknown>>, key: unknown): boolean {
+  return typeof key === "string" && Object.hasOwn(record, key);
+}
+
+function deltaChangesTarget(target: MechanicFact | undefined, delta: MechanicObservationDelta): boolean {
+  if (target === undefined) return false;
+  const key = target.data.key ?? target.name;
+  if (target.kind === "metric") return changed(delta.metricChanges, key) || changed(delta.contributionChanges, key);
+  if (target.kind === "resource") return changed(delta.resourceChanges, key) || changed(delta.contributionChanges, key);
+  if (target.kind === "cooldown") return changed(delta.cooldownChanges, key) || changed(delta.contributionChanges, key);
+  if (target.kind === "duration") return changed(delta.durationChanges, key) || changed(delta.contributionChanges, key);
+  if (target.kind === "skill") {
+    const observationId = target.data.observationId;
+    return typeof observationId === "string" && (
+      delta.addedSkillIds.includes(observationId)
+      || delta.removedSkillIds.includes(observationId)
+      || delta.addedSupportIds.some((id) => id.startsWith(`${observationId}:`))
+      || delta.removedSupportIds.some((id) => id.startsWith(`${observationId}:`))
+    );
+  }
+  if (target.kind === "support") {
+    const observationId = target.data.observationId;
+    return typeof observationId === "string"
+      && (delta.addedSupportIds.includes(observationId) || delta.removedSupportIds.includes(observationId));
+  }
+  if (target.kind === "condition") {
+    const observationId = target.data.observationId;
+    return typeof observationId === "string"
+      && (delta.addedConditionIds.includes(observationId) || delta.removedConditionIds.includes(observationId));
+  }
+  if (target.kind === "modifierLine") {
+    const modifierId = target.data.modifierId;
+    return typeof modifierId === "string"
+      && (delta.addedModifierIds.includes(modifierId) || delta.removedModifierIds.includes(modifierId));
+  }
+  if (target.kind === "item") {
+    const itemId = target.data.itemId;
+    return typeof itemId === "string"
+      && (delta.addedItemIds.includes(itemId) || delta.removedItemIds.includes(itemId));
+  }
+  if (target.kind === "passive") {
+    const nodeId = String(target.data.nodeId ?? "");
+    return nodeId.length > 0 && (delta.addedPassiveIds.includes(nodeId) || delta.removedPassiveIds.includes(nodeId));
+  }
+  if (target.kind === "config") return changed(delta.configChanges, target.data.configKey);
+  return false;
+}
+
+function exactStructuralBinding(claim: MechanicClaim, source: MechanicFact | undefined, target: MechanicFact | undefined): boolean {
+  if (source === undefined || target === undefined) return false;
+  if (claim.relation === "grants" && source.kind === "item" && target.kind === "modifierLine") {
+    return target.data.itemEntityId === source.id;
+  }
+  if (claim.relation === "grants" && source.kind === "modifierLine") {
+    const sourceModifier = target.data.sourceModifier;
+    return sourceModifier !== null && typeof sourceModifier === "object" && !Array.isArray(sourceModifier)
+      && (sourceModifier as Record<string, unknown>).lineId === source.data.modifierId;
+  }
+  if (claim.relation === "scales" && source.kind === "support" && target.kind === "skill") {
+    return source.data.supportedSkillEntityId === target.id;
+  }
+  if (claim.relation === "requires" && source.kind === "skill" && target.kind === "support") {
+    return target.data.supportedSkillEntityId === source.id;
+  }
+  if (["grants", "requires", "scales"].includes(claim.relation)
+    && source.kind === "config" && target.kind === "condition") {
+    const configKey = source.data.configKey;
+    const observationId = target.data.observationId;
+    return typeof configKey === "string" && typeof observationId === "string"
+      && observationId.split(":").slice(1).join(":") === configKey;
+  }
+  return claim.relation === "grants" && source.kind === "modifierLine"
+    && target.kind === "parsedModifier" && target.id.startsWith(`${source.id}:parsed:`);
+}
+
+function counterfactualProvesClaim(
+  claim: MechanicClaim,
+  source: MechanicFact | undefined,
+  target: MechanicFact | undefined,
+  delta: MechanicObservationDelta,
+): boolean {
+  return delta.changed && delta.contributionChanged
+    && (deltaChangesTarget(target, delta) || exactStructuralBinding(claim, source, target));
+}
+
 function verifyClaims(
   facts: MechanicFactBundle,
   compiled: readonly CompiledMechanicExperiment[],
   results: readonly MechanicExperimentResult[],
 ): { claims: MechanicClaim[]; proofs: MechanicProof[]; blockers: string[]; warnings: string[] } {
   const entities = new Map(facts.entities.map((entity) => [entity.id, entity]));
-  const resultByClaim = new Map(results.filter(({ claimId }) => claimId !== undefined).map((result) => [result.claimId as string, result]));
+  const compiledByClaim = new Map(compiled.map((entry) => [entry.claim.id, entry]));
+  const resultsByClaim = new Map<string, MechanicExperimentResult[]>();
   const proofs: MechanicProof[] = [];
   const claims: MechanicClaim[] = [];
   const blockers: string[] = [];
   const warnings: string[] = [];
+  for (const result of results) {
+    if (result.claimId === undefined) {
+      blockers.push(`Worker returned unbound mechanic result ${result.experimentId}`);
+      continue;
+    }
+    if (!compiledByClaim.has(result.claimId)) {
+      blockers.push(`Worker returned result for unknown claim ${result.claimId}`);
+      continue;
+    }
+    const grouped = resultsByClaim.get(result.claimId) ?? [];
+    grouped.push(result);
+    resultsByClaim.set(result.claimId, grouped);
+  }
   for (const entry of compiled) {
     let claim = entry.claim;
     if (entry.experiment !== undefined) {
-      const result = resultByClaim.get(claim.id);
-      if (result === undefined) {
-        blockers.push(`Critical claim ${claim.id} has no counterfactual result`);
+      const matchingResults = resultsByClaim.get(claim.id) ?? [];
+      const result = matchingResults.length === 1 ? matchingResults[0] : undefined;
+      const expectedBaseline = facts.observations[claim.context];
+      const resultErrors = result === undefined ? [] : [
+        ...(result.experimentId === entry.experiment.id ? [] : [`experiment ${result.experimentId} does not match ${entry.experiment.id}`]),
+        ...(result.claimId === claim.id ? [] : [`claim ${String(result.claimId)} does not match ${claim.id}`]),
+        ...(result.context === claim.context ? [] : [`result context ${result.context} does not match ${claim.context}`]),
+        ...(result.baseline.context === claim.context ? [] : [`baseline context ${result.baseline.context} does not match ${claim.context}`]),
+        ...(result.diagnostic.context === claim.context ? [] : [`diagnostic context ${result.diagnostic.context} does not match ${claim.context}`]),
+        ...(result.baseline.fingerprint === expectedBaseline.fingerprint ? [] : ["baseline fingerprint is stale"]),
+        ...(result.baseline.projectionFingerprint === expectedBaseline.projectionFingerprint ? [] : ["baseline projection fingerprint is stale"]),
+        ...(result.baseline.nativeProbeFingerprint === expectedBaseline.nativeProbeFingerprint ? [] : ["baseline native-probe fingerprint is stale"]),
+        ...(result.baseline.evidenceFingerprint === expectedBaseline.evidenceFingerprint ? [] : ["baseline evidence fingerprint is stale"]),
+      ];
+      if (matchingResults.length !== 1 || result === undefined || resultErrors.length > 0) {
+        const reason = matchingResults.length === 0
+          ? "has no counterfactual result"
+          : matchingResults.length > 1
+            ? `has ${matchingResults.length} duplicate counterfactual results`
+            : `has an invalid counterfactual result: ${resultErrors.join("; ")}`;
+        blockers.push(`Critical claim ${claim.id} ${reason}`);
         proofs.push(MechanicProofSchema.parse({
           id: `proof:${claim.id}:counterfactual`, claimId: claim.id, type: "counterfactual",
           status: "indeterminate", context: claim.context, sourceFingerprint: facts.fingerprint,
@@ -384,12 +557,17 @@ function verifyClaims(
         }));
       } else {
         const delta = diffMechanicObservations(result.baseline, result.diagnostic);
+        const source = entities.get(claim.sourceId);
+        const target = entities.get(claim.targetId);
+        const decisive = counterfactualProvesClaim(claim, source, target, delta);
         const finalMetricChanged = Object.keys(delta.metricChanges).length > 0
           || Object.keys(delta.resourceChanges).length > 0
           || Object.keys(delta.cooldownChanges).length > 0
           || Object.keys(delta.durationChanges).length > 0;
-        const status = delta.changed ? "proven" : "indeterminate";
-        if (!delta.changed) blockers.push(`Counterfactual produced zero contribution delta for critical claim ${claim.id}`);
+        const status = decisive ? "proven" : "indeterminate";
+        if (!decisive) blockers.push(
+          `Counterfactual did not change the claimed target contribution for critical claim ${claim.id} (${claim.sourceId} -> ${claim.targetId})`,
+        );
         if (delta.contributionChanged && !finalMetricChanged) {
           claim = MechanicClaimSchema.parse({ ...claim, effectState: "redundant" });
           warnings.push(`Claim ${claim.id} is structurally proven but redundant in current outputs`);
@@ -409,7 +587,10 @@ function verifyClaims(
         evidenceIds: entry.exactEvidenceIds,
       }));
     } else {
-      const exact = sourceIsExact(entities.get(claim.sourceId)) && entry.exactEvidenceIds.length > 0;
+      const exact = sourceIsExact(entities.get(claim.sourceId))
+        && sourceIsExact(entities.get(claim.targetId))
+        && entry.exactEvidenceIds.includes(claim.sourceId)
+        && entry.exactEvidenceIds.includes(claim.targetId);
       if (!exact) blockers.push(`Noncritical claim ${claim.id} lacks exact native provenance`);
       proofs.push(MechanicProofSchema.parse({
         id: `proof:${claim.id}:native`, claimId: claim.id, type: "native_exact",
@@ -428,7 +609,7 @@ async function callAnalyst(
   state: GraphState,
   phase: "analyst" | "repair",
   signal: AbortSignal,
-): Promise<{ claims: readonly MechanicClaimInput[]; inspected: readonly string[]; modelCalls: number }> {
+): Promise<{ claims: readonly MechanicClaimInput[]; inspected: readonly string[]; modelCalls: number; submitted: boolean }> {
   const facts = state.facts;
   if (facts === undefined) throw new Error("Mechanic facts are unavailable");
   const inspected = new Set(state.inspectedEntityIds);
@@ -439,8 +620,8 @@ async function callAnalyst(
     existingClaims: state.claims,
     inspectedEntityIds: inspected,
   };
-  const remaining = Math.max(0, (dependencies.maxModelCalls ?? 16) - state.modelCalls);
-  if (remaining === 0) return { claims: [], inspected: [...inspected], modelCalls: 0 };
+  const remaining = Math.max(0, modelCallLimit(dependencies) - state.modelCalls);
+  if (remaining === 0) return { claims: [], inspected: [...inspected], modelCalls: 0, submitted: false };
   const dispatcher = new MechanicToolDispatcher();
   const result = await runAgentLoop({
     adapter: dependencies.provider,
@@ -465,7 +646,7 @@ async function callAnalyst(
     limits: {
       recursionLimit: Math.max(1, remaining),
       modelCallLimit: remaining,
-      duplicateCallLimit: dependencies.duplicateCallLimit ?? 3,
+      duplicateCallLimit: repeatedToolCallLimit(dependencies),
       wallTimeMs: Number.MAX_SAFE_INTEGER,
     },
     signal,
@@ -475,9 +656,9 @@ async function callAnalyst(
     throw new MechanicProviderError(result.fallback.detail, result.fallback.retryable);
   }
   if (session.submittedClaims === undefined || session.claimsComplete !== true) {
-    return { claims: [], inspected: [...inspected].sort(), modelCalls: result.modelCalls };
+    return { claims: [], inspected: [...inspected].sort(), modelCalls: result.modelCalls, submitted: false };
   }
-  return { claims: session.submittedClaims, inspected: [...inspected].sort(), modelCalls: result.modelCalls };
+  return { claims: session.submittedClaims, inspected: [...inspected].sort(), modelCalls: result.modelCalls, submitted: true };
 }
 
 async function callCritic(
@@ -494,7 +675,7 @@ async function callCritic(
     existingClaims: state.claims,
     inspectedEntityIds: new Set(state.inspectedEntityIds),
   };
-  const remaining = Math.max(0, (dependencies.maxModelCalls ?? 16) - state.modelCalls);
+  const remaining = Math.max(0, modelCallLimit(dependencies) - state.modelCalls);
   if (remaining === 0) return { modelCalls: 0 };
   const result = await runAgentLoop({
     adapter: dependencies.provider,
@@ -518,7 +699,7 @@ async function callCritic(
     limits: {
       recursionLimit: Math.max(1, remaining),
       modelCallLimit: remaining,
-      duplicateCallLimit: dependencies.duplicateCallLimit ?? 3,
+      duplicateCallLimit: repeatedToolCallLimit(dependencies),
       wallTimeMs: Number.MAX_SAFE_INTEGER,
     },
     signal,
@@ -556,40 +737,149 @@ function reportFinding(message: string, severity: "warning" | "blocker") {
   } as const;
 }
 
-export function auditMechanicReport(raw: unknown): VerifiedBuildMechanicReport {
-  const report = VerifiedBuildMechanicReportSchema.parse(raw);
-  const proofById = new Map(report.proofs.map((proof) => [proof.id, proof]));
-  const provenClaims = new Set(report.proofs.filter(({ status }) => status === "proven").map(({ claimId }) => claimId));
-  const claimIds = new Set(report.claims.map(({ id }) => id));
-  const auditBlockers: string[] = [];
-  for (const claim of report.claims) {
-    if (!provenClaims.has(claim.id)) auditBlockers.push(`Claim ${claim.id} has no valid proven proof`);
+interface ExpectedMechanicReportIdentity {
+  readonly snapshotFingerprint: string;
+  readonly projectionFingerprint: string;
+  readonly factBundleFingerprint: string;
+  readonly cacheKey: string;
+  readonly contexts: readonly MechanicContext[];
+}
+
+function duplicateIds(entries: readonly { readonly id: string }[]): string[] {
+  const seen = new Set<string>();
+  const duplicate = new Set<string>();
+  for (const { id } of entries) {
+    if (seen.has(id)) duplicate.add(id);
+    seen.add(id);
   }
-  for (const edge of report.graph.edges) {
-    if (!claimIds.has(edge.claimId)) auditBlockers.push(`Semantic edge ${edge.id} references unknown claim ${edge.claimId}`);
-    for (const proofId of edge.proofIds) {
-      const proof = proofById.get(proofId);
-      if (proof === undefined || proof.claimId !== edge.claimId || proof.status !== "proven") {
-        auditBlockers.push(`Semantic edge ${edge.id} references invalid proof ${proofId}`);
+  return [...duplicate].sort();
+}
+
+export function auditMechanicReport(
+  raw: unknown,
+  expected?: ExpectedMechanicReportIdentity,
+): VerifiedBuildMechanicReport {
+  const report = VerifiedBuildMechanicReportSchema.parse(raw);
+  const claimById = new Map(report.claims.map((claim) => [claim.id, claim]));
+  const proofById = new Map(report.proofs.map((proof) => [proof.id, proof]));
+  const nodeById = new Map(report.graph.nodes.map((node) => [node.id, node]));
+  const auditBlockers: string[] = [];
+  const expectedAnalysisFingerprint = `sha256:${canonicalHash({
+    ...report,
+    analysisFingerprint: undefined,
+    createdAt: undefined,
+  })}`;
+  if (report.analysisFingerprint !== expectedAnalysisFingerprint) {
+    auditBlockers.push("Mechanic report analysis fingerprint is invalid");
+  }
+  if (expected !== undefined) {
+    if (report.snapshotFingerprint !== expected.snapshotFingerprint) auditBlockers.push("Cached mechanic report Build fingerprint mismatch");
+    if (report.projectionFingerprint !== expected.projectionFingerprint) auditBlockers.push("Cached mechanic report Projection fingerprint mismatch");
+    if (report.factBundleFingerprint !== expected.factBundleFingerprint) auditBlockers.push("Cached mechanic report Fact Bundle fingerprint mismatch");
+    if (report.cacheKey !== expected.cacheKey) auditBlockers.push("Cached mechanic report key mismatch");
+    if (report.contexts[0] !== expected.contexts[0] || report.contexts[1] !== expected.contexts[1]) {
+      auditBlockers.push("Cached mechanic report context mismatch");
+    }
+  }
+  for (const id of duplicateIds(report.claims)) auditBlockers.push(`Duplicate mechanic claim ID ${id}`);
+  for (const id of duplicateIds(report.proofs)) auditBlockers.push(`Duplicate mechanic proof ID ${id}`);
+  for (const id of duplicateIds(report.graph.nodes)) auditBlockers.push(`Duplicate mechanic graph node ID ${id}`);
+  for (const id of duplicateIds(report.graph.edges)) auditBlockers.push(`Duplicate mechanic graph edge ID ${id}`);
+  if (report.claims.length === 0) auditBlockers.push("Mechanic report contains no claims");
+  if (report.modelCalls > 16) auditBlockers.push(`Mechanic report exceeds model-call limit: ${report.modelCalls}`);
+  if (report.experimentCount > 1024) auditBlockers.push(`Mechanic report exceeds experiment limit: ${report.experimentCount}`);
+  if (report.repairRounds > 3) auditBlockers.push(`Mechanic report exceeds repair-round limit: ${report.repairRounds}`);
+  if (report.status === "verified" && report.blockers.length > 0) auditBlockers.push("Verified mechanic report contains blockers");
+  if (report.status === "verified" && report.findings.some(({ severity }) => severity === "blocker")) {
+    auditBlockers.push("Verified mechanic report contains blocker findings");
+  }
+  if (report.status === "blocked" && report.blockers.length === 0) auditBlockers.push("Blocked mechanic report has no blocker reason");
+  const knownEvidence = new Set(report.graph.nodes.flatMap((node) => [
+    node.id,
+    node.fingerprint,
+    ...node.provenance.flatMap(({ sourceId, fingerprint, evidence }) => [sourceId, fingerprint, ...evidence]),
+  ]));
+  for (const proof of report.proofs) {
+    const claim = claimById.get(proof.claimId);
+    if (claim === undefined) {
+      auditBlockers.push(`Proof ${proof.id} references unknown claim ${proof.claimId}`);
+      continue;
+    }
+    if (proof.context !== claim.context) auditBlockers.push(`Proof ${proof.id} crosses mechanic contexts`);
+    if (proof.type === "counterfactual" && proof.status === "proven"
+      && (proof.experimentId === undefined || proof.delta === undefined
+        || !counterfactualProvesClaim(claim, nodeById.get(claim.sourceId), nodeById.get(claim.targetId), proof.delta))) {
+      auditBlockers.push(`Counterfactual proof ${proof.id} lacks a decisive experiment delta`);
+    }
+    if (proof.type === "native_exact" && proof.status === "proven") {
+      const source = nodeById.get(claim.sourceId);
+      const target = nodeById.get(claim.targetId);
+      if (!sourceIsExact(source) || !sourceIsExact(target) || proof.sourceFingerprint !== source?.fingerprint
+        || !proof.evidenceIds.includes(claim.sourceId) || !proof.evidenceIds.includes(claim.targetId)) {
+        auditBlockers.push(`Native proof ${proof.id} lacks exact active source provenance`);
       }
+    }
+  }
+  const proofValidForClaim = (proof: MechanicProof | undefined, claim: MechanicClaim): boolean => {
+    if (proof === undefined || proof.claimId !== claim.id || proof.context !== claim.context || proof.status !== "proven") return false;
+    if ((claim.critical || claim.ambiguous) && proof.type !== "counterfactual") return false;
+    if (proof.type === "counterfactual") return proof.experimentId !== undefined && proof.delta !== undefined
+      && counterfactualProvesClaim(claim, nodeById.get(claim.sourceId), nodeById.get(claim.targetId), proof.delta);
+    const source = nodeById.get(claim.sourceId);
+    const target = nodeById.get(claim.targetId);
+    return sourceIsExact(source) && sourceIsExact(target) && proof.sourceFingerprint === source?.fingerprint
+      && proof.evidenceIds.includes(claim.sourceId) && proof.evidenceIds.includes(claim.targetId);
+  };
+  for (const claim of report.claims) {
+    const source = nodeById.get(claim.sourceId);
+    const target = nodeById.get(claim.targetId);
+    if (source === undefined || target === undefined) {
+      auditBlockers.push(`Claim ${claim.id} references an unknown graph node`);
+    } else if (source.context !== claim.context || target.context !== claim.context) {
+      auditBlockers.push(`Claim ${claim.id} crosses mechanic contexts`);
+    } else if (!source.active || !target.active) {
+      auditBlockers.push(`Claim ${claim.id} references inactive inventory-only state`);
+    }
+    if (claim.evidenceIds.some((id) => !knownEvidence.has(id))) {
+      auditBlockers.push(`Claim ${claim.id} references unknown local evidence`);
+    }
+    const validProofs = report.proofs.filter((proof) => proofValidForClaim(proof, claim));
+    if (validProofs.length === 0) auditBlockers.push(`Claim ${claim.id} has no valid proven proof`);
+    const matchingEdges = report.graph.edges.filter((edge) => edge.claimId === claim.id);
+    if (report.status === "verified" && matchingEdges.length !== 1) {
+      auditBlockers.push(`Verified claim ${claim.id} does not have exactly one semantic edge`);
+    }
+  }
+  const edgeIsValid = (edge: VerifiedBuildMechanicReport["graph"]["edges"][number]): boolean => {
+    const claim = claimById.get(edge.claimId);
+    if (claim === undefined || !nodeById.has(edge.sourceId) || !nodeById.has(edge.targetId)) return false;
+    if (edge.sourceId !== claim.sourceId || edge.targetId !== claim.targetId || edge.relation !== claim.relation
+      || edge.context !== claim.context || edge.scenario !== claim.scenario || edge.effectState !== claim.effectState) return false;
+    return edge.proofIds.every((proofId) => proofValidForClaim(proofById.get(proofId), claim));
+  };
+  for (const edge of report.graph.edges) {
+    if (!edgeIsValid(edge)) auditBlockers.push(`Semantic edge ${edge.id} does not exactly match a locally proven claim`);
+  }
+  if (report.status === "verified") {
+    for (const entry of report.coverage) {
+      if (entry.missingEntityIds.length > 0) auditBlockers.push(`Verified coverage ${entry.context}:${entry.domain} has missing entities`);
+      if (entry.provenCount < entry.claimedCount) auditBlockers.push(`Verified coverage ${entry.context}:${entry.domain} has unproven claimed entities`);
     }
   }
   if (auditBlockers.length === 0) return report;
   const blockers = [...new Set([...report.blockers, ...auditBlockers])].sort();
+  const findings = new Map([
+    ...report.findings,
+    ...auditBlockers.map((message) => reportFinding(message, "blocker")),
+  ].map((finding) => [finding.id, finding]));
   const audited = {
     ...report,
     status: "blocked" as const,
     blockers,
-    findings: [
-      ...report.findings,
-      ...auditBlockers.map((message) => reportFinding(message, "blocker")),
-    ],
+    findings: [...findings.values()],
     graph: {
       ...report.graph,
-      edges: report.graph.edges.filter((edge) => edge.proofIds.every((proofId) => {
-        const proof = proofById.get(proofId);
-        return proof !== undefined && proof.claimId === edge.claimId && proof.status === "proven";
-      })),
+      edges: report.graph.edges.filter(edgeIsValid),
     },
     summary: `blocked: ${report.claims.length} claims, ${report.proofs.filter(({ status }) => status === "proven").length} proven, ${blockers.length} blockers`,
   };
@@ -615,7 +905,7 @@ function finalizeReport(
           ...state.review.invalidProofIds.map((id) => `Critic reports invalid proof ${id}`),
         ]
       : [];
-  const blockers = [...new Set([...state.blockers, ...criticBlockers])].sort();
+  const blockers = [...new Set([...state.blockers, ...factBundleBlockers(facts), ...criticBlockers])].sort();
   const proven = new Map(state.proofs.filter(({ status }) => status === "proven").map((proof) => [proof.claimId, proof]));
   const edges = state.claims.flatMap((claim) => {
     const proof = proven.get(claim.id);
@@ -677,9 +967,26 @@ function createGraph(dependencies: MechanicUnderstandingDependencies, signal: Ab
     const cached = state.options.force === true
       ? undefined
       : VerifiedBuildMechanicReportSchema.safeParse(dependencies.store.getCache<unknown>(key));
-    const report = cached?.success === true ? auditMechanicReport(cached.data) : undefined;
+    const expectedIdentity = {
+      snapshotFingerprint: state.snapshot.fingerprint,
+      projectionFingerprint: state.snapshot.mechanicProjectionFingerprint,
+      factBundleFingerprint: facts.fingerprint,
+      cacheKey: key,
+      contexts: facts.contexts,
+    };
+    const auditedCache = cached?.success === true ? auditMechanicReport(cached.data, expectedIdentity) : undefined;
+    const cachedAnalysisFingerprint = cached?.success === true ? cached.data.analysisFingerprint : undefined;
+    const report = auditedCache !== undefined && auditedCache.analysisFingerprint === cachedAnalysisFingerprint
+      ? auditedCache
+      : undefined;
     progress(dependencies, { ...state, facts }, "ExtractFacts", 0.15, report === undefined ? "PoB fact bundle ready" : "Exact mechanic report cache hit");
-    return { facts, report, phase: "ExtractFacts", trace: "ExtractFacts" };
+    return {
+      facts,
+      report,
+      blockers: report === undefined ? factBundleBlockers(facts) : report.blockers,
+      phase: "ExtractFacts",
+      trace: "ExtractFacts",
+    };
   };
 
   const discoverClaimsNode = async (state: GraphState): Promise<GraphUpdate> => {
@@ -715,9 +1022,11 @@ function createGraph(dependencies: MechanicUnderstandingDependencies, signal: Ab
     if (facts === undefined) throw new Error("Mechanic facts are unavailable");
     const compiled = compileMechanicExperiments(facts, state.claims);
     const experiments = compiled.filter(({ experiment }) => experiment !== undefined);
-    const max = dependencies.maxExperiments ?? 1024;
-    const blockers = experiments.length > max
-      ? [...state.blockers, `Critical experiment count ${experiments.length} exceeds limit ${max}`]
+    const max = experimentLimit(dependencies);
+    const remaining = Math.max(0, max - state.experimentCount);
+    const blockers = experiments.length > remaining
+      ? [...state.blockers, "Critical experiment count " + experiments.length
+          + " exceeds remaining total budget " + remaining + " of " + max]
       : state.blockers;
     progress(dependencies, state, "CompileCriticalExperiments", 0.45, `Compiled ${experiments.length} critical experiments`);
     return { compiled, blockers, phase: "CompileCriticalExperiments", trace: "CompileCriticalExperiments" };
@@ -726,8 +1035,9 @@ function createGraph(dependencies: MechanicUnderstandingDependencies, signal: Ab
   const runNode = async (state: GraphState): Promise<GraphUpdate> => {
     const facts = state.facts;
     if (facts === undefined) throw new Error("Mechanic facts are unavailable");
-    const max = dependencies.maxExperiments ?? 1024;
-    const experiments = state.compiled.flatMap(({ experiment }) => experiment === undefined ? [] : [experiment]).slice(0, max);
+    const max = experimentLimit(dependencies);
+    const remaining = Math.max(0, max - state.experimentCount);
+    const experiments = state.compiled.flatMap(({ experiment }) => experiment === undefined ? [] : [experiment]).slice(0, remaining);
     progress(dependencies, state, "RunExperiments", 0.55, `Running ${experiments.length} isolated counterfactuals`);
     const results = experiments.length === 0 ? [] : await dependencies.worker.run(state.snapshot, experiments, signal);
     return {
@@ -767,12 +1077,15 @@ function createGraph(dependencies: MechanicUnderstandingDependencies, signal: Ab
   const repairNode = async (state: GraphState): Promise<GraphUpdate> => {
     progress(dependencies, state, "RepairClaims", 0.85, `Repairing claim set, round ${state.repairRounds + 1}`);
     const output = await callAnalyst(dependencies, state, "repair", signal);
+    const submittedClaims = output.submitted ? output.claims : state.submittedClaims;
     return {
-      submittedClaims: output.claims,
+      submittedClaims,
       inspectedEntityIds: output.inspected,
       modelCalls: state.modelCalls + output.modelCalls,
       repairRounds: state.repairRounds + 1,
-      blockers: [],
+      blockers: output.submitted
+        ? []
+        : [...state.blockers, "LLM repair did not submit a complete replacement claim set"],
       warnings: [],
       proofs: [],
       experimentResults: [],
@@ -783,7 +1096,16 @@ function createGraph(dependencies: MechanicUnderstandingDependencies, signal: Ab
   };
 
   const finalizeNode = (state: GraphState): GraphUpdate => {
-    const report = state.report ?? finalizeReport(dependencies, state);
+    const facts = state.facts;
+    if (facts === undefined) throw new Error("Mechanic facts are unavailable");
+    const expectedIdentity = {
+      snapshotFingerprint: state.snapshot.fingerprint,
+      projectionFingerprint: state.snapshot.mechanicProjectionFingerprint,
+      factBundleFingerprint: facts.fingerprint,
+      cacheKey: cacheKey(state.snapshot, facts, dependencies.providerDescriptor),
+      contexts: facts.contexts,
+    };
+    const report = state.report ?? auditMechanicReport(finalizeReport(dependencies, state), expectedIdentity);
     if (state.report === undefined) dependencies.store.setCache(report.cacheKey, report);
     progress(dependencies, state, "FinalizeReport", 1, report.status === "verified" ? "Mechanic report verified" : "Mechanic report blocked");
     return { report, phase: "FinalizeReport", trace: "FinalizeReport" };
@@ -810,8 +1132,8 @@ function createGraph(dependencies: MechanicUnderstandingDependencies, signal: Ab
     .addEdge("RunExperiments", "VerifyClaims")
     .addEdge("VerifyClaims", "CritiqueCoverage")
     .addConditionalEdges("CritiqueCoverage", (state) => {
-      const maxRepair = dependencies.maxRepairRounds ?? 3;
-      const maxCalls = dependencies.maxModelCalls ?? 16;
+      const maxRepair = repairRoundLimit(dependencies);
+      const maxCalls = modelCallLimit(dependencies);
       const needsRepair = state.review?.verdict === "repair" || state.blockers.length > 0;
       return needsRepair && state.repairRounds < maxRepair && state.modelCalls < maxCalls
         ? "RepairClaims"
@@ -842,7 +1164,7 @@ export class MechanicUnderstandingEngine {
     }
     signal.throwIfAborted();
     const graph = createGraph(this.#dependencies, signal);
-    const maxRepairRounds = Math.max(0, this.#dependencies.maxRepairRounds ?? 3);
+    const maxRepairRounds = repairRoundLimit(this.#dependencies);
     const graphConfig = {
       configurable: {
         thread_id: checkpointThreadId(snapshot, options, this.#dependencies.providerDescriptor),
@@ -883,6 +1205,13 @@ export class MechanicUnderstandingEngine {
       throw new Error(`Mechanic understanding failed: ${errorText(error)}`);
     }
     if (result.report === undefined) throw new Error("Mechanic understanding produced no report");
-    return auditMechanicReport(result.report);
+    if (result.facts === undefined) throw new Error("Mechanic understanding produced no fact bundle");
+    return auditMechanicReport(result.report, {
+      snapshotFingerprint: snapshot.fingerprint,
+      projectionFingerprint: snapshot.mechanicProjectionFingerprint,
+      factBundleFingerprint: result.facts.fingerprint,
+      cacheKey: cacheKey(snapshot, result.facts, this.#dependencies.providerDescriptor),
+      contexts: result.facts.contexts,
+    });
   }
 }

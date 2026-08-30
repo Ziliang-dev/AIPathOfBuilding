@@ -1,6 +1,7 @@
 import {
   MechanicFactBundleSchema,
   MechanicFactSchema,
+  MechanicObservationSchema,
   SCHEMA_VERSION,
   type BuildSnapshot,
   type MechanicContext,
@@ -82,6 +83,7 @@ function projectionFacts(snapshot: BuildSnapshot, context: MechanicContext, obse
           ...line.provenance.evidence,
         ]),
         data: {
+          modifierId: line.id,
           itemEntityId: itemId,
           itemId: item.id,
           section: line.section,
@@ -115,14 +117,16 @@ function projectionFacts(snapshot: BuildSnapshot, context: MechanicContext, obse
 
 function skillFacts(snapshot: BuildSnapshot, context: MechanicContext, observation: MechanicObservation): MechanicFact[] {
   const facts: MechanicFact[] = [];
+  const activeItems = new Set(observation.activeItemIds);
+  const activeLines = new Set(observation.activeModifierIds);
   const skillsCatalog = catalog(snapshot, "pob:skills");
   const nativeProbe = record(skillsCatalog?.nativeLinkProbe);
   const groups = records(nativeProbe?.groups);
   const projectedGrant = (names: readonly string[], id: string, displayName?: string) => {
     for (const item of snapshot.mechanicProjection.items) {
-      if (!item.active) continue;
+      if (!activeItems.has(item.id)) continue;
       for (const line of item.modifierLines) {
-        if (!line.active) continue;
+        if (!activeLines.has(line.id)) continue;
         for (const parsed of line.parsedMods) {
           const value = record(parsed.value);
           const skillId = String(value?.skillId ?? value?.id ?? "");
@@ -156,6 +160,7 @@ function skillFacts(snapshot: BuildSnapshot, context: MechanicContext, observati
         ...(skillGrant === undefined ? [] : provenance("projection", skillGrant.lineId, snapshot.mechanicProjection.fingerprint, [skillGrant.lineId])),
       ],
       data: {
+        observationId: observed.id,
         group: observed.group,
         ...(typeof activeGem?.index === "number" ? { gem: activeGem.index } : {}),
         includeInFullDps: observed.includeInFullDps,
@@ -164,7 +169,12 @@ function skillFacts(snapshot: BuildSnapshot, context: MechanicContext, observati
       },
     }));
     for (const support of observed.supports) {
-      const supportGem = gems.find((entry) => entry.grantedEffectId === support.id && entry.support === true);
+      const sourceGroupIndex = support.sourceGroup ?? observed.group;
+      const sourceGroup = groups.find((entry) => entry.index === sourceGroupIndex);
+      const sourceGems = records(sourceGroup?.gems);
+      const supportGem = support.sourceGem === undefined
+        ? sourceGems.find((entry) => entry.grantedEffectId === support.id && entry.support === true)
+        : sourceGems.find((entry) => entry.index === support.sourceGem && entry.support === true);
       const supportGrant = support.fromItem ? projectedGrant(["ExtraSupport", "ExtraSupportMod"], support.id, support.name) : undefined;
       facts.push(fact({
         id: scopedId(context, `support:${observed.group}:${observed.id}:${support.id}`),
@@ -176,12 +186,14 @@ function skillFacts(snapshot: BuildSnapshot, context: MechanicContext, observati
         provenance: [
           ...provenance("native_probe", `group:${observed.group}:support:${support.id}`, observation.nativeProbeFingerprint, [
             `supports:${skillId}`,
+            `source-group:${sourceGroupIndex}`,
             support.fromItem ? "from-item:true" : "from-item:false",
           ]),
           ...(supportGrant === undefined ? [] : provenance("projection", supportGrant.lineId, snapshot.mechanicProjection.fingerprint, [supportGrant.lineId])),
         ],
         data: {
-          group: observed.group,
+          observationId: `${observed.id}:${support.id}`,
+          group: sourceGroupIndex,
           ...(typeof supportGem?.index === "number" ? { gem: supportGem.index } : {}),
           grantedEffectId: support.id,
           supportedSkillEntityId: skillId,
@@ -216,11 +228,17 @@ function treeFacts(snapshot: BuildSnapshot, context: MechanicContext, observatio
 function configFacts(snapshot: BuildSnapshot, context: MechanicContext, observation: MechanicObservation): MechanicFact[] {
   const config = catalog(snapshot, "pob:config");
   const claims = records(config?.conditionClaims);
-  const nativeConditions = new Map(observation.conditions.map((condition) => [condition.id.split(":").slice(1).join(":"), condition]));
+  const nativeConditions = new Map<string, MechanicObservation["conditions"][number][]>();
+  for (const condition of observation.conditions) {
+    const key = condition.id.split(":").slice(1).join(":");
+    nativeConditions.set(key, [...(nativeConditions.get(key) ?? []), condition]);
+  }
   const facts: MechanicFact[] = [];
   for (const [configKey, value] of Object.entries(observation.configValues).sort(([left], [right]) => left.localeCompare(right))) {
     const claim = claims.find((entry) => entry.configKey === configKey || entry.condition === configKey);
-    const native = nativeConditions.get(configKey);
+    const native = nativeConditions.get(configKey) ?? [];
+    const nativeSources = [...new Set(native.flatMap((condition) => condition.sources))].sort();
+    const nativeDependencies = [...new Set(native.flatMap((condition) => condition.dependencies))].sort();
     facts.push(fact({
       id: scopedId(context, `config:${configKey}`),
       context,
@@ -228,10 +246,19 @@ function configFacts(snapshot: BuildSnapshot, context: MechanicContext, observat
       kind: "config",
       name: typeof claim?.label === "string" ? claim.label : configKey,
       active: claim === undefined || claim.sourceStatus === "manual",
-      provenance: provenance(native === undefined ? "catalog" : "native_evidence", `config:${configKey}`,
-        native === undefined ? observation.fingerprint : observation.evidenceFingerprint,
-        native?.sources ?? ["manual-config"]),
-      data: { configKey, value, ...(claim === undefined ? {} : { claim }), nativeSources: native?.sources ?? [] },
+      provenance: provenance(native.length === 0 ? "catalog" : "native_evidence", `config:${configKey}`,
+        native.length === 0 ? observation.fingerprint : observation.evidenceFingerprint,
+        native.length === 0 ? ["manual-config"] : [
+          `sources:sha256:${canonicalHash(nativeSources)}`,
+          `dependencies:sha256:${canonicalHash(nativeDependencies)}`,
+        ]),
+      data: {
+        configKey,
+        value,
+        ...(claim === undefined ? {} : { claim }),
+        nativeSources,
+        nativeDependencies,
+      },
     }));
   }
   for (const condition of observation.conditions) {
@@ -242,8 +269,18 @@ function configFacts(snapshot: BuildSnapshot, context: MechanicContext, observat
       kind: "condition",
       name: condition.id,
       active: true,
-      provenance: provenance("native_evidence", `condition:${condition.id}`, observation.evidenceFingerprint, condition.sources),
-      data: { actor: condition.actor, sources: condition.sources },
+      provenance: provenance("native_evidence", `condition:${condition.id}`, observation.evidenceFingerprint, [
+        `condition:${condition.id}`,
+        `sources:sha256:${canonicalHash(condition.sources)}`,
+        `dependencies:sha256:${canonicalHash(condition.dependencies)}`,
+      ]),
+      data: {
+        observationId: condition.id,
+        actor: condition.actor,
+        ...(condition.value === undefined ? {} : { value: condition.value }),
+        sources: condition.sources,
+        dependencies: condition.dependencies,
+      },
     }));
   }
   return facts;
@@ -274,12 +311,13 @@ function actorFacts(snapshot: BuildSnapshot, context: MechanicContext, observati
   }));
   for (const [key, value] of Object.entries(season).sort(([left], [right]) => left.localeCompare(right))) {
     if (value === undefined || typeof value === "function" || typeof value === "symbol" || typeof value === "bigint") continue;
+    const valueRecord = record(value);
     facts.push(fact({
       id: scopedId(context, `season:${key}`),
       context,
       domain: "actor",
       kind: "seasonMechanic",
-      name: key,
+      name: typeof valueRecord?.name === "string" ? valueRecord.name : key,
       active: meaningful(value),
       provenance: provenance("catalog", `season:${key}`, observation.fingerprint, [snapshot.ruleset]),
       data: { value },
@@ -303,7 +341,7 @@ function numericFacts(
     name,
     active: true,
     provenance: provenance("worker_observation", `${kind}:${name}`, observation.fingerprint, [`value:${value}`]),
-    data: { value },
+    data: { key: name, value },
   }));
 }
 
@@ -342,9 +380,12 @@ export function extractMechanicFacts(
   observations: Readonly<Record<MechanicContext, MechanicObservation>>,
 ): MechanicFactBundle {
   const requiredCatalogs = ["pob:skills", "pob:items", "pob:tree", "pob:actors", "pob:config", "pob:loadouts"];
-  const available = new Set(snapshot.contentCatalog?.map(({ id }) => id) ?? []);
-  const missingScopes = requiredCatalogs.filter((id) => !available.has(id));
+  const available = new Map(snapshot.contentCatalog?.map((entry) => [entry.id, entry.available]) ?? []);
+  const missingScopes = requiredCatalogs.filter((id) => available.get(id) !== true);
   const truncatedScopes: string[] = [];
+  for (const id of requiredCatalogs) {
+    if (catalog(snapshot, id)?.truncated === true) truncatedScopes.push(id);
+  }
   if (catalog(snapshot, "pob:skills")?.currentGroupsTruncated === true) truncatedScopes.push("pob:skills:current-groups");
   if (catalog(snapshot, "pob:tree")?.allocatedTruncated === true) truncatedScopes.push("pob:tree:allocated");
   if (record(catalog(snapshot, "pob:actors")?.actorSeason)?.truncated === true) truncatedScopes.push("pob:actors:active");
@@ -357,8 +398,16 @@ export function extractMechanicFacts(
     missingScopes.push("modifier-projection-fingerprint");
   }
   const contexts: MechanicContext[] = ["weaponSet1", "weaponSet2"];
+  const parsedObservations = new Map(contexts.map((context) => {
+    const observation = MechanicObservationSchema.parse(observations[context]);
+    if (observation.context !== context) {
+      throw new Error(`Mechanic observation context mismatch for ${context}: ${observation.context}`);
+    }
+    return [context, observation] as const;
+  }));
   const entities = contexts.flatMap((context) => {
-    const observation = observations[context];
+    const observation = parsedObservations.get(context);
+    if (observation === undefined) throw new Error(`Mechanic observation missing for ${context}`);
     return [
       ...projectionFacts(snapshot, context, observation),
       ...skillFacts(snapshot, context, observation),

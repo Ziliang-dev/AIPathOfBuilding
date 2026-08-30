@@ -67,6 +67,11 @@ export const NativeLinkGroupSchema = z.object({
     grantedEffectId: z.string().min(1),
     name: z.string().min(1).optional(),
     context: JsonRecordSchema.default({}),
+    appliesToSkillIndex: z.number().int().positive(),
+    appliesToSkillId: z.string().min(1).optional(),
+    sourceResolved: z.boolean().default(false),
+    sourceGroup: z.number().int().positive().optional(),
+    sourceGem: z.number().int().positive().optional(),
   })).default([]),
   supports: z.array(NativeLinkSupportSchema).default([]),
 });
@@ -89,12 +94,21 @@ export const NativeConditionSourceSchema = ConditionSourceSchema.extend({
 }).passthrough();
 export type NativeConditionSource = z.infer<typeof NativeConditionSourceSchema>;
 
+export const NativeConditionDependencySchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  source: z.string().min(1),
+  reason: z.string().min(1),
+}).passthrough();
+
 export const NativeConditionClaimSchema = z.object({
   condition: z.string().min(1),
   configKey: z.string().min(1).optional(),
   value: z.unknown().optional(),
+  active: z.boolean(),
   actor: z.string().min(1).optional(),
-  sources: z.array(NativeConditionSourceSchema).default([]),
+  sources: z.array(NativeConditionSourceSchema).max(128).default([]),
+  dependencies: z.array(NativeConditionDependencySchema).max(4096).default([]),
 }).passthrough();
 export type NativeConditionClaim = z.infer<typeof NativeConditionClaimSchema>;
 
@@ -161,6 +175,7 @@ export function nativeClaimsAsConditionInputs(
   for (const probe of probes) {
     if (!probe.complete || probe.truncated) continue;
     for (const rawClaim of probe.claims) {
+      if (!rawClaim.active) continue;
       const existing = merged.get(rawClaim.condition) ?? {
         condition: rawClaim.condition,
         ...(rawClaim.configKey === undefined ? {} : { configKey: rawClaim.configKey }),

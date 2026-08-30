@@ -95,15 +95,19 @@ local function setContext(build, context)
 	return true
 end
 
-local function supportObservations(group)
+local function supportObservations(group, skill)
 	local result, seen = { }, { }
 	for _, support in ipairs(group.currentSupports or { }) do
+		local applies = support.appliesToSkillIndex == skill.index
+			or support.appliesToSkillId ~= nil and tostring(support.appliesToSkillId) == tostring(skill.id)
 		local id = tostring(support.grantedEffectId or support.name or "unknown")
-		if not seen[id] then
+		if applies and not seen[id] then
 			seen[id] = true
 			table.insert(result, {
 				id = id, name = tostring(support.name or id),
 				fromItem = support.context and support.context.fromItem == true or false,
+				sourceGroup = support.sourceGroup,
+				sourceGem = support.sourceGem,
 			})
 		end
 	end
@@ -122,7 +126,7 @@ local function skillObservations(build, probe)
 					id = tostring(group.index) .. ":" .. id .. ":" .. tostring(index),
 					name = tostring(skill.name or id), group = group.index, enabled = true,
 					includeInFullDps = socketGroup and socketGroup.includeInFullDPS == true or false,
-					fromItem = skill.fromItem == true, supports = supportObservations(group),
+					fromItem = skill.fromItem == true, supports = supportObservations(group, skill),
 				})
 			end
 		end
@@ -134,13 +138,19 @@ end
 local function conditionObservations(evidence)
 	local result = { }
 	for _, claim in ipairs(evidence.claims or { }) do
-		local sources = { }
-		for _, source in ipairs(claim.sources or { }) do table.insert(sources, tostring(source.id)) end
-		table.sort(sources)
-		table.insert(result, {
-			id = tostring(claim.actor or "player") .. ":" .. tostring(claim.condition),
-			actor = tostring(claim.actor or "player"), sources = sources,
-		})
+		if claim.active == true then
+			local sources = { }
+			for _, source in ipairs(claim.sources or { }) do table.insert(sources, tostring(source.id)) end
+			table.sort(sources)
+			local dependencies = { }
+			for _, dependency in ipairs(claim.dependencies or { }) do table.insert(dependencies, tostring(dependency.id)) end
+			table.sort(dependencies)
+			table.insert(result, {
+				id = tostring(claim.actor or "player") .. ":" .. tostring(claim.condition),
+				actor = tostring(claim.actor or "player"), value = claim.value,
+				sources = sources, dependencies = dependencies,
+			})
+		end
 	end
 	table.sort(result, function(left, right) return left.id < right.id end)
 	return result

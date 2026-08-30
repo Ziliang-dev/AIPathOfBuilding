@@ -109,6 +109,11 @@ The resulting verified report guides PlanSearch, RefineSearch, and Explain.
 Every provider request is redacted and blocked until consent matches the current
 endpoint, model, categories, policy, and payload.
 
+Start treats `mechanicAnalysisFingerprint` as an exact-cache hint. A matching
+report is reused; a stale or absent hint runs the same understanding subgraph,
+persists the new verified fingerprint, and continues. A blocked replacement
+still rejects Start.
+
 Provider setup has a separate pre-configuration check. Opening **LLM Setup**
 starts the sidecar without starting search. Auto resolves provider dialect and
 reasoning behavior; Advanced permits explicit overrides. A one-shot

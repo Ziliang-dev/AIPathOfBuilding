@@ -1110,6 +1110,48 @@ describe("DefaultPlannerController", () => {
     await planner.close();
   });
 
+  it("reruns a stale mechanic report cache hint and continues with the new verified fingerprint", async () => {
+    const store = new MemoryPlannerStore();
+    const build = {
+      schemaVersion: 4 as const, mechanicProjection: emptyModifierProjection(),
+      mechanicProjectionFingerprint: EMPTY_PROJECTION_FINGERPRINT,
+      xml: "<PathOfBuilding/>", fingerprint: "stale-mechanic-cache-build", engineVersion: "test", dataVersion: "3.29", ruleset: "3.29",
+      metrics: { FullDPS: 100 }, config: {}, buildState: {}, gameplayFieldPaths: ["Build.level"],
+    };
+    store.saveSnapshot(build);
+    const freshFingerprint = `sha256:${"b".repeat(64)}`;
+    const notifications: Array<{ method: string; params: unknown }> = [];
+    const planner = new DefaultPlannerController({
+      store, checkpointer: new MemorySaver(),
+      ...testRuntime(),
+      mechanicEngineFactory: () => ({ understand: async (captured: BuildSnapshot) => ({
+        ...verifiedMechanicReport(captured), analysisFingerprint: freshFingerprint,
+      }) }),
+      workerPoolFactory: () => new InMemoryWorkerPool(1, (job) => ({
+        jobId: job.id, candidateId: job.candidateId,
+        metricsByScenario: Object.fromEntries(job.scenarios.map((scenario) => [scenario, { FullDPS: 100 }])),
+      })),
+    });
+    const started = planner.startRun({
+      snapshotFingerprint: build.fingerprint,
+      objective,
+      mechanicAnalysisFingerprint: TEST_HASH,
+    }, {
+      requestId: "stale-mechanic-cache", signal: new AbortController().signal,
+      notify: (notification) => notifications.push(notification),
+    }) as { runId: string };
+    for (let attempt = 0; attempt < 100
+      && store.getRun(started.runId)?.mechanicAnalysisFingerprint !== freshFingerprint; attempt += 1) {
+      await new Promise<void>((resolve) => setTimeout(resolve, 5));
+    }
+    expect(store.getRun(started.runId)?.mechanicAnalysisFingerprint).toBe(freshFingerprint);
+    expect(store.getRun(started.runId)?.status).not.toBe("failed");
+    expect(notifications.some(({ method, params }) => method === "run.progress"
+      && (params as { message?: string }).message?.includes("Stale mechanic report cache hint"))).toBe(true);
+    planner.cancelRun({ runId: started.runId });
+    await planner.close();
+  });
+
   it("checkpoints Provider failure and permits only retryProvider or cancelProvider", async () => {
     const store = new MemoryPlannerStore();
     const build = {

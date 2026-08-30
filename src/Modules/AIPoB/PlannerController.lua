@@ -293,7 +293,11 @@ function Controller:_registerHandlers()
 		self.state.status = "analyzingMechanics"
 		self.state.progress = tonumber(params.progress) or self.state.progress
 		self.state.mechanicProgress = params
-		self.state.message = tostring(params.message or params.phase or "Understanding Build mechanics")
+		self.state.message = tostring(params.phase or "Mechanics")
+			.. ": " .. tostring(params.message or "Understanding Build mechanics")
+			.. "; entities=" .. tostring(params.inspectedCount or 0) .. "/" .. tostring(params.entityCount or 0)
+			.. "; LLM=" .. tostring(params.modelCalls or 0)
+			.. "; experiments=" .. tostring(params.experimentCount or 0)
 	end)
 	self.rpc:Register("mechanics.completed", function(params)
 		if params.analysisId ~= self.state.mechanicAnalysisId then return end

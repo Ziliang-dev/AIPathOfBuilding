@@ -26,6 +26,7 @@ function probeResult(grantedEffectId = "SupportSpellEcho", capacity = 2): Worker
       condition: "conditionOnslaught",
       configKey: "conditionOnslaught",
       value: true,
+      active: true,
       sources: [{
         id: "player:item:onslaught",
         trigger: "always",

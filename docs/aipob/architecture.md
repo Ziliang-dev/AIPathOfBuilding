@@ -224,6 +224,20 @@ touching the active Build. Noncritical structural Claims require exact native
 provenance. Missing, truncated, zero-delta, stale, or invalid proof blocks the
 report and Start.
 
+PoB's `conditionsUsed` tables describe calculator dependencies, not current
+truth. Active condition facts therefore require typed values from the owning
+player/minion `modDB` or enemy `enemyDB`; text and English-substring guesses are
+not accepted as condition evidence. Native source chains come only from active
+`Condition:<id>` FLAG producers returned by `modDB:Tabulate`; the
+`conditionsUsed` consumer mods remain separate dependency provenance and can
+never prove a source or sustainable uptime.
+
+Coverage separates inspection from semantic edges. The model must inspect
+every active Config and condition fact. A standalone native root with consumer
+dependencies but no typed producer remains a graph node and does not require a
+fabricated Claim. Config and condition facts with typed producer provenance do
+require a proven semantic relation.
+
 The exact cache key binds Build, Projection, Fact Bundle, PoB engine/data/
 ruleset, both weapon contexts, Scenario matrix, engine/prompt/tool versions,
 and Provider endpoint/model/API/reasoning settings. Cache namespaces are

@@ -165,12 +165,15 @@ local function formatMechanicReport(report)
 	local claims = type(report.claims) == "table" and report.claims or { }
 	local proofs = type(report.proofs) == "table" and report.proofs or { }
 	local edges = type(report.graph) == "table" and type(report.graph.edges) == "table" and report.graph.edges or { }
+	local proofById, claimById = { }, { }
 	local counterfactual, exact, nonActive = 0, 0, 0
 	for _, proof in ipairs(proofs) do
+		if type(proof.id) == "string" then proofById[proof.id] = proof end
 		if proof.type == "counterfactual" then counterfactual = counterfactual + 1
 		elseif proof.type == "native_exact" then exact = exact + 1 end
 	end
 	for _, claim in ipairs(claims) do
+		if type(claim.id) == "string" then claimById[claim.id] = claim end
 		if claim.effectState == "latent" or claim.effectState == "redundant" then nonActive = nonActive + 1 end
 	end
 	local lines = {
@@ -179,14 +182,44 @@ local function formatMechanicReport(report)
 			.. tostring(nonActive) .. " latent or redundant.",
 	}
 	for _, context in ipairs({ "weaponSet1", "weaponSet2" }) do
-		local shown, chain = 0, { }
+		local shown, chain, contextualEdges, contextualNonActive = 0, { }, { }, { }
 		for _, edge in ipairs(edges) do
-			if edge.context == context and shown < 2 then
-				t_insert(chain, safeText(edge.sourceId).." "..safeText(edge.relation).." "..safeText(edge.targetId))
+			if edge.context == context then t_insert(contextualEdges, edge) end
+		end
+		table.sort(contextualEdges, function(left, right)
+			local leftClaim, rightClaim = claimById[left.claimId] or { }, claimById[right.claimId] or { }
+			if (leftClaim.critical == true) ~= (rightClaim.critical == true) then return leftClaim.critical == true end
+			return safeText(left.id) < safeText(right.id)
+		end)
+		for _, edge in ipairs(contextualEdges) do
+			if shown < 4 then
+				local proof = type(edge.proofIds) == "table" and proofById[edge.proofIds[1]] or nil
+				local detail = proof and safeText(proof.type) or "missing-proof"
+				local delta = proof and proof.delta
+				local changes = { }
+				for _, field in ipairs({ "contributionChanges", "metricChanges", "configChanges", "resourceChanges", "cooldownChanges", "durationChanges" }) do
+					for name, change in pairs(type(delta) == "table" and type(delta[field]) == "table" and delta[field] or { }) do
+						local before = type(change) == "table" and change.before or nil
+						local after = type(change) == "table" and change.after or nil
+						t_insert(changes, safeText(name).." "..safeText(before).."->"..safeText(after))
+					end
+				end
+				table.sort(changes)
+				if #changes > 0 then detail = detail .. ":" .. changes[1] end
+				detail = detail .. "," .. safeText(edge.effectState)
+				t_insert(chain, safeText(edge.sourceId).." "..safeText(edge.relation).." "..safeText(edge.targetId).." ["..detail.."]")
 				shown = shown + 1
 			end
 		end
-		t_insert(lines, context .. ": " .. (#chain > 0 and t_concat(chain, "; ") or "no verified semantic edge"))
+		for _, claim in ipairs(claims) do
+			if claim.context == context and (claim.effectState == "latent" or claim.effectState == "redundant") then
+				t_insert(contextualNonActive, safeText(claim.sourceId).."("..safeText(claim.effectState)..")")
+				if #contextualNonActive >= 2 then break end
+			end
+		end
+		local contextLine = context .. ": " .. (#chain > 0 and t_concat(chain, "; ") or "no verified semantic edge")
+		if #contextualNonActive > 0 then contextLine = contextLine .. "; non-active: " .. t_concat(contextualNonActive, ", ") end
+		t_insert(lines, contextLine)
 	end
 	for index, blocker in ipairs(report.blockers or { }) do
 		if index > 2 then break end

@@ -46,14 +46,15 @@ import { ReadonlyToolDispatcher, runReadonlyAgentLoop } from "./agent/index.js";
 import type { HighLevelToolName } from "./llm/toolSchemas.js";
 import type { ModelAdapter } from "./llm/types.js";
 import {
-  MECHANIC_TOOL_REGISTRY,
   MechanicProviderError,
   MechanicUnderstandingEngine,
-  PoolMechanicExperimentRunner,
   type MechanicProgress,
-  type MechanicToolName,
-  type PobWorkerMechanicPayload,
 } from "./mechanics/index.js";
+import {
+  PoolMechanicExperimentRunner,
+  type PobWorkerMechanicPayload,
+} from "./mechanics/experiments.js";
+import { MECHANIC_TOOL_REGISTRY, type MechanicToolName } from "./mechanics/tools.js";
 import {
   ConsentGrantParamsSchema,
   ConsentPreviewParamsSchema,
@@ -1136,10 +1137,25 @@ export class DefaultPlannerController implements PlannerController {
       }
       if (expectedMechanicFingerprint !== undefined
         && mechanicReport.analysisFingerprint !== expectedMechanicFingerprint) {
-        throw new JsonRpcError(
-          JsonRpcErrorCode.Conflict,
-          "Requested mechanic report fingerprint is stale or does not match the active Build",
-        );
+        notify({
+          method: "run.progress",
+          params: {
+            runId,
+            phase: "Mechanics:FinalizeReport",
+            progress: 0.2,
+            evaluations: 0,
+            frontierSize: 0,
+            message: "Stale mechanic report cache hint replaced by a newly verified report",
+          },
+        });
+      }
+      const persistedRun = this.#store.getRun(runId);
+      if (persistedRun !== undefined) {
+        this.#store.saveRun({
+          ...persistedRun,
+          mechanicAnalysisFingerprint: mechanicReport.analysisFingerprint,
+          updatedAt: new Date().toISOString(),
+        });
       }
       notify({ method: "run.mechanicsReady", params: { runId, report: mechanicReport } });
       if (this.#modelAdapterFactory === undefined) throw providerUnavailable();

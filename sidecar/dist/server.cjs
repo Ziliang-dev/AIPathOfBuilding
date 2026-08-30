@@ -59430,7 +59430,9 @@ var init_schemas3 = __esm({
       supports: external_exports.array(external_exports.object({
         id: external_exports.string().min(1).max(512),
         name: external_exports.string().min(1).max(512),
-        fromItem: external_exports.boolean().default(false)
+        fromItem: external_exports.boolean().default(false),
+        sourceGroup: external_exports.number().int().positive().optional(),
+        sourceGem: external_exports.number().int().positive().optional()
       })).max(64).default([])
     });
     MechanicObservationSchema = external_exports.object({
@@ -59444,7 +59446,9 @@ var init_schemas3 = __esm({
       conditions: external_exports.array(external_exports.object({
         id: external_exports.string().min(1).max(512),
         actor: external_exports.string().min(1).max(128),
-        sources: external_exports.array(external_exports.string().min(1).max(512)).max(128).default([])
+        value: external_exports.unknown().optional(),
+        sources: external_exports.array(external_exports.string().min(1).max(512)).max(128).default([]),
+        dependencies: external_exports.array(external_exports.string().min(1).max(512)).max(4096).default([])
       })).max(4096),
       activeItemIds: external_exports.array(external_exports.string().min(1).max(512)).max(1e5),
       activeModifierIds: external_exports.array(external_exports.string().min(1).max(512)).max(1e5),
@@ -59477,6 +59481,7 @@ var init_schemas3 = __esm({
       addedPassiveIds: external_exports.array(external_exports.string()).default([]),
       removedPassiveIds: external_exports.array(external_exports.string()).default([]),
       contributionChanges: external_exports.record(external_exports.string(), external_exports.object({ before: external_exports.number().optional(), after: external_exports.number().optional() })).default({}),
+      configChanges: external_exports.record(external_exports.string(), external_exports.object({ before: external_exports.unknown().optional(), after: external_exports.unknown().optional() })).default({}),
       resourceChanges: external_exports.record(external_exports.string(), external_exports.object({ before: external_exports.number().optional(), after: external_exports.number().optional() })).default({}),
       cooldownChanges: external_exports.record(external_exports.string(), external_exports.object({ before: external_exports.number().optional(), after: external_exports.number().optional() })).default({}),
       durationChanges: external_exports.record(external_exports.string(), external_exports.object({ before: external_exports.number().optional(), after: external_exports.number().optional() })).default({})
@@ -71523,13 +71528,13 @@ function diffMechanics(baseReport, base, candidate) {
   const after = lineMap(candidate);
   const added = [...after.keys()].filter((id) => !before.has(id)).sort();
   const removed = [...before.keys()].filter((id) => !after.has(id)).sort();
-  const changed = [...before.keys()].filter((id) => {
+  const changed2 = [...before.keys()].filter((id) => {
     const next = after.get(id);
     return next !== void 0 && canonicalHash(before.get(id)) !== canonicalHash(next);
   }).sort();
   const critical = new Set(baseReport.understanding.criticalNodeIds);
   const criticalRemoved = removed.filter((id) => critical.has(id));
-  const criticalChanged = changed.filter((id) => critical.has(id));
+  const criticalChanged = changed2.filter((id) => critical.has(id));
   const breaks = criticalRemoved.length > 0 || criticalChanged.length > 0;
   const findings = breaks ? [finding({
     severity: "blocker",
@@ -71543,7 +71548,7 @@ function diffMechanics(baseReport, base, candidate) {
     candidateProjectionFingerprint: candidate.fingerprint,
     addedModifierLineIds: added,
     removedModifierLineIds: removed,
-    changedModifierLineIds: changed,
+    changedModifierLineIds: changed2,
     breaksCriticalMechanism: breaks,
     findings
   });
@@ -71602,7 +71607,12 @@ var NativeLinkGroupSchema = external_exports.object({
   currentSupports: external_exports.array(external_exports.object({
     grantedEffectId: external_exports.string().min(1),
     name: external_exports.string().min(1).optional(),
-    context: JsonRecordSchema.default({})
+    context: JsonRecordSchema.default({}),
+    appliesToSkillIndex: external_exports.number().int().positive(),
+    appliesToSkillId: external_exports.string().min(1).optional(),
+    sourceResolved: external_exports.boolean().default(false),
+    sourceGroup: external_exports.number().int().positive().optional(),
+    sourceGem: external_exports.number().int().positive().optional()
   })).default([]),
   supports: external_exports.array(NativeLinkSupportSchema).default([])
 });
@@ -71619,12 +71629,20 @@ var NativeLinkProbeSchema = external_exports.object({
 var NativeConditionSourceSchema = ConditionSourceSchema.extend({
   actor: external_exports.string().min(1).optional()
 }).passthrough();
+var NativeConditionDependencySchema = external_exports.object({
+  id: external_exports.string().min(1),
+  name: external_exports.string().min(1),
+  source: external_exports.string().min(1),
+  reason: external_exports.string().min(1)
+}).passthrough();
 var NativeConditionClaimSchema = external_exports.object({
   condition: external_exports.string().min(1),
   configKey: external_exports.string().min(1).optional(),
   value: external_exports.unknown().optional(),
+  active: external_exports.boolean(),
   actor: external_exports.string().min(1).optional(),
-  sources: external_exports.array(NativeConditionSourceSchema).default([])
+  sources: external_exports.array(NativeConditionSourceSchema).max(128).default([]),
+  dependencies: external_exports.array(NativeConditionDependencySchema).max(4096).default([])
 }).passthrough();
 var NativeEvidenceProbeSchema = external_exports.object({
   schemaVersion: external_exports.literal(NATIVE_PROBE_SCHEMA_VERSION),
@@ -71660,6 +71678,7 @@ function nativeClaimsAsConditionInputs(probes) {
   for (const probe of probes) {
     if (!probe.complete || probe.truncated) continue;
     for (const rawClaim of probe.claims) {
+      if (!rawClaim.active) continue;
       const existing = merged.get(rawClaim.condition) ?? {
         condition: rawClaim.condition,
         ...rawClaim.configKey === void 0 ? {} : { configKey: rawClaim.configKey },
@@ -72764,11 +72783,25 @@ function numericChanges(before, after) {
   }
   return result;
 }
+function valueChanges(before, after) {
+  const result = {};
+  for (const key of [.../* @__PURE__ */ new Set([...Object.keys(before), ...Object.keys(after)])].sort()) {
+    const left = before[key];
+    const right = after[key];
+    const equal = left === void 0 && right === void 0 || left !== void 0 && right !== void 0 && canonicalHash(left) === canonicalHash(right);
+    if (equal) continue;
+    result[key] = {
+      ...left === void 0 ? {} : { before: left },
+      ...right === void 0 ? {} : { after: right }
+    };
+  }
+  return result;
+}
 function diffMechanicObservations(baseline, diagnostic) {
   const skillDelta = stringSetDelta(baseline.skills.map(({ id }) => id), diagnostic.skills.map(({ id }) => id));
   const supportDelta = stringSetDelta(
-    baseline.skills.flatMap(({ supports }) => supports.map(({ id }) => id)),
-    diagnostic.skills.flatMap(({ supports }) => supports.map(({ id }) => id))
+    baseline.skills.flatMap((skill) => skill.supports.map(({ id }) => `${skill.id}:${id}`)),
+    diagnostic.skills.flatMap((skill) => skill.supports.map(({ id }) => `${skill.id}:${id}`))
   );
   const conditionDelta = stringSetDelta(baseline.conditions.map(({ id }) => id), diagnostic.conditions.map(({ id }) => id));
   const modifierDelta = stringSetDelta(baseline.activeModifierIds, diagnostic.activeModifierIds);
@@ -72779,10 +72812,11 @@ function diffMechanicObservations(baseline, diagnostic) {
   const cooldownChanges = numericChanges(baseline.cooldowns, diagnostic.cooldowns);
   const durationChanges = numericChanges(baseline.durations, diagnostic.durations);
   const contributionChanges = numericChanges(baseline.contributions, diagnostic.contributions);
-  const contributionChanged = supportDelta.added.length + supportDelta.removed.length + conditionDelta.added.length + conditionDelta.removed.length + modifierDelta.added.length + modifierDelta.removed.length + skillDelta.added.length + skillDelta.removed.length + itemDelta.added.length + itemDelta.removed.length + passiveDelta.added.length + passiveDelta.removed.length + Object.keys(contributionChanges).length > 0;
-  const changed = contributionChanged || skillDelta.added.length + skillDelta.removed.length > 0 || Object.keys(metricChanges).length + Object.keys(resourceChanges).length + Object.keys(cooldownChanges).length + Object.keys(durationChanges).length > 0;
+  const configChanges = valueChanges(baseline.configValues, diagnostic.configValues);
+  const contributionChanged = supportDelta.added.length + supportDelta.removed.length + conditionDelta.added.length + conditionDelta.removed.length + skillDelta.added.length + skillDelta.removed.length + Object.keys(contributionChanges).length > 0;
+  const changed2 = contributionChanged || modifierDelta.added.length + modifierDelta.removed.length + itemDelta.added.length + itemDelta.removed.length + passiveDelta.added.length + passiveDelta.removed.length > 0 || Object.keys(configChanges).length > 0 || Object.keys(metricChanges).length + Object.keys(resourceChanges).length + Object.keys(cooldownChanges).length + Object.keys(durationChanges).length > 0;
   const withoutFingerprint = {
-    changed,
+    changed: changed2,
     contributionChanged,
     metricChanges,
     addedSkillIds: skillDelta.added,
@@ -72798,6 +72832,7 @@ function diffMechanicObservations(baseline, diagnostic) {
     addedPassiveIds: passiveDelta.added,
     removedPassiveIds: passiveDelta.removed,
     contributionChanges,
+    configChanges,
     resourceChanges,
     cooldownChanges,
     durationChanges
@@ -72811,6 +72846,7 @@ function compileMechanicExperiments(facts, claims) {
   const entities = new Map(facts.entities.map((entity) => [entity.id, entity]));
   return claims.map((claim) => {
     const source = entities.get(claim.sourceId);
+    const target = entities.get(claim.targetId);
     if (source === void 0) return { claim, exactEvidenceIds: [] };
     const data = source.data;
     let intervention;
@@ -72857,9 +72893,19 @@ function compileMechanicExperiments(facts, claims) {
       if (typeof data.buffer === "string") intervention = { kind: "suppress_actor_buff", buffer: data.buffer };
     }
     const needsCounterfactual = claim.critical || claim.ambiguous;
+    const requiredEvidenceIds = [source.id, ...target === void 0 ? [] : [target.id]];
+    const supplementalEvidenceIds = [.../* @__PURE__ */ new Set([
+      source.fingerprint,
+      ...source.provenance.flatMap(({ evidence: evidence2, sourceId, fingerprint }) => [sourceId, fingerprint, ...evidence2]),
+      ...target === void 0 ? [] : [
+        target.fingerprint,
+        ...target.provenance.flatMap(({ evidence: evidence2, sourceId, fingerprint }) => [sourceId, fingerprint, ...evidence2])
+      ]
+    ])].filter((id) => !requiredEvidenceIds.includes(id)).sort();
+    const exactEvidenceIds = [...requiredEvidenceIds, ...supplementalEvidenceIds].slice(0, 256);
     return {
       claim,
-      exactEvidenceIds: source.provenance.flatMap(({ evidence: evidence2, sourceId }) => [sourceId, ...evidence2]),
+      exactEvidenceIds,
       ...needsCounterfactual && intervention !== void 0 ? {
         experiment: { id: `experiment:${claim.id}`, claimId: claim.id, context: claim.context, intervention }
       } : {}
@@ -72928,6 +72974,7 @@ function projectionFacts(snapshot, context2, observation) {
           ...line.provenance.evidence
         ]),
         data: {
+          modifierId: line.id,
           itemEntityId: itemId,
           itemId: item.id,
           section: line.section,
@@ -72960,14 +73007,16 @@ function projectionFacts(snapshot, context2, observation) {
 }
 function skillFacts(snapshot, context2, observation) {
   const facts = [];
+  const activeItems = new Set(observation.activeItemIds);
+  const activeLines = new Set(observation.activeModifierIds);
   const skillsCatalog = catalog(snapshot, "pob:skills");
   const nativeProbe = record4(skillsCatalog?.nativeLinkProbe);
   const groups = records(nativeProbe?.groups);
   const projectedGrant = (names2, id, displayName) => {
     for (const item of snapshot.mechanicProjection.items) {
-      if (!item.active) continue;
+      if (!activeItems.has(item.id)) continue;
       for (const line of item.modifierLines) {
-        if (!line.active) continue;
+        if (!activeLines.has(line.id)) continue;
         for (const parsed of line.parsedMods) {
           const value = record4(parsed.value);
           const skillId = String(value?.skillId ?? value?.id ?? "");
@@ -73001,6 +73050,7 @@ function skillFacts(snapshot, context2, observation) {
         ...skillGrant === void 0 ? [] : provenance("projection", skillGrant.lineId, snapshot.mechanicProjection.fingerprint, [skillGrant.lineId])
       ],
       data: {
+        observationId: observed.id,
         group: observed.group,
         ...typeof activeGem?.index === "number" ? { gem: activeGem.index } : {},
         includeInFullDps: observed.includeInFullDps,
@@ -73009,7 +73059,10 @@ function skillFacts(snapshot, context2, observation) {
       }
     }));
     for (const support of observed.supports) {
-      const supportGem = gems.find((entry) => entry.grantedEffectId === support.id && entry.support === true);
+      const sourceGroupIndex = support.sourceGroup ?? observed.group;
+      const sourceGroup = groups.find((entry) => entry.index === sourceGroupIndex);
+      const sourceGems = records(sourceGroup?.gems);
+      const supportGem = support.sourceGem === void 0 ? sourceGems.find((entry) => entry.grantedEffectId === support.id && entry.support === true) : sourceGems.find((entry) => entry.index === support.sourceGem && entry.support === true);
       const supportGrant = support.fromItem ? projectedGrant(["ExtraSupport", "ExtraSupportMod"], support.id, support.name) : void 0;
       facts.push(fact({
         id: scopedId(context2, `support:${observed.group}:${observed.id}:${support.id}`),
@@ -73021,12 +73074,14 @@ function skillFacts(snapshot, context2, observation) {
         provenance: [
           ...provenance("native_probe", `group:${observed.group}:support:${support.id}`, observation.nativeProbeFingerprint, [
             `supports:${skillId}`,
+            `source-group:${sourceGroupIndex}`,
             support.fromItem ? "from-item:true" : "from-item:false"
           ]),
           ...supportGrant === void 0 ? [] : provenance("projection", supportGrant.lineId, snapshot.mechanicProjection.fingerprint, [supportGrant.lineId])
         ],
         data: {
-          group: observed.group,
+          observationId: `${observed.id}:${support.id}`,
+          group: sourceGroupIndex,
           ...typeof supportGem?.index === "number" ? { gem: supportGem.index } : {},
           grantedEffectId: support.id,
           supportedSkillEntityId: skillId,
@@ -73059,11 +73114,17 @@ function treeFacts(snapshot, context2, observation) {
 function configFacts(snapshot, context2, observation) {
   const config2 = catalog(snapshot, "pob:config");
   const claims = records(config2?.conditionClaims);
-  const nativeConditions = new Map(observation.conditions.map((condition) => [condition.id.split(":").slice(1).join(":"), condition]));
+  const nativeConditions = /* @__PURE__ */ new Map();
+  for (const condition of observation.conditions) {
+    const key = condition.id.split(":").slice(1).join(":");
+    nativeConditions.set(key, [...nativeConditions.get(key) ?? [], condition]);
+  }
   const facts = [];
   for (const [configKey, value] of Object.entries(observation.configValues).sort(([left], [right]) => left.localeCompare(right))) {
     const claim = claims.find((entry) => entry.configKey === configKey || entry.condition === configKey);
-    const native = nativeConditions.get(configKey);
+    const native = nativeConditions.get(configKey) ?? [];
+    const nativeSources = [...new Set(native.flatMap((condition) => condition.sources))].sort();
+    const nativeDependencies = [...new Set(native.flatMap((condition) => condition.dependencies))].sort();
     facts.push(fact({
       id: scopedId(context2, `config:${configKey}`),
       context: context2,
@@ -73072,12 +73133,21 @@ function configFacts(snapshot, context2, observation) {
       name: typeof claim?.label === "string" ? claim.label : configKey,
       active: claim === void 0 || claim.sourceStatus === "manual",
       provenance: provenance(
-        native === void 0 ? "catalog" : "native_evidence",
+        native.length === 0 ? "catalog" : "native_evidence",
         `config:${configKey}`,
-        native === void 0 ? observation.fingerprint : observation.evidenceFingerprint,
-        native?.sources ?? ["manual-config"]
+        native.length === 0 ? observation.fingerprint : observation.evidenceFingerprint,
+        native.length === 0 ? ["manual-config"] : [
+          `sources:sha256:${canonicalHash(nativeSources)}`,
+          `dependencies:sha256:${canonicalHash(nativeDependencies)}`
+        ]
       ),
-      data: { configKey, value, ...claim === void 0 ? {} : { claim }, nativeSources: native?.sources ?? [] }
+      data: {
+        configKey,
+        value,
+        ...claim === void 0 ? {} : { claim },
+        nativeSources,
+        nativeDependencies
+      }
     }));
   }
   for (const condition of observation.conditions) {
@@ -73088,8 +73158,18 @@ function configFacts(snapshot, context2, observation) {
       kind: "condition",
       name: condition.id,
       active: true,
-      provenance: provenance("native_evidence", `condition:${condition.id}`, observation.evidenceFingerprint, condition.sources),
-      data: { actor: condition.actor, sources: condition.sources }
+      provenance: provenance("native_evidence", `condition:${condition.id}`, observation.evidenceFingerprint, [
+        `condition:${condition.id}`,
+        `sources:sha256:${canonicalHash(condition.sources)}`,
+        `dependencies:sha256:${canonicalHash(condition.dependencies)}`
+      ]),
+      data: {
+        observationId: condition.id,
+        actor: condition.actor,
+        ...condition.value === void 0 ? {} : { value: condition.value },
+        sources: condition.sources,
+        dependencies: condition.dependencies
+      }
     }));
   }
   return facts;
@@ -73119,12 +73199,13 @@ function actorFacts(snapshot, context2, observation) {
   }));
   for (const [key, value] of Object.entries(season).sort(([left], [right]) => left.localeCompare(right))) {
     if (value === void 0 || typeof value === "function" || typeof value === "symbol" || typeof value === "bigint") continue;
+    const valueRecord = record4(value);
     facts.push(fact({
       id: scopedId(context2, `season:${key}`),
       context: context2,
       domain: "actor",
       kind: "seasonMechanic",
-      name: key,
+      name: typeof valueRecord?.name === "string" ? valueRecord.name : key,
       active: meaningful(value),
       provenance: provenance("catalog", `season:${key}`, observation.fingerprint, [snapshot.ruleset]),
       data: { value }
@@ -73141,7 +73222,7 @@ function numericFacts(context2, observation, values, kind, domain2) {
     name,
     active: true,
     provenance: provenance("worker_observation", `${kind}:${name}`, observation.fingerprint, [`value:${value}`]),
-    data: { value }
+    data: { key: name, value }
   }));
 }
 var OFFENCE_METRICS = /* @__PURE__ */ new Set([
@@ -73181,9 +73262,12 @@ function inventory(snapshot) {
 }
 function extractMechanicFacts(snapshot, observations) {
   const requiredCatalogs = ["pob:skills", "pob:items", "pob:tree", "pob:actors", "pob:config", "pob:loadouts"];
-  const available = new Set(snapshot.contentCatalog?.map(({ id }) => id) ?? []);
-  const missingScopes = requiredCatalogs.filter((id) => !available.has(id));
+  const available = new Map(snapshot.contentCatalog?.map((entry) => [entry.id, entry.available]) ?? []);
+  const missingScopes = requiredCatalogs.filter((id) => available.get(id) !== true);
   const truncatedScopes = [];
+  for (const id of requiredCatalogs) {
+    if (catalog(snapshot, id)?.truncated === true) truncatedScopes.push(id);
+  }
   if (catalog(snapshot, "pob:skills")?.currentGroupsTruncated === true) truncatedScopes.push("pob:skills:current-groups");
   if (catalog(snapshot, "pob:tree")?.allocatedTruncated === true) truncatedScopes.push("pob:tree:allocated");
   if (record4(catalog(snapshot, "pob:actors")?.actorSeason)?.truncated === true) truncatedScopes.push("pob:actors:active");
@@ -73196,8 +73280,16 @@ function extractMechanicFacts(snapshot, observations) {
     missingScopes.push("modifier-projection-fingerprint");
   }
   const contexts = ["weaponSet1", "weaponSet2"];
+  const parsedObservations = new Map(contexts.map((context2) => {
+    const observation = MechanicObservationSchema.parse(observations[context2]);
+    if (observation.context !== context2) {
+      throw new Error(`Mechanic observation context mismatch for ${context2}: ${observation.context}`);
+    }
+    return [context2, observation];
+  }));
   const entities = contexts.flatMap((context2) => {
-    const observation = observations[context2];
+    const observation = parsedObservations.get(context2);
+    if (observation === void 0) throw new Error(`Mechanic observation missing for ${context2}`);
     return [
       ...projectionFacts(snapshot, context2, observation),
       ...skillFacts(snapshot, context2, observation),
@@ -73411,6 +73503,8 @@ var MechanicToolDispatcher = class {
         if (unknown2.length > 0) return errorResult(call3, `unknown_entities:${[...new Set(unknown2)].join(",")}`);
         const invalidContext = args.claims.find((claim) => entityById.get(claim.sourceId)?.context !== claim.context || entityById.get(claim.targetId)?.context !== claim.context);
         if (invalidContext !== void 0) return errorResult(call3, "claim_context_mismatch");
+        const inactive = args.claims.find((claim) => entityById.get(claim.sourceId)?.active !== true || entityById.get(claim.targetId)?.active !== true);
+        if (inactive !== void 0) return errorResult(call3, "inactive_entity_relation_forbidden");
         if (args.claims.some((claim) => claim.sourceId === claim.targetId)) return errorResult(call3, "self_relation_forbidden");
         const knownEvidence = new Set(session.facts.entities.flatMap((entity) => [
           entity.id,
@@ -73532,6 +73626,22 @@ function progress(dependencies, state, phase, value, message) {
     message
   });
 }
+function boundedLimit(value, fallback2, maximum, minimum = 0) {
+  const candidate = value ?? fallback2;
+  return Number.isFinite(candidate) ? Math.min(maximum, Math.max(minimum, Math.floor(candidate))) : Math.min(maximum, Math.max(minimum, fallback2));
+}
+function modelCallLimit(dependencies) {
+  return boundedLimit(dependencies.maxModelCalls, 16, 16);
+}
+function repairRoundLimit(dependencies) {
+  return boundedLimit(dependencies.maxRepairRounds, 3, 3);
+}
+function experimentLimit(dependencies) {
+  return boundedLimit(dependencies.maxExperiments, 1024, 1024);
+}
+function repeatedToolCallLimit(dependencies) {
+  return boundedLimit(dependencies.duplicateCallLimit, 3, 3, 1);
+}
 function cacheKey(snapshot, facts, descriptor) {
   return `sha256:${canonicalHash({
     namespace: "mechanic-understanding:v4",
@@ -73569,8 +73679,10 @@ function isRoot(entity) {
   return entity.kind === "metric" || entity.kind === "resource" || entity.kind === "cooldown" || entity.kind === "duration" || entity.kind === "skill" || entity.kind === "condition";
 }
 function localCriticality(claim, facts, rawClaims) {
-  if (claim.relation === "triggers" || claim.relation === "consumes" || claim.relation === "requires") return true;
   const source = facts.get(claim.sourceId);
+  const target = facts.get(claim.targetId);
+  if (source?.kind === "item" && target?.kind === "modifierLine" && claim.relation === "grants") return false;
+  if (claim.relation === "triggers" || claim.relation === "consumes" || claim.relation === "requires") return true;
   if (source?.kind === "config") {
     const nativeSources = source.data.nativeSources;
     if (!Array.isArray(nativeSources) || nativeSources.length === 0) return true;
@@ -73624,8 +73736,11 @@ function normalizeClaims(facts, inputs) {
   }
   return claims.sort((left, right) => left.id.localeCompare(right.id));
 }
-function requiredClaimEntity(entity) {
-  return entity.active && [
+function requiredInspectionEntity(entity) {
+  if (!entity.active) return false;
+  if (entity.kind === "actor") return entity.data.kind !== "player";
+  return [
+    "item",
     "modifierLine",
     "skill",
     "support",
@@ -73635,6 +73750,19 @@ function requiredClaimEntity(entity) {
     "actorBuff",
     "seasonMechanic"
   ].includes(entity.kind);
+}
+function requiredClaimEntity(entity) {
+  if (!requiredInspectionEntity(entity)) return false;
+  if (entity.kind === "config") return Array.isArray(entity.data.nativeSources) && entity.data.nativeSources.length > 0;
+  if (entity.kind === "condition") return Array.isArray(entity.data.sources) && entity.data.sources.length > 0;
+  return true;
+}
+function factBundleBlockers(facts) {
+  return [.../* @__PURE__ */ new Set([
+    ...facts.missingScopes.map((scope) => `Required PoB fact scope missing: ${scope}`),
+    ...facts.truncatedScopes.map((scope) => `Required PoB fact scope truncated: ${scope}`),
+    ...facts.complete ? [] : ["Required PoB fact bundle is incomplete"]
+  ])].sort();
 }
 function validateCoverage(facts, claims, inspectedEntityIds) {
   const inspected = new Set(inspectedEntityIds);
@@ -73646,9 +73774,10 @@ function validateCoverage(facts, claims, inspectedEntityIds) {
   for (const context2 of facts.contexts) {
     for (const domain2 of ["skills", "gear", "tree", "config", "actor", "offence", "resource", "defence", "condition", "inventory"]) {
       const entities = facts.entities.filter((entity) => entity.context === context2 && entity.domain === domain2 && entity.active);
-      const required2 = entities.filter(requiredClaimEntity);
-      const missingInspection = required2.filter(({ id }) => !inspected.has(id)).map(({ id }) => id);
-      const missingClaims = required2.filter(({ id }) => !claimed.has(id)).map(({ id }) => id);
+      const requiredInspection = entities.filter(requiredInspectionEntity);
+      const requiredClaims = entities.filter(requiredClaimEntity);
+      const missingInspection = requiredInspection.filter(({ id }) => !inspected.has(id)).map(({ id }) => id);
+      const missingClaims = requiredClaims.filter(({ id }) => !claimed.has(id)).map(({ id }) => id);
       for (const id of missingInspection) blockers.push(`LLM did not inspect required entity ${id}`);
       for (const id of missingClaims) blockers.push(`LLM submitted no mechanism claim for required entity ${id}`);
       coverage.push({
@@ -73672,13 +73801,24 @@ function validateCoverage(facts, claims, inspectedEntityIds) {
   for (const [key, relations] of pairRelations) {
     if (relations.has("conflicts") && relations.size > 1) blockers.push(`Contradictory relations for ${key}`);
   }
+  const entityById = new Map(facts.entities.map((entity) => [entity.id, entity]));
+  for (const claim of claims) {
+    const source = entityById.get(claim.sourceId);
+    const target = entityById.get(claim.targetId);
+    if (source === void 0 || target === void 0) {
+      blockers.push(`Claim ${claim.id} references an unknown mechanic entity`);
+    } else if (source.context !== claim.context || target.context !== claim.context) {
+      blockers.push(`Claim ${claim.id} crosses mechanic contexts`);
+    } else if (!source.active || !target.active) {
+      blockers.push(`Claim ${claim.id} references inactive inventory-only state`);
+    }
+  }
   if (claims.length === 0) blockers.push("LLM submitted no mechanic claims");
-  if (!facts.complete) blockers.push(...facts.missingScopes.map((scope) => `Required PoB fact scope missing: ${scope}`));
-  blockers.push(...facts.truncatedScopes.map((scope) => `Required PoB fact scope truncated: ${scope}`));
+  blockers.push(...factBundleBlockers(facts));
   return { claims, coverage, blockers: [...new Set(blockers)].sort(), warnings };
 }
 function sourceIsExact(source) {
-  if (source === void 0 || source.provenance.length === 0) return false;
+  if (source === void 0 || !source.active || source.provenance.length === 0) return false;
   if (source.kind === "modifierLine") {
     if (source.data.parseStatus !== "parsed") return false;
     const value = source.data.modifierProvenance;
@@ -73687,19 +73827,109 @@ function sourceIsExact(source) {
   if (source.kind === "parsedModifier") return source.data.classification !== "unknown";
   return source.provenance.every(({ kind }) => kind !== "projection" || source.active);
 }
+function changed(record5, key) {
+  return typeof key === "string" && Object.hasOwn(record5, key);
+}
+function deltaChangesTarget(target, delta) {
+  if (target === void 0) return false;
+  const key = target.data.key ?? target.name;
+  if (target.kind === "metric") return changed(delta.metricChanges, key) || changed(delta.contributionChanges, key);
+  if (target.kind === "resource") return changed(delta.resourceChanges, key) || changed(delta.contributionChanges, key);
+  if (target.kind === "cooldown") return changed(delta.cooldownChanges, key) || changed(delta.contributionChanges, key);
+  if (target.kind === "duration") return changed(delta.durationChanges, key) || changed(delta.contributionChanges, key);
+  if (target.kind === "skill") {
+    const observationId = target.data.observationId;
+    return typeof observationId === "string" && (delta.addedSkillIds.includes(observationId) || delta.removedSkillIds.includes(observationId) || delta.addedSupportIds.some((id) => id.startsWith(`${observationId}:`)) || delta.removedSupportIds.some((id) => id.startsWith(`${observationId}:`)));
+  }
+  if (target.kind === "support") {
+    const observationId = target.data.observationId;
+    return typeof observationId === "string" && (delta.addedSupportIds.includes(observationId) || delta.removedSupportIds.includes(observationId));
+  }
+  if (target.kind === "condition") {
+    const observationId = target.data.observationId;
+    return typeof observationId === "string" && (delta.addedConditionIds.includes(observationId) || delta.removedConditionIds.includes(observationId));
+  }
+  if (target.kind === "modifierLine") {
+    const modifierId = target.data.modifierId;
+    return typeof modifierId === "string" && (delta.addedModifierIds.includes(modifierId) || delta.removedModifierIds.includes(modifierId));
+  }
+  if (target.kind === "item") {
+    const itemId = target.data.itemId;
+    return typeof itemId === "string" && (delta.addedItemIds.includes(itemId) || delta.removedItemIds.includes(itemId));
+  }
+  if (target.kind === "passive") {
+    const nodeId = String(target.data.nodeId ?? "");
+    return nodeId.length > 0 && (delta.addedPassiveIds.includes(nodeId) || delta.removedPassiveIds.includes(nodeId));
+  }
+  if (target.kind === "config") return changed(delta.configChanges, target.data.configKey);
+  return false;
+}
+function exactStructuralBinding(claim, source, target) {
+  if (source === void 0 || target === void 0) return false;
+  if (claim.relation === "grants" && source.kind === "item" && target.kind === "modifierLine") {
+    return target.data.itemEntityId === source.id;
+  }
+  if (claim.relation === "grants" && source.kind === "modifierLine") {
+    const sourceModifier = target.data.sourceModifier;
+    return sourceModifier !== null && typeof sourceModifier === "object" && !Array.isArray(sourceModifier) && sourceModifier.lineId === source.data.modifierId;
+  }
+  if (claim.relation === "scales" && source.kind === "support" && target.kind === "skill") {
+    return source.data.supportedSkillEntityId === target.id;
+  }
+  if (claim.relation === "requires" && source.kind === "skill" && target.kind === "support") {
+    return target.data.supportedSkillEntityId === source.id;
+  }
+  if (["grants", "requires", "scales"].includes(claim.relation) && source.kind === "config" && target.kind === "condition") {
+    const configKey = source.data.configKey;
+    const observationId = target.data.observationId;
+    return typeof configKey === "string" && typeof observationId === "string" && observationId.split(":").slice(1).join(":") === configKey;
+  }
+  return claim.relation === "grants" && source.kind === "modifierLine" && target.kind === "parsedModifier" && target.id.startsWith(`${source.id}:parsed:`);
+}
+function counterfactualProvesClaim(claim, source, target, delta) {
+  return delta.changed && delta.contributionChanged && (deltaChangesTarget(target, delta) || exactStructuralBinding(claim, source, target));
+}
 function verifyClaims(facts, compiled, results) {
   const entities = new Map(facts.entities.map((entity) => [entity.id, entity]));
-  const resultByClaim = new Map(results.filter(({ claimId }) => claimId !== void 0).map((result) => [result.claimId, result]));
+  const compiledByClaim = new Map(compiled.map((entry) => [entry.claim.id, entry]));
+  const resultsByClaim = /* @__PURE__ */ new Map();
   const proofs = [];
   const claims = [];
   const blockers = [];
   const warnings = [];
+  for (const result of results) {
+    if (result.claimId === void 0) {
+      blockers.push(`Worker returned unbound mechanic result ${result.experimentId}`);
+      continue;
+    }
+    if (!compiledByClaim.has(result.claimId)) {
+      blockers.push(`Worker returned result for unknown claim ${result.claimId}`);
+      continue;
+    }
+    const grouped = resultsByClaim.get(result.claimId) ?? [];
+    grouped.push(result);
+    resultsByClaim.set(result.claimId, grouped);
+  }
   for (const entry of compiled) {
     let claim = entry.claim;
     if (entry.experiment !== void 0) {
-      const result = resultByClaim.get(claim.id);
-      if (result === void 0) {
-        blockers.push(`Critical claim ${claim.id} has no counterfactual result`);
+      const matchingResults = resultsByClaim.get(claim.id) ?? [];
+      const result = matchingResults.length === 1 ? matchingResults[0] : void 0;
+      const expectedBaseline = facts.observations[claim.context];
+      const resultErrors = result === void 0 ? [] : [
+        ...result.experimentId === entry.experiment.id ? [] : [`experiment ${result.experimentId} does not match ${entry.experiment.id}`],
+        ...result.claimId === claim.id ? [] : [`claim ${String(result.claimId)} does not match ${claim.id}`],
+        ...result.context === claim.context ? [] : [`result context ${result.context} does not match ${claim.context}`],
+        ...result.baseline.context === claim.context ? [] : [`baseline context ${result.baseline.context} does not match ${claim.context}`],
+        ...result.diagnostic.context === claim.context ? [] : [`diagnostic context ${result.diagnostic.context} does not match ${claim.context}`],
+        ...result.baseline.fingerprint === expectedBaseline.fingerprint ? [] : ["baseline fingerprint is stale"],
+        ...result.baseline.projectionFingerprint === expectedBaseline.projectionFingerprint ? [] : ["baseline projection fingerprint is stale"],
+        ...result.baseline.nativeProbeFingerprint === expectedBaseline.nativeProbeFingerprint ? [] : ["baseline native-probe fingerprint is stale"],
+        ...result.baseline.evidenceFingerprint === expectedBaseline.evidenceFingerprint ? [] : ["baseline evidence fingerprint is stale"]
+      ];
+      if (matchingResults.length !== 1 || result === void 0 || resultErrors.length > 0) {
+        const reason = matchingResults.length === 0 ? "has no counterfactual result" : matchingResults.length > 1 ? `has ${matchingResults.length} duplicate counterfactual results` : `has an invalid counterfactual result: ${resultErrors.join("; ")}`;
+        blockers.push(`Critical claim ${claim.id} ${reason}`);
         proofs.push(MechanicProofSchema.parse({
           id: `proof:${claim.id}:counterfactual`,
           claimId: claim.id,
@@ -73712,9 +73942,14 @@ function verifyClaims(facts, compiled, results) {
         }));
       } else {
         const delta = diffMechanicObservations(result.baseline, result.diagnostic);
+        const source = entities.get(claim.sourceId);
+        const target = entities.get(claim.targetId);
+        const decisive = counterfactualProvesClaim(claim, source, target, delta);
         const finalMetricChanged = Object.keys(delta.metricChanges).length > 0 || Object.keys(delta.resourceChanges).length > 0 || Object.keys(delta.cooldownChanges).length > 0 || Object.keys(delta.durationChanges).length > 0;
-        const status = delta.changed ? "proven" : "indeterminate";
-        if (!delta.changed) blockers.push(`Counterfactual produced zero contribution delta for critical claim ${claim.id}`);
+        const status = decisive ? "proven" : "indeterminate";
+        if (!decisive) blockers.push(
+          `Counterfactual did not change the claimed target contribution for critical claim ${claim.id} (${claim.sourceId} -> ${claim.targetId})`
+        );
         if (delta.contributionChanged && !finalMetricChanged) {
           claim = MechanicClaimSchema.parse({ ...claim, effectState: "redundant" });
           warnings.push(`Claim ${claim.id} is structurally proven but redundant in current outputs`);
@@ -73743,7 +73978,7 @@ function verifyClaims(facts, compiled, results) {
         evidenceIds: entry.exactEvidenceIds
       }));
     } else {
-      const exact = sourceIsExact(entities.get(claim.sourceId)) && entry.exactEvidenceIds.length > 0;
+      const exact = sourceIsExact(entities.get(claim.sourceId)) && sourceIsExact(entities.get(claim.targetId)) && entry.exactEvidenceIds.includes(claim.sourceId) && entry.exactEvidenceIds.includes(claim.targetId);
       if (!exact) blockers.push(`Noncritical claim ${claim.id} lacks exact native provenance`);
       proofs.push(MechanicProofSchema.parse({
         id: `proof:${claim.id}:native`,
@@ -73770,8 +74005,8 @@ async function callAnalyst(dependencies, state, phase, signal) {
     existingClaims: state.claims,
     inspectedEntityIds: inspected
   };
-  const remaining = Math.max(0, (dependencies.maxModelCalls ?? 16) - state.modelCalls);
-  if (remaining === 0) return { claims: [], inspected: [...inspected], modelCalls: 0 };
+  const remaining = Math.max(0, modelCallLimit(dependencies) - state.modelCalls);
+  if (remaining === 0) return { claims: [], inspected: [...inspected], modelCalls: 0, submitted: false };
   const dispatcher = new MechanicToolDispatcher();
   const result = await runAgentLoop({
     adapter: dependencies.provider,
@@ -73794,7 +74029,7 @@ async function callAnalyst(dependencies, state, phase, signal) {
     limits: {
       recursionLimit: Math.max(1, remaining),
       modelCallLimit: remaining,
-      duplicateCallLimit: dependencies.duplicateCallLimit ?? 3,
+      duplicateCallLimit: repeatedToolCallLimit(dependencies),
       wallTimeMs: Number.MAX_SAFE_INTEGER
     },
     signal,
@@ -73804,9 +74039,9 @@ async function callAnalyst(dependencies, state, phase, signal) {
     throw new MechanicProviderError(result.fallback.detail, result.fallback.retryable);
   }
   if (session.submittedClaims === void 0 || session.claimsComplete !== true) {
-    return { claims: [], inspected: [...inspected].sort(), modelCalls: result.modelCalls };
+    return { claims: [], inspected: [...inspected].sort(), modelCalls: result.modelCalls, submitted: false };
   }
-  return { claims: session.submittedClaims, inspected: [...inspected].sort(), modelCalls: result.modelCalls };
+  return { claims: session.submittedClaims, inspected: [...inspected].sort(), modelCalls: result.modelCalls, submitted: true };
 }
 async function callCritic(dependencies, state, signal) {
   const facts = state.facts;
@@ -73818,7 +74053,7 @@ async function callCritic(dependencies, state, signal) {
     existingClaims: state.claims,
     inspectedEntityIds: new Set(state.inspectedEntityIds)
   };
-  const remaining = Math.max(0, (dependencies.maxModelCalls ?? 16) - state.modelCalls);
+  const remaining = Math.max(0, modelCallLimit(dependencies) - state.modelCalls);
   if (remaining === 0) return { modelCalls: 0 };
   const result = await runAgentLoop({
     adapter: dependencies.provider,
@@ -73842,7 +74077,7 @@ async function callCritic(dependencies, state, signal) {
     limits: {
       recursionLimit: Math.max(1, remaining),
       modelCallLimit: remaining,
-      duplicateCallLimit: dependencies.duplicateCallLimit ?? 3,
+      duplicateCallLimit: repeatedToolCallLimit(dependencies),
       wallTimeMs: Number.MAX_SAFE_INTEGER
     },
     signal,
@@ -73871,40 +74106,131 @@ function reportFinding(message, severity) {
     evidenceIds: []
   };
 }
-function auditMechanicReport(raw) {
-  const report = VerifiedBuildMechanicReportSchema.parse(raw);
-  const proofById = new Map(report.proofs.map((proof) => [proof.id, proof]));
-  const provenClaims = new Set(report.proofs.filter(({ status }) => status === "proven").map(({ claimId }) => claimId));
-  const claimIds = new Set(report.claims.map(({ id }) => id));
-  const auditBlockers = [];
-  for (const claim of report.claims) {
-    if (!provenClaims.has(claim.id)) auditBlockers.push(`Claim ${claim.id} has no valid proven proof`);
+function duplicateIds(entries) {
+  const seen = /* @__PURE__ */ new Set();
+  const duplicate = /* @__PURE__ */ new Set();
+  for (const { id } of entries) {
+    if (seen.has(id)) duplicate.add(id);
+    seen.add(id);
   }
-  for (const edge of report.graph.edges) {
-    if (!claimIds.has(edge.claimId)) auditBlockers.push(`Semantic edge ${edge.id} references unknown claim ${edge.claimId}`);
-    for (const proofId of edge.proofIds) {
-      const proof = proofById.get(proofId);
-      if (proof === void 0 || proof.claimId !== edge.claimId || proof.status !== "proven") {
-        auditBlockers.push(`Semantic edge ${edge.id} references invalid proof ${proofId}`);
+  return [...duplicate].sort();
+}
+function auditMechanicReport(raw, expected) {
+  const report = VerifiedBuildMechanicReportSchema.parse(raw);
+  const claimById = new Map(report.claims.map((claim) => [claim.id, claim]));
+  const proofById = new Map(report.proofs.map((proof) => [proof.id, proof]));
+  const nodeById = new Map(report.graph.nodes.map((node) => [node.id, node]));
+  const auditBlockers = [];
+  const expectedAnalysisFingerprint = `sha256:${canonicalHash({
+    ...report,
+    analysisFingerprint: void 0,
+    createdAt: void 0
+  })}`;
+  if (report.analysisFingerprint !== expectedAnalysisFingerprint) {
+    auditBlockers.push("Mechanic report analysis fingerprint is invalid");
+  }
+  if (expected !== void 0) {
+    if (report.snapshotFingerprint !== expected.snapshotFingerprint) auditBlockers.push("Cached mechanic report Build fingerprint mismatch");
+    if (report.projectionFingerprint !== expected.projectionFingerprint) auditBlockers.push("Cached mechanic report Projection fingerprint mismatch");
+    if (report.factBundleFingerprint !== expected.factBundleFingerprint) auditBlockers.push("Cached mechanic report Fact Bundle fingerprint mismatch");
+    if (report.cacheKey !== expected.cacheKey) auditBlockers.push("Cached mechanic report key mismatch");
+    if (report.contexts[0] !== expected.contexts[0] || report.contexts[1] !== expected.contexts[1]) {
+      auditBlockers.push("Cached mechanic report context mismatch");
+    }
+  }
+  for (const id of duplicateIds(report.claims)) auditBlockers.push(`Duplicate mechanic claim ID ${id}`);
+  for (const id of duplicateIds(report.proofs)) auditBlockers.push(`Duplicate mechanic proof ID ${id}`);
+  for (const id of duplicateIds(report.graph.nodes)) auditBlockers.push(`Duplicate mechanic graph node ID ${id}`);
+  for (const id of duplicateIds(report.graph.edges)) auditBlockers.push(`Duplicate mechanic graph edge ID ${id}`);
+  if (report.claims.length === 0) auditBlockers.push("Mechanic report contains no claims");
+  if (report.modelCalls > 16) auditBlockers.push(`Mechanic report exceeds model-call limit: ${report.modelCalls}`);
+  if (report.experimentCount > 1024) auditBlockers.push(`Mechanic report exceeds experiment limit: ${report.experimentCount}`);
+  if (report.repairRounds > 3) auditBlockers.push(`Mechanic report exceeds repair-round limit: ${report.repairRounds}`);
+  if (report.status === "verified" && report.blockers.length > 0) auditBlockers.push("Verified mechanic report contains blockers");
+  if (report.status === "verified" && report.findings.some(({ severity }) => severity === "blocker")) {
+    auditBlockers.push("Verified mechanic report contains blocker findings");
+  }
+  if (report.status === "blocked" && report.blockers.length === 0) auditBlockers.push("Blocked mechanic report has no blocker reason");
+  const knownEvidence = new Set(report.graph.nodes.flatMap((node) => [
+    node.id,
+    node.fingerprint,
+    ...node.provenance.flatMap(({ sourceId, fingerprint, evidence: evidence2 }) => [sourceId, fingerprint, ...evidence2])
+  ]));
+  for (const proof of report.proofs) {
+    const claim = claimById.get(proof.claimId);
+    if (claim === void 0) {
+      auditBlockers.push(`Proof ${proof.id} references unknown claim ${proof.claimId}`);
+      continue;
+    }
+    if (proof.context !== claim.context) auditBlockers.push(`Proof ${proof.id} crosses mechanic contexts`);
+    if (proof.type === "counterfactual" && proof.status === "proven" && (proof.experimentId === void 0 || proof.delta === void 0 || !counterfactualProvesClaim(claim, nodeById.get(claim.sourceId), nodeById.get(claim.targetId), proof.delta))) {
+      auditBlockers.push(`Counterfactual proof ${proof.id} lacks a decisive experiment delta`);
+    }
+    if (proof.type === "native_exact" && proof.status === "proven") {
+      const source = nodeById.get(claim.sourceId);
+      const target = nodeById.get(claim.targetId);
+      if (!sourceIsExact(source) || !sourceIsExact(target) || proof.sourceFingerprint !== source?.fingerprint || !proof.evidenceIds.includes(claim.sourceId) || !proof.evidenceIds.includes(claim.targetId)) {
+        auditBlockers.push(`Native proof ${proof.id} lacks exact active source provenance`);
       }
+    }
+  }
+  const proofValidForClaim = (proof, claim) => {
+    if (proof === void 0 || proof.claimId !== claim.id || proof.context !== claim.context || proof.status !== "proven") return false;
+    if ((claim.critical || claim.ambiguous) && proof.type !== "counterfactual") return false;
+    if (proof.type === "counterfactual") return proof.experimentId !== void 0 && proof.delta !== void 0 && counterfactualProvesClaim(claim, nodeById.get(claim.sourceId), nodeById.get(claim.targetId), proof.delta);
+    const source = nodeById.get(claim.sourceId);
+    const target = nodeById.get(claim.targetId);
+    return sourceIsExact(source) && sourceIsExact(target) && proof.sourceFingerprint === source?.fingerprint && proof.evidenceIds.includes(claim.sourceId) && proof.evidenceIds.includes(claim.targetId);
+  };
+  for (const claim of report.claims) {
+    const source = nodeById.get(claim.sourceId);
+    const target = nodeById.get(claim.targetId);
+    if (source === void 0 || target === void 0) {
+      auditBlockers.push(`Claim ${claim.id} references an unknown graph node`);
+    } else if (source.context !== claim.context || target.context !== claim.context) {
+      auditBlockers.push(`Claim ${claim.id} crosses mechanic contexts`);
+    } else if (!source.active || !target.active) {
+      auditBlockers.push(`Claim ${claim.id} references inactive inventory-only state`);
+    }
+    if (claim.evidenceIds.some((id) => !knownEvidence.has(id))) {
+      auditBlockers.push(`Claim ${claim.id} references unknown local evidence`);
+    }
+    const validProofs = report.proofs.filter((proof) => proofValidForClaim(proof, claim));
+    if (validProofs.length === 0) auditBlockers.push(`Claim ${claim.id} has no valid proven proof`);
+    const matchingEdges = report.graph.edges.filter((edge) => edge.claimId === claim.id);
+    if (report.status === "verified" && matchingEdges.length !== 1) {
+      auditBlockers.push(`Verified claim ${claim.id} does not have exactly one semantic edge`);
+    }
+  }
+  const edgeIsValid = (edge) => {
+    const claim = claimById.get(edge.claimId);
+    if (claim === void 0 || !nodeById.has(edge.sourceId) || !nodeById.has(edge.targetId)) return false;
+    if (edge.sourceId !== claim.sourceId || edge.targetId !== claim.targetId || edge.relation !== claim.relation || edge.context !== claim.context || edge.scenario !== claim.scenario || edge.effectState !== claim.effectState) return false;
+    return edge.proofIds.every((proofId) => proofValidForClaim(proofById.get(proofId), claim));
+  };
+  for (const edge of report.graph.edges) {
+    if (!edgeIsValid(edge)) auditBlockers.push(`Semantic edge ${edge.id} does not exactly match a locally proven claim`);
+  }
+  if (report.status === "verified") {
+    for (const entry of report.coverage) {
+      if (entry.missingEntityIds.length > 0) auditBlockers.push(`Verified coverage ${entry.context}:${entry.domain} has missing entities`);
+      if (entry.provenCount < entry.claimedCount) auditBlockers.push(`Verified coverage ${entry.context}:${entry.domain} has unproven claimed entities`);
     }
   }
   if (auditBlockers.length === 0) return report;
   const blockers = [.../* @__PURE__ */ new Set([...report.blockers, ...auditBlockers])].sort();
+  const findings = new Map([
+    ...report.findings,
+    ...auditBlockers.map((message) => reportFinding(message, "blocker"))
+  ].map((finding2) => [finding2.id, finding2]));
   const audited = {
     ...report,
     status: "blocked",
     blockers,
-    findings: [
-      ...report.findings,
-      ...auditBlockers.map((message) => reportFinding(message, "blocker"))
-    ],
+    findings: [...findings.values()],
     graph: {
       ...report.graph,
-      edges: report.graph.edges.filter((edge) => edge.proofIds.every((proofId) => {
-        const proof = proofById.get(proofId);
-        return proof !== void 0 && proof.claimId === edge.claimId && proof.status === "proven";
-      }))
+      edges: report.graph.edges.filter(edgeIsValid)
     },
     summary: `blocked: ${report.claims.length} claims, ${report.proofs.filter(({ status }) => status === "proven").length} proven, ${blockers.length} blockers`
   };
@@ -73922,7 +74248,7 @@ function finalizeReport(dependencies, state) {
     ...state.review.conflictingClaimIds.map((id) => `Critic reports conflicting claim ${id}`),
     ...state.review.invalidProofIds.map((id) => `Critic reports invalid proof ${id}`)
   ] : [];
-  const blockers = [.../* @__PURE__ */ new Set([...state.blockers, ...criticBlockers])].sort();
+  const blockers = [.../* @__PURE__ */ new Set([...state.blockers, ...factBundleBlockers(facts), ...criticBlockers])].sort();
   const proven = new Map(state.proofs.filter(({ status: status2 }) => status2 === "proven").map((proof) => [proof.claimId, proof]));
   const edges = state.claims.flatMap((claim) => {
     const proof = proven.get(claim.id);
@@ -73981,9 +74307,24 @@ function createGraph(dependencies, signal) {
     const facts = extractMechanicFacts(state.snapshot, Object.fromEntries(observations));
     const key = cacheKey(state.snapshot, facts, dependencies.providerDescriptor);
     const cached2 = state.options.force === true ? void 0 : VerifiedBuildMechanicReportSchema.safeParse(dependencies.store.getCache(key));
-    const report = cached2?.success === true ? auditMechanicReport(cached2.data) : void 0;
+    const expectedIdentity = {
+      snapshotFingerprint: state.snapshot.fingerprint,
+      projectionFingerprint: state.snapshot.mechanicProjectionFingerprint,
+      factBundleFingerprint: facts.fingerprint,
+      cacheKey: key,
+      contexts: facts.contexts
+    };
+    const auditedCache = cached2?.success === true ? auditMechanicReport(cached2.data, expectedIdentity) : void 0;
+    const cachedAnalysisFingerprint = cached2?.success === true ? cached2.data.analysisFingerprint : void 0;
+    const report = auditedCache !== void 0 && auditedCache.analysisFingerprint === cachedAnalysisFingerprint ? auditedCache : void 0;
     progress(dependencies, { ...state, facts }, "ExtractFacts", 0.15, report === void 0 ? "PoB fact bundle ready" : "Exact mechanic report cache hit");
-    return { facts, report, phase: "ExtractFacts", trace: "ExtractFacts" };
+    return {
+      facts,
+      report,
+      blockers: report === void 0 ? factBundleBlockers(facts) : report.blockers,
+      phase: "ExtractFacts",
+      trace: "ExtractFacts"
+    };
   };
   const discoverClaimsNode = async (state) => {
     progress(dependencies, state, "DiscoverClaims", 0.2, "LLM analyst is discovering typed mechanism claims");
@@ -74016,16 +74357,18 @@ function createGraph(dependencies, signal) {
     if (facts === void 0) throw new Error("Mechanic facts are unavailable");
     const compiled = compileMechanicExperiments(facts, state.claims);
     const experiments = compiled.filter(({ experiment }) => experiment !== void 0);
-    const max = dependencies.maxExperiments ?? 1024;
-    const blockers = experiments.length > max ? [...state.blockers, `Critical experiment count ${experiments.length} exceeds limit ${max}`] : state.blockers;
+    const max = experimentLimit(dependencies);
+    const remaining = Math.max(0, max - state.experimentCount);
+    const blockers = experiments.length > remaining ? [...state.blockers, "Critical experiment count " + experiments.length + " exceeds remaining total budget " + remaining + " of " + max] : state.blockers;
     progress(dependencies, state, "CompileCriticalExperiments", 0.45, `Compiled ${experiments.length} critical experiments`);
     return { compiled, blockers, phase: "CompileCriticalExperiments", trace: "CompileCriticalExperiments" };
   };
   const runNode = async (state) => {
     const facts = state.facts;
     if (facts === void 0) throw new Error("Mechanic facts are unavailable");
-    const max = dependencies.maxExperiments ?? 1024;
-    const experiments = state.compiled.flatMap(({ experiment }) => experiment === void 0 ? [] : [experiment]).slice(0, max);
+    const max = experimentLimit(dependencies);
+    const remaining = Math.max(0, max - state.experimentCount);
+    const experiments = state.compiled.flatMap(({ experiment }) => experiment === void 0 ? [] : [experiment]).slice(0, remaining);
     progress(dependencies, state, "RunExperiments", 0.55, `Running ${experiments.length} isolated counterfactuals`);
     const results = experiments.length === 0 ? [] : await dependencies.worker.run(state.snapshot, experiments, signal);
     return {
@@ -74062,12 +74405,13 @@ function createGraph(dependencies, signal) {
   const repairNode = async (state) => {
     progress(dependencies, state, "RepairClaims", 0.85, `Repairing claim set, round ${state.repairRounds + 1}`);
     const output = await callAnalyst(dependencies, state, "repair", signal);
+    const submittedClaims = output.submitted ? output.claims : state.submittedClaims;
     return {
-      submittedClaims: output.claims,
+      submittedClaims,
       inspectedEntityIds: output.inspected,
       modelCalls: state.modelCalls + output.modelCalls,
       repairRounds: state.repairRounds + 1,
-      blockers: [],
+      blockers: output.submitted ? [] : [...state.blockers, "LLM repair did not submit a complete replacement claim set"],
       warnings: [],
       proofs: [],
       experimentResults: [],
@@ -74077,7 +74421,16 @@ function createGraph(dependencies, signal) {
     };
   };
   const finalizeNode = (state) => {
-    const report = state.report ?? finalizeReport(dependencies, state);
+    const facts = state.facts;
+    if (facts === void 0) throw new Error("Mechanic facts are unavailable");
+    const expectedIdentity = {
+      snapshotFingerprint: state.snapshot.fingerprint,
+      projectionFingerprint: state.snapshot.mechanicProjectionFingerprint,
+      factBundleFingerprint: facts.fingerprint,
+      cacheKey: cacheKey(state.snapshot, facts, dependencies.providerDescriptor),
+      contexts: facts.contexts
+    };
+    const report = state.report ?? auditMechanicReport(finalizeReport(dependencies, state), expectedIdentity);
     if (state.report === void 0) dependencies.store.setCache(report.cacheKey, report);
     progress(dependencies, state, "FinalizeReport", 1, report.status === "verified" ? "Mechanic report verified" : "Mechanic report blocked");
     return { report, phase: "FinalizeReport", trace: "FinalizeReport" };
@@ -74086,8 +74439,8 @@ function createGraph(dependencies, signal) {
     if (state.report !== void 0 || state.facts?.complete !== true) return "FinalizeReport";
     return "DiscoverClaims";
   }, ["DiscoverClaims", "FinalizeReport"]).addEdge("DiscoverClaims", "ValidateCoverage").addEdge("ValidateCoverage", "CompileCriticalExperiments").addEdge("CompileCriticalExperiments", "RunExperiments").addEdge("RunExperiments", "VerifyClaims").addEdge("VerifyClaims", "CritiqueCoverage").addConditionalEdges("CritiqueCoverage", (state) => {
-    const maxRepair = dependencies.maxRepairRounds ?? 3;
-    const maxCalls = dependencies.maxModelCalls ?? 16;
+    const maxRepair = repairRoundLimit(dependencies);
+    const maxCalls = modelCallLimit(dependencies);
     const needsRepair = state.review?.verdict === "repair" || state.blockers.length > 0;
     return needsRepair && state.repairRounds < maxRepair && state.modelCalls < maxCalls ? "RepairClaims" : "FinalizeReport";
   }, ["RepairClaims", "FinalizeReport"]).addEdge("RepairClaims", "ValidateCoverage").addEdge("FinalizeReport", END);
@@ -74107,7 +74460,7 @@ var MechanicUnderstandingEngine = class {
     }
     signal.throwIfAborted();
     const graph = createGraph(this.#dependencies, signal);
-    const maxRepairRounds = Math.max(0, this.#dependencies.maxRepairRounds ?? 3);
+    const maxRepairRounds = repairRoundLimit(this.#dependencies);
     const graphConfig = {
       configurable: {
         thread_id: checkpointThreadId(snapshot, options, this.#dependencies.providerDescriptor)
@@ -74146,7 +74499,14 @@ var MechanicUnderstandingEngine = class {
       throw new Error(`Mechanic understanding failed: ${errorText(error51)}`);
     }
     if (result.report === void 0) throw new Error("Mechanic understanding produced no report");
-    return auditMechanicReport(result.report);
+    if (result.facts === void 0) throw new Error("Mechanic understanding produced no fact bundle");
+    return auditMechanicReport(result.report, {
+      snapshotFingerprint: snapshot.fingerprint,
+      projectionFingerprint: snapshot.mechanicProjectionFingerprint,
+      factBundleFingerprint: result.facts.fingerprint,
+      cacheKey: cacheKey(snapshot, result.facts, this.#dependencies.providerDescriptor),
+      contexts: result.facts.contexts
+    });
   }
 };
 
@@ -78215,10 +78575,25 @@ var DefaultPlannerController = class {
         );
       }
       if (expectedMechanicFingerprint !== void 0 && mechanicReport.analysisFingerprint !== expectedMechanicFingerprint) {
-        throw new JsonRpcError(
-          JsonRpcErrorCode.Conflict,
-          "Requested mechanic report fingerprint is stale or does not match the active Build"
-        );
+        notify({
+          method: "run.progress",
+          params: {
+            runId,
+            phase: "Mechanics:FinalizeReport",
+            progress: 0.2,
+            evaluations: 0,
+            frontierSize: 0,
+            message: "Stale mechanic report cache hint replaced by a newly verified report"
+          }
+        });
+      }
+      const persistedRun = this.#store.getRun(runId);
+      if (persistedRun !== void 0) {
+        this.#store.saveRun({
+          ...persistedRun,
+          mechanicAnalysisFingerprint: mechanicReport.analysisFingerprint,
+          updatedAt: (/* @__PURE__ */ new Date()).toISOString()
+        });
       }
       notify({ method: "run.mechanicsReady", params: { runId, report: mechanicReport } });
       if (this.#modelAdapterFactory === void 0) throw providerUnavailable();

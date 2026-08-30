@@ -196,6 +196,10 @@ export class MechanicToolDispatcher implements AgentToolDispatcher<MechanicToolN
           entityById.get(claim.sourceId)?.context !== claim.context
           || entityById.get(claim.targetId)?.context !== claim.context);
         if (invalidContext !== undefined) return errorResult(call, "claim_context_mismatch");
+        const inactive = args.claims.find((claim) =>
+          entityById.get(claim.sourceId)?.active !== true
+          || entityById.get(claim.targetId)?.active !== true);
+        if (inactive !== undefined) return errorResult(call, "inactive_entity_relation_forbidden");
         if (args.claims.some((claim) => claim.sourceId === claim.targetId)) return errorResult(call, "self_relation_forbidden");
         const knownEvidence = new Set(session.facts.entities.flatMap((entity) => [
           entity.id,

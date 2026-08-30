@@ -103,21 +103,31 @@ local function supportContext(supportEffect)
 	}
 end
 
-local function currentSupportEffects(group)
+local function currentSupportEffects(group, gemOrigins)
 	local result = { }
-	for _, activeSkill in ipairs(group.displaySkillList or { }) do
+	local complete = true
+	for activeSkillIndex, activeSkill in ipairs(group.displaySkillList or { }) do
+		local identity = activeIdentity(activeSkill)
+		if not identity then complete = false end
 		for _, effect in ipairs(activeSkill.effectList or { }) do
 			local grantedEffect = effect and effect.grantedEffect
 			if grantedEffect and grantedEffect.support then
+				local origin = effect.srcInstance and gemOrigins[effect.srcInstance] or nil
+				if effect.srcInstance ~= nil and origin == nil then complete = false end
 				table.insert(result, {
 					grantedEffectId = grantedEffect.id,
 					name = grantedEffect.name,
 					context = supportContext(effect),
+					appliesToSkillIndex = activeSkillIndex,
+					appliesToSkillId = identity and identity.id or nil,
+					sourceResolved = effect.srcInstance == nil or origin ~= nil,
+					sourceGroup = origin and origin.group or nil,
+					sourceGem = origin and origin.gem or nil,
 				})
 			end
 		end
 	end
-	return result
+	return result, complete
 end
 
 local function crossLinkedSupportSlots(build, socketGroup)
@@ -207,6 +217,14 @@ local function probeFingerprint(build, groups, options)
 			for _, skillIndex in ipairs(support.acceptedBy or { }) do table.insert(parts, tostring(skillIndex)) end
 			for _, skillId in ipairs(support.acceptedByIds or { }) do table.insert(parts, tostring(skillId)) end
 		end
+		for _, support in ipairs(group.currentSupports or { }) do
+			table.insert(parts, table.concat({
+				"current", tostring(support.grantedEffectId or ""),
+				tostring(support.appliesToSkillIndex or ""), tostring(support.appliesToSkillId or ""),
+				tostring(support.sourceGroup or ""), tostring(support.sourceGem or ""),
+				tostring(support.sourceResolved),
+			}, ":"))
+		end
 	end
 	return sha.sha256(table.concat(parts, "\n"))
 end
@@ -223,11 +241,18 @@ function NativeLinkProbe.Extract(build, options)
 	options = type(options) == "table" and options or { }
 	local groups = { }
 	local complete = true
+	local gemOrigins = { }
+	for groupIndex, socketGroup in ipairs(build.skillsTab.socketGroupList or { }) do
+		for gemIndex, gem in ipairs(socketGroup.gemList or { }) do
+			gemOrigins[gem] = { group = groupIndex, gem = gemIndex }
+		end
+	end
 	for index, socketGroup in ipairs(build.skillsTab.socketGroupList or { }) do
 		local skills = socketGroup.displaySkillList or { }
 		local active, activeComplete = activeSkills(socketGroup)
 		local supports, supportsComplete = candidateSupports(build, skills, options)
-		complete = complete and activeComplete and supportsComplete
+		local currentSupports, currentSupportsComplete = currentSupportEffects(socketGroup, gemOrigins)
+		complete = complete and activeComplete and supportsComplete and currentSupportsComplete
 		local gems = { }
 		for gemIndex, gem in ipairs(socketGroup.gemList or { }) do
 			local exported = currentGem(gem, gemIndex)
@@ -246,7 +271,7 @@ function NativeLinkProbe.Extract(build, options)
 			capacity = #gems,
 			gems = gems,
 			activeSkills = active,
-			currentSupports = currentSupportEffects(socketGroup),
+			currentSupports = currentSupports,
 			supports = supports,
 		})
 	end

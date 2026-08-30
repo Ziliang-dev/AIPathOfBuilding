@@ -60,7 +60,7 @@ commit before publishing a release.
 
 Local WSL checks completed on 2026-08-30:
 
-- sidecar typecheck, release build, and `26` Vitest files / `205` tests;
+- sidecar typecheck, release build, and `27` Vitest files / `224` tests;
 - `python3 scripts/aipob.py check-sidecar`;
 - `python3 scripts/aipob.py check-manifest`;
 - Python bytecode compilation for all command modules;

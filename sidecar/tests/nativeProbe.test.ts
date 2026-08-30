@@ -29,7 +29,15 @@ function probeValue(overrides: Record<string, unknown> = {}): Record<string, unk
     truncated: false,
     engineVersion: "2.67.2",
     dataVersion: "3.29",
-    claims: [{ condition: "conditionOnslaught", configKey: "conditionOnslaught", value: true, actor: "player", sources: [source] }],
+    claims: [{
+      condition: "conditionOnslaught", configKey: "conditionOnslaught", value: true, active: true, actor: "player", sources: [source],
+      dependencies: [{
+        id: "dependency:player:conditionOnslaught:consumer:1",
+        name: "Damage",
+        source: "consumer:1",
+        reason: "PoB modifier consumes this condition",
+      }],
+    }],
     nativeUptime: { OnslaughtUptime: 1 },
     probeFingerprint: "evidence-fingerprint",
   };
@@ -107,6 +115,15 @@ describe("native worker probe domain", () => {
     const claims = nativeClaimsAsConditionInputs([parsed.nativeEvidence, parsedDuplicate.nativeEvidence]);
     expect(claims).toHaveLength(1);
     expect(claims[0]?.sources).toHaveLength(1);
+    expect(claims[0]?.sources?.[0]?.id).not.toContain("dependency:");
+    const inactive = parseNativeProbe({
+      ...value,
+      nativeEvidence: {
+        ...parsed.nativeEvidence,
+        claims: parsed.nativeEvidence.claims.map((claim) => ({ ...claim, active: false })),
+      },
+    });
+    expect(nativeClaimsAsConditionInputs([inactive.nativeEvidence])).toEqual([]);
     const incomplete = parseNativeProbe({ ...value, nativeEvidence: { ...parsed.nativeEvidence, complete: false } });
     expect(nativeClaimsAsConditionInputs([incomplete.nativeEvidence])).toEqual([]);
   });
