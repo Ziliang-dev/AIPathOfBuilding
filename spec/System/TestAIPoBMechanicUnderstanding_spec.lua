@@ -103,5 +103,13 @@ describe("AIPathOfBuilding verified mechanic Golden Build", function()
 		for _, id in ipairs(experiment.diagnostic.activeModifierIds) do after[id] = true end
 		assert.is_true(before[infused.id] == true)
 		assert.is_false(after[infused.id] == true, "counterfactual must suppress only the selected source")
+
+		local configExperiment = assert(MechanicExperiment.Run(build, {
+			id = "suppress-withered-stacks", context = "weaponSet1",
+			intervention = { kind = "suppress_config_source", configKey = "multiplierWitheredStackCount" },
+		}))
+		assert.are.equal(9, configExperiment.baseline.configValues.multiplierWitheredStackCount)
+		assert.is_nil(configExperiment.diagnostic.configValues.multiplierWitheredStackCount,
+			"counterfactual must reset Config to the PoB typed default")
 	end)
 end)

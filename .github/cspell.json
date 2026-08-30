@@ -10,6 +10,7 @@
   ],
   "dictionaries": ["aipob-project"],
   "ignorePaths": [
+    "../spec/AIPoBGolden/**",
     "../sidecar/dist/**",
     "../sidecar/pnpm-lock.yaml"
   ]

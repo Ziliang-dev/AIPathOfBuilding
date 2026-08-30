@@ -417,7 +417,13 @@ def base_snapshot(schema_version: int) -> dict[str, Any]:
     ]
     return {
         "schemaVersion": schema_version,
-        "xml": '<PathOfBuilding><Build level="90"/><Config/><Skills/><Items/><Tree/><Party/></PathOfBuilding>',
+        "xml": (
+            '<PathOfBuilding><Build level="90" bandit="None" pantheonMajorGod="None" pantheonMinorGod="None"/>'
+            '<Config activeConfigSet="1"><ConfigSet id="1" title="Default">'
+            '<Input name="bandit" string="None"/><Input name="pantheonMajorGod" string="None"/>'
+            '<Input name="pantheonMinorGod" string="None"/><Input name="enemyIsBoss" string="None"/>'
+            '</ConfigSet></Config><Skills/><Items/><Tree/><Party/></PathOfBuilding>'
+        ),
         "fingerprint": "e2e-build",
         "engineVersion": "e2e-engine",
         "dataVersion": "3.29",

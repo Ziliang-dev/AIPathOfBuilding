@@ -37,6 +37,15 @@ local function sortedPrimitiveRecord(value)
 	return result
 end
 
+local function activeConfigValues(configTab)
+	local active = { }
+	local defaults = configTab and configTab.defaultState or { }
+	for key, value in pairs(configTab and configTab.input or { }) do
+		if value ~= defaults[key] then active[key] = value end
+	end
+	return sortedPrimitiveRecord(active)
+end
+
 local function numericOutputFields(output, predicate, limit)
 	local result, count = { }, 0
 	for _, key in ipairs(Util.sortedKeys(output or { })) do
@@ -204,7 +213,7 @@ function MechanicExperiment.Observe(build, context, probeOptions)
 		conditions = conditionObservations(nativeEvidence),
 		activeItemIds = activeItemIds(projection), activeModifierIds = activeModifierIds(projection),
 		activePassiveIds = activePassiveIds(build),
-		configValues = sortedPrimitiveRecord(build.configTab and build.configTab.input),
+		configValues = activeConfigValues(build.configTab),
 		resources = outputResources(output), cooldowns = outputCooldowns(output), durations = outputDurations(output),
 		contributions = outputContributions(output),
 	}
@@ -254,7 +263,15 @@ local function suppressConfig(build, intervention)
 	if not build.configTab or build.configTab.input[intervention.configKey] == nil then
 		return nil, "diagnostic config source does not exist"
 	end
-	build.configTab.input[intervention.configKey] = nil
+	local current = build.configTab.input[intervention.configKey]
+	local default = build.configTab.defaultState and build.configTab.defaultState[intervention.configKey]
+	if default == nil then
+		if type(current) == "boolean" then default = false
+		elseif type(current) == "number" then default = 0
+		elseif type(current) == "string" then default = ""
+		end
+	end
+	build.configTab.input[intervention.configKey] = default
 	return true
 end
 

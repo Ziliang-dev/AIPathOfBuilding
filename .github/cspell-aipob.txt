@@ -5,6 +5,7 @@ aipob
 apikey
 characterid
 charactername
+chatcmpl
 checkpointer
 compresslevel
 CREDENTIALW
@@ -15,6 +16,7 @@ DSTAGING
 DUNICODE
 effectivehitpool
 esbuild
+evals
 HKCU
 HINSTANCE
 importlink
@@ -27,6 +29,7 @@ LASTEXITCODE
 listingid
 LOCALAPPDATA
 LPWSTR
+luaparser
 maxhit
 napi
 NDJSON
