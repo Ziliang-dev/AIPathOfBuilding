@@ -9,6 +9,11 @@ local NativeLinkProbe = require("Modules.AIPoB.NativeLinkProbe")
 -- Worker-only diagnostic mutations. This module never emits a BuildAction and
 -- is loaded only by AIPoBWorker.lua against an isolated BuildSandbox.
 local MechanicExperiment = { }
+local jsonObjectMeta = { __jsontype = "object" }
+
+local function jsonObject(value)
+	return setmetatable(value or { }, jsonObjectMeta)
+end
 
 local partyTypes = {
 	Aura = { control = "editAuras", actor = "Aura" },
@@ -34,7 +39,7 @@ local function sortedPrimitiveRecord(value)
 			result[tostring(key)] = current
 		end
 	end
-	return result
+	return jsonObject(result)
 end
 
 local function activeConfigValues(configTab)
@@ -56,7 +61,7 @@ local function numericOutputFields(output, predicate, limit)
 			count = count + 1
 		end
 	end
-	return result
+	return jsonObject(result)
 end
 
 local function outputResources(output)
@@ -208,7 +213,7 @@ function MechanicExperiment.Observe(build, context, probeOptions)
 		projectionFingerprint = projection.fingerprint,
 		nativeProbeFingerprint = linkProbe.nativeProbeFingerprint or linkProbe.probeFingerprint,
 		evidenceFingerprint = nativeEvidence.evidenceFingerprint or nativeEvidence.probeFingerprint,
-		metrics = metrics,
+		metrics = jsonObject(metrics),
 		skills = skillObservations(build, linkProbe),
 		conditions = conditionObservations(nativeEvidence),
 		activeItemIds = activeItemIds(projection), activeModifierIds = activeModifierIds(projection),

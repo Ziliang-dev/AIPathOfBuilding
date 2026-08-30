@@ -111,5 +111,9 @@ describe("AIPathOfBuilding verified mechanic Golden Build", function()
 		assert.are.equal(9, configExperiment.baseline.configValues.multiplierWitheredStackCount)
 		assert.is_nil(configExperiment.diagnostic.configValues.multiplierWitheredStackCount,
 			"counterfactual must reset Config to the PoB typed default")
+		for _, field in ipairs({ "metrics", "configValues", "resources", "cooldowns", "durations", "contributions" }) do
+			assert.are.equal("object", getmetatable(configExperiment.diagnostic[field]).__jsontype,
+				field .. " must preserve its JSON record type when empty")
+		end
 	end)
 end)
